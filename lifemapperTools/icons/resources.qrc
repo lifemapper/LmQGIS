@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="/plugins/lifemapperTools/icons" >
+    <file>refresh.png</file>
+    <file>selectbyrect.png</file>
+    <file>pan.png</file>
+    <file>zoomin.png</file>
+    <file>zoomlast.png</file>
+    <file>zoomnext.png</file>
+    <file>owlSmall.png</file>
+    <file>addPointLayer.png</file>
+    <file>layerStack.png</file>
+  </qresource>
+</RCC>
