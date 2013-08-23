@@ -266,7 +266,10 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
             try:
                codes.append((code.typeTitle,code.typeCode))
             except:
-               codes.append((code.typeCode,code.typeCode))
+               try:
+                  codes.append((code.typeCode,code.typeCode))
+               except:
+                  pass
       self.allTypeCodes = codes   
              
 # .............................................................................. 

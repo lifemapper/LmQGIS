@@ -6,7 +6,7 @@ name=Lifemapper MacroEcology Range and Diversity Tools (LmRAD)
 qgisMinimumVersion=1.7
 description=Lifemapper Macroecology tools for range and diversity statistics on presence absence matrices
 category=Web
-version=version 1.0.0 beta5
+version=version 1.0.0 
 ; end of mandatory metadata
 
 ; start of optional metadata
@@ -21,9 +21,11 @@ tags=macroecology,webservices,presence absence,lifemapper,LmRAD,pam,PAM
 ; if they are not filled
 homepage=http://lifemapper.org
 
-
+repository=https://github.com/lifemapper/lmQGIS
+tracker=https://github.com/lifemapper/lmQGIS/issues
+icon=icon.png
 ; experimental flag
-experimental=True
+experimental=False
 
 ; deprecated flag (applies to the whole plugin and not only to the uploaded version)
 deprecated=False

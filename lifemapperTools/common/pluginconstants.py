@@ -115,8 +115,8 @@ class RandomizeMethods:
 RASTER_EXTENSION = '.tif'
 ZIP_EXTENSION = '.zip'
 SHAPEFILE_EXTENSION = '.shp'
-STAGELOOKUP =    {0:'initial',10:'calculated',20:'compressed',30:'randomized',40:'calculated'}
-STAGEREVLOOKUP = {'initial':0,'intersected':10,'compressed':20,'randomized':30,'calculated':10}
+STAGELOOKUP =    {0:'initial',10:'intersected',20:'compressed',30:'randomized',40:'calculated'}
+STAGEREVLOOKUP = {'initial':0,'intersected':10,'compressed':20,'randomized':30,'calculated':40}
 
 
 PER_PAGE = 100

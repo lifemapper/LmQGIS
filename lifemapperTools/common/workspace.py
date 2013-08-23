@@ -125,7 +125,8 @@ class Workspace:
          except:
             title = False
          else:
-            title = exp.model.occurrenceSet.displayName
+            title = exp.model.name
+            #title = exp.model.occurrenceSet.displayName
       else:
          title = exp.name
       return title

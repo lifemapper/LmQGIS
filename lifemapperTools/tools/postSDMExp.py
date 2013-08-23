@@ -247,8 +247,8 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       else:
          self.setParamsOnAlgCopy()
       if valid: 
-         #postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email,'name':expname,'desc':desc}
-         postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email}
+         postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email,'name':expName,'description':desc}
+         #postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email}
          self.startThread(GENERIC_REQUEST,outputfunc = self.newExperimentCallBack, 
                           requestfunc=self.client.sdm.postExperiment, client=self.client,
                           inputs=postSDMParams)

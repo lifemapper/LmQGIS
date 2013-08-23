@@ -3,7 +3,7 @@
 @author: CJ Grady
 @contact: cjgrady [at] ku [dot] edu
 @organization: Lifemapper (http://lifemapper.org)
-@version: 2.1.0
+@version: 2.1.1
 @status: release
 
 @license: Copyright (C) 2013, University of Kansas Center for Research
@@ -109,7 +109,7 @@ class _Client(object):
    """
    @summary: Private Lifemapper client class
    """
-   __version__ = "2.1.0"
+   __version__ = "2.1.1"
 
    # .........................................
    def __init__(self, userId=DEFAULT_POST_USER, pwd=None, server=WEBSITE_ROOT):

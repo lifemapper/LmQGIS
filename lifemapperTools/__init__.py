@@ -5,7 +5,7 @@ def description():
    return "Lifemapper web services-based presence absence matrix tools"
 
 def version():
-   return "Version 1.0.0 beta5"
+   return "Version 1.0.0"
 
 def qgisMinimumVersion(): 
    return "1.7"

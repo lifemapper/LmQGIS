@@ -120,7 +120,7 @@ class Ui_Dialog(object):
       #QtCore.QObject.connect(self.occSetLink, QtCore.SIGNAL("linkActivated(const QString &)"), self.showOccSetTable)
       
       self.viewExpGrid.addWidget(self.displayNameLabel,0,1,1,1)
-      self.viewExpGrid.addWidget(self.displayName,     0,2,1,1)
+      self.viewExpGrid.addWidget(self.displayName,     0,2,1,2)
       self.viewExpGrid.addWidget(self.occSetLabel,     1,1,1,1)
       self.viewExpGrid.addWidget(self.occSetLink,      1,2,1,1)
       self.viewExpGrid.addWidget(self.statusLabel,     2,1,1,1)

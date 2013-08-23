@@ -327,7 +327,10 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       if experiment is not None: 
          self._compareExpId(expId) 
          self.expId = expId   
-         expDisplayName = experiment.model.occurrenceSet.displayName
+         try:
+            expDisplayName = experiment.model.name
+         except:
+            expDisplayName = experiment.model.occurrenceSet.displayName
          self.occId = experiment.model.occurrenceSet.id
          occMetadataUrl = experiment.model.occurrenceSet.metadataUrl
          expStatus = experiment.model.status
@@ -366,7 +369,10 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
             self.expId = expId
             self._compareExpId(expId)  # UNCOMMENT when in QGIS
             QgsProject.instance().emit( SIGNAL( "ActivateSDMExp(PyQt_PyObject)" ), expId)     
-            expDisplayName = experiment.model.occurrenceSet.displayName
+            try:
+               expDisplayName = experiment.model.name
+            except:
+               expDisplayName = experiment.model.occurrenceSet.displayName
             self.occId = experiment.model.occurrenceSet.id
             occMetadataUrl = experiment.model.occurrenceSet.metadataUrl
             expStatus = experiment.model.status
@@ -674,8 +680,14 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          page = currentPage - 1  
       nextPage = self.listExperiments(page=page)
       if nextPage is not None:
-         desc = "A sample description, which I am trying to make fairly long to test the table"
-         data = [[o.title,o.id,o.epsgcode,"<a href='%s'>details</a>"  % o.url, o.modTime,desc] for o in nextPage]
+         data = []
+         for o in nextPage:
+            row = [o.title,o.id,o.epsgcode,"<a href='%s'>details</a>"  % o.url, o.modTime]
+            try:
+               row.append(o.description)
+            except:
+               row.append('')
+            data.append(row)
          self.expDataView.model().data = data
          self.expDataView.model().setCurrentPage(page)
          # consider just setting the model here against the data view using [view].setModel(model)
@@ -713,8 +725,15 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          try:
             if items == []:
                raise "no data"
-            desc = "A sample description, which I am trying to make fairly long to test the table.  And here in another sentence to see what the length limit is on tool tips."
-            data = [[o.title,o.id,o.epsgcode,"<a href='%s'>details</a>"  % o.url, o.modTime,desc] for o in items]
+            data = []
+            for o in items:
+               row = [o.title,o.id,o.epsgcode,"<a href='%s'>details</a>"  % o.url, o.modTime]
+               try:
+                  row.append(o.description)
+               except:
+                  row.append('')
+               data.append(row)
+            #data = [[o.title,o.id,o.epsgcode,"<a href='%s'>details</a>"  % o.url, o.modTime,desc] for o in items]
             self.expTableView =  RADTable(data,totalCount=expCount)
             
             header = ['Title', 'Id','EPSG','Details','Modified','Description']    

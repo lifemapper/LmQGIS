@@ -99,7 +99,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          items = self.client.rad.listBuckets(**firstTableInputs) 
       except Exception, e:
          self.close()
-         message = "There is a problem with the grids1 listing service"
+         message = "There is a problem with the grids listing service"
          msgBox = QMessageBox.information(self,
                                           "Problem...",
                                           message,
@@ -234,7 +234,9 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       selectedrow = self.bucketTableView.tableView.model().data[selectedrowindex]
       stagestring = selectedrow[2]
       stage = self.getStageCode(stagestring)
+      status = int(selectedrow[5])
       if stage == RADJobStage.GENERAL:
+         
          try:
             self.getStatsBut.setEnabled(False)
             #self.calcBut.setEnabled(False)
@@ -278,6 +280,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                self.refreshBut.setEnabled(True)
             except:
                pass   
+           
       else:
          message = "Grid has already been intersected"
          msgBox = QMessageBox.information(self,
@@ -343,15 +346,16 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          
       except:
          pass
-      
+      currentPage = self.bucketDataView.model().currentPage
       refreshinputs = {'expId':self.expId} 
-      refreshinputs.update({'perPage':PER_PAGE,'fullObjects':True})
+      refreshinputs.update({'perPage':PER_PAGE,'fullObjects':True,'page':currentPage})
       items = self.client.rad.listBuckets(**refreshinputs) 
-      self.addtoTable(items,None)   
+      self.addtoTable(items,None,currentPage)   
 # ..............................................................................
    def getLayerCount(self):
       try:
          ps = self.client.rad.getPamSum(self.expId,self.bucketId,'original')
+         print "PS ",ps
          layerCount = int(ps.pam.columnCount)
       except:
          print 'expId ',self.expId," BucketID ",self.bucketId
@@ -362,57 +366,48 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
    def getShapeFile(self, status, model, fromIntersect=True): 
       
       if status == JobStatus.RETRIEVE_COMPLETE:
-         # this means that the intersect succeeded, now we get the shapefile, but 
-         # we need a path,
-         if self.inputGroup.isVisible():
-            self.inputGroup.hide()
-            self.outputGroup.show()
-         #self.outEdit.setText('')
-         self.progressbar.setValue(0) 
-         #self.outEdit.setEnabled(True)
-         #self.fileButton.setEnabled(True)
-         self.AddBut = QPushButton("Add to Map",self)
-         self.buttonBox.addButton(self.AddBut, QDialogButtonBox.ActionRole)
+         
          if fromIntersect:
             columnCount = self.getLayerCount()
             if columnCount is not None:
                if columnCount > 245:
-                  QObject.connect(self.AddBut, SIGNAL("clicked()"), lambda: self.addtoCanvas(False))
+                  self.addtoCanvas(False)
                else:
-                  QObject.connect(self.AddBut, SIGNAL("clicked()"), lambda: self.addtoCanvas(True))
+                  self.addtoCanvas(True)
             else:
                QMessageBox.warning(self.outputGroup,"warning: ",
-                               "Can't get layer count")
-               self.outputGroup.hide()
-               self.buttonBox.removeButton(self.AddBut)
-               self.inputGroup.show()
-               self.refresh()
+                               "Can't get layer count, calculations might not be done")
+               
+               if self.outputGroup.isVisible():
+                  self.outputGroup.hide()
+                  self.inputGroup.show()
+                  self.refresh()
                self.helpBut.setEnabled(True)
                self.getStatsBut.setEnabled(True)
-               #self.calcBut.setEnabled(True)   
                self.intersectBut.setEnabled(True)
                self.addBucketBut.setEnabled(True)
                self.randomizeBut.setEnabled(True)
                self.refreshBut.setEnabled(True)
          else:
-            QObject.connect(self.AddBut, SIGNAL("clicked()"), lambda: self.addtoCanvas(False))
+            self.addtoCanvas(False)
       else:
          #print status
          if status < JobStatus.RETRIEVE_COMPLETE:
             statusMsg = self.getStatusString(status)
             QMessageBox.warning(self.outputGroup,"status: ",
                                 "Intersect will be available later: status "+statusMsg)
-            self.outputGroup.hide()
-            self.inputGroup.show()
+            
          if status > JobStatus.RETRIEVE_COMPLETE:
             statusMsg = self.getStatusString(status)
             QMessageBox.warning(self.outputGroup,"status: ",
                                 "Unable to Intersect: status "+statusMsg)
+         if self.outputGroup.isVisible():
+         
             self.outputGroup.hide()
-            self.inputGroup.show()
+            self.inputGroup.show()   
+            self.refresh()
          self.helpBut.setEnabled(True)
-         self.getStatsBut.setEnabled(True)
-         #self.calcBut.setEnabled(True)   
+         self.getStatsBut.setEnabled(True)  
          self.intersectBut.setEnabled(True)
          self.addBucketBut.setEnabled(True)
          self.randomizeBut.setEnabled(True)
@@ -436,9 +431,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          else:
             self.bucketId = index.model().data[index.row()][1]
             stagestring = index.model().data[index.row()][2]
-            #statusstring = index.model().data[index.row()][3]
             stage = self.getStageCode(stagestring)
-            #status = self.getStatusCode(statusstring)
             status = int(index.model().data[index.row()][5])
             if stage >= RADJobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
                self.getShapeFile(JobStatus.RETRIEVE_COMPLETE,None,fromIntersect=True)
@@ -470,13 +463,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          expFolder = self.workspace.createProjectFolder(self.expId)
       gridZipName = "%s_%s" % (str(self.expId),str(self.bucketId))
       pathname = os.path.join(expFolder,gridZipName)
-      
-      
-      #if len(self.outEdit.text()) > 0:
-      self.buttonBox.removeButton(self.AddBut)
       try:
-         #success = self.client.rad.getShapegridData(str(self.outEdit.text()), str(self.expId), 
-         #                                 str(self.bucketId),intersected=intersected)
          
          success = self.client.rad.getShapegridData(pathname, str(self.expId), 
                                           str(self.bucketId),intersected=intersected)    
@@ -501,12 +488,6 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             QMessageBox.warning(self.outputGroup,"status: ",
               warningname)                
          else:
-            #lyrs = QgsMapLayerRegistry.instance().mapLayers()
-            #for id in lyrs.keys():
-            #   if str(lyrs[id].name()) == shapename.replace('.shp',''):
-            #      QgsMapLayerRegistry.instance().removeMapLayer(id)
-            #   
-         
             QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
          #self.close()
       else:
@@ -517,13 +498,12 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                                                 QMessageBox.Ok)
       if self.outputGroup.isVisible():
             self.outputGroup.hide()
-            self.buttonBox.removeButton(self.AddBut) 
+            #self.buttonBox.removeButton(self.AddBut) 
             self.inputGroup.show()
             self.refresh()
       try:
          self.helpBut.setEnabled(True)
          self.getStatsBut.setEnabled(True)
-         #self.calcBut.setEnabled(True)
          self.intersectBut.setEnabled(True)
          self.randomizeBut.setEnabled(True)
          self.addBucketBut.setEnabled(True)
@@ -545,40 +525,54 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
               
          self.gridLayout_input.update()  
 # ..............................................................................        
-   def addtoTable(self,items,model):
+   def addtoTable(self,items,model,currentPage):
       """
       @summary: adds new grids (buckets) to the table
       @param items: list of bucket objects
       """
-      print "IN ADD TO TABLE"
+      
       try:
          self.noListLabel.hide()
       except:
          pass 
       try: 
          # branch for if the table exists     
-         header = ['  Bucket title  ', '  Bucket id  ', '  Stage  ', '  Status  ','  Retrieve Grid  ','']
+         header = ['  Grid title  ', '  Grid id  ', '  Stage  ', '  Status  ','  Retrieve Grid  ','']
          data = []
          for o in items:
-            #status, stage = self.client.rad.getBucketStatus(self.expId, o.id)
             status = int(o.status)
             stage = int(o.stage)
+            if stage == RADJobStage.INTERSECT:
+               try:
+                  if int(o.pamSum.stage) == RADJobStage.CALCULATE:
+                     stage = RADJobStage.CALCULATE
+               except:
+                  stage = RADJobStage.INTERSECT
             if status >= JobStatus.GENERAL_ERROR:
                statusstring = 'error'
             elif status == JobStatus.RETRIEVE_COMPLETE:
                statusstring = STATUSLOOKUP[status]
-            elif status == JobStatus.GENERAL or status == JobStatus.INITIALIZE:
-               statusstring = 'ready'
+            elif status == JobStatus.GENERAL: 
+               statusstring = 'not started'
+            elif status == JobStatus.INITIALIZE:
+               statusstring = 'started'
             else:
                statusstring = "running"        
             stagestring = self.getStageString(stage)
-            data.append([o.title,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get Grid</a>",o.status])
-         bucketCount = self.getBucketCount()
-         self.bucketTableView.setNoPages(totalCount=bucketCount)
-         newModel = RADTableModel(data, header, [], [], noPages=self.bucketTableView.noPages,
-                                  parent=self.bucketTableView)    
-         self.bucketDataView.setModel(newModel)
-
+            data.append([o.name,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get Grid</a>",o.status])
+         self.bucketTableView.setNoPages(totalCount=len(items))
+         self.bucketDataView.model().data = data
+         self.bucketDataView.model().setNoPages(self.bucketTableView.noPages)
+         self.bucketDataView.model().setCurrentPage(currentPage)
+         
+         
+         self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
+               QModelIndex(), QModelIndex())
+         
+         self.bucketTableView.viewport().update()
+         
+         
+         
          
       except Exception,e:
          # branch if the table doesn't exist
@@ -586,7 +580,6 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       try:
          self.helpBut.setEnabled(True)
          self.getStatsBut.setEnabled(True)
-         #self.calcBut.setEnabled(True)
          self.intersectBut.setEnabled(True)
          self.randomizeBut.setEnabled(True)
          self.addBucketBut.setEnabled(True)
@@ -611,21 +604,19 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       
 # ..............................................................................      
    def tablerowselected(self,itemselectionSelected,itemselectionDeselected):
-      print "it should be activating menu"
+      
       """
       @summary: if conditions are met emits signal to project instance to active
       Grid menu item
       @note: two things have to be true, origPS has to exist (grid intersected) and calc stage has to be
       completed on the PS
       """
-      print "DOES IT COME HERE EVERYTIME IT SELECTS"
+      
       # getStageCode, getStatusCode
       self.gridName = str(itemselectionSelected.indexes()[0].data().toString())
       bucketId = itemselectionSelected.indexes()[1].data().toInt()[0]
       bucketstage = str(itemselectionSelected.indexes()[2].data().toString())
-      #bucketstatus = str(itemselectionSelected.indexes()[3].data().toString())
       stage =  self.getStageCode(bucketstage)
-      #status = self.getStatusCode(bucketstatus)
       status = itemselectionSelected.indexes()[5].data().toInt()[0]
       self.activateButtons(stage,status,bucketId)
       if stage >= RADJobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
@@ -637,8 +628,8 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       @summary: activates and deactivates buttons based on combination of bucket stage and pamsum stage
       """ 
       
-      if  bucketstage >= RADJobStage.INTERSECT and bucketstatus == JobStatus.RETRIEVE_COMPLETE:
-         # this means it has been intersected and calculated:
+      if bucketstatus > JobStatus.GENERAL and bucketstage >= RADJobStage.INTERSECT:
+         # this means a job has been sent
          self.intersectBut.setEnabled(False) 
          self.randomizeBut.setEnabled(True) 
          self.getStatsBut.setEnabled(True)    
@@ -648,24 +639,8 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          self.randomizeBut.setEnabled(False)
 # ..............................................................................      
    def splitBucket(self):
-      pass
-# ..............................................................................     
-   def showCalcResults(self,status,model):
-      if status < JobStatus.RETRIEVE_COMPLETE:
-            QMessageBox.warning(self.outputGroup,"status: ",
-                                "Calculations will be available later: status "+str(status)) 
-      try:
-         self.outputGroup.hide()
-         self.inputGroup.show()             
-         self.getStatsBut.setEnabled(True)
-         #self.calcBut.setEnabled(True) 
-         self.helpBut.setEnabled(True)  
-         self.intersectBut.setEnabled(True)
-         self.addBucketBut.setEnabled(True)
-         self.randomizeBut.setEnabled(True)
-         self.refreshBut.setEnabled(True)
-      except:
-            pass
+      pass   
+
 # ..............................................................................         
    def resizeEvent(self, event):
       pass
@@ -734,12 +709,20 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          for o in nextPage:   
             status = int(o.status)
             stage = int(o.stage)
+            if stage == RADJobStage.INTERSECT:
+               try:
+                  if int(o.pamSum.stage) == RADJobStage.CALCULATE:
+                     stage = RADJobStage.CALCULATE
+               except:
+                  stage = RADJobStage.INTERSECT
             if status >= JobStatus.GENERAL_ERROR:
                statusstring = 'error'
             elif status == JobStatus.RETRIEVE_COMPLETE:
                statusstring = STATUSLOOKUP[status]
-            elif status == JobStatus.GENERAL or status == JobStatus.INITIALIZE:
-               statusstring = 'ready'
+            elif status == JobStatus.GENERAL: # or status == JobStatus.INITIALIZE:
+               statusstring = 'not started'
+            elif status == JobStatus.INITIALIZE:
+               statusstring = 'started'
             else:
                statusstring = "running"        
             stagestring = self.getStageString(stage)
@@ -750,6 +733,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                QModelIndex(), QModelIndex())
 
          readOut = "%s/%s" % (str(page+1),str(self.bucketTableView.noPages))
+         self.bucketTableView.pageReadOut.clear()
          self.bucketTableView.pageReadOut.setText(readOut)
          if page == self.bucketTableView.noPages - 1:
             self.bucketTableView.pageForward.setEnabled(False)
@@ -774,15 +758,22 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          if len(items) == 0:
             raise Exception, "No Buckets"
          for o in items:
-            #status, stage = self.client.rad.getBucketStatus(self.expId, o.id)
             status = int(o.status)
-            stage = int(o.stage)  
+            stage = int(o.stage) 
+            if stage == RADJobStage.INTERSECT:
+               try:
+                  if int(o.pamSum.stage) == RADJobStage.CALCULATE:
+                     stage = RADJobStage.CALCULATE
+               except:
+                  stage = RADJobStage.INTERSECT
             if status >= JobStatus.GENERAL_ERROR:
                statusstring = 'error'
             elif status == JobStatus.RETRIEVE_COMPLETE:
                statusstring = STATUSLOOKUP[status]
-            elif status == JobStatus.GENERAL or status == JobStatus.INITIALIZE:
-               statusstring = 'ready'
+            elif status == JobStatus.GENERAL: # or status == JobStatus.INITIALIZE:
+               statusstring = 'not started'
+            elif status == JobStatus.INITIALIZE:
+               statusstring = 'started'
             else:
                statusstring = "running"        
             stagestring = self.getStageString(stage)

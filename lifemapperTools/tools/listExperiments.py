@@ -301,11 +301,16 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
          page = currentPage - 1  
       nextPage = self.listExperiments(page=page)
       if nextPage is not None:
-         desc = "Just a test of the description field, making it somewhat long just to test."
-         data = [[o.title,int(o.id),o.epsgcode,o.modTime,desc] for o in nextPage]
+         data = []
+         for o in nextPage:
+            row = [o.title,int(o.id),o.epsgcode,o.modTime]
+            try:
+               row.append(o.description)
+            except:
+               row.append('')
+            data.append(row)
          self.expDataView.model().data = data
          self.expDataView.model().setCurrentPage(page)
-         # consider just setting the model here against the data view using [view].setModel(model)
          self.expDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
                QModelIndex(), QModelIndex())
 
@@ -349,8 +354,15 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       try:
          if len(items) == 0:
             raise Exception, "No Experiments"
-         desc = "Another description field test with a fairly long sentence.  Another sentence with some description in it."
-         data = [[o.title,int(o.id),o.epsgcode,o.modTime,desc] for o in items]
+         data = []
+         for o in items:
+            row = [o.title,int(o.id),o.epsgcode,o.modTime]
+            try:
+               row.append(o.description)
+            except:
+               row.append('')
+            data.append(row)
+         #data = [[o.title,int(o.id),o.epsgcode,o.modTime,desc] for o in items]
          self.tableview =  RADTable(data, totalCount=expCount)
          header = ['   Experiment name   ', '  Exp id  ','  EPSG Code  ', 'ModTime','Description']
          self.expDataView = self.tableview.createTable(header,toolTips=[4])

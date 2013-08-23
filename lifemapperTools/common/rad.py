@@ -1,7 +1,7 @@
 """
 @summary: Client functions for Lifemapper RAD web services
 @author: CJ Grady
-@version: 2.1.0
+@version: 2.1.1
 @status: release
 
 @license: Copyright (C) 2013, University of Kansas Center for Research
@@ -38,7 +38,7 @@
 """
 from types import ListType
 
-from pluginconstants import CONTENT_TYPES, WEBSITE_ROOT
+from pluginconstants import CONTENT_TYPES
 
 # .............................................................................
 class RADClient(object):
@@ -65,7 +65,7 @@ class RADClient(object):
                             (ISO 8601 format)
       @param epsgCode: The epsg code of the experiments to return
       """
-      url = "%s/services/rad/experiments/" % WEBSITE_ROOT
+      url = "%s/services/rad/experiments/" % self.cl.server
       return self.cl.getCount(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("epsgCode", epsgCode)])
@@ -76,7 +76,7 @@ class RADClient(object):
       @summary: Returns a Lifemapper RAD experiment
       @param expId: The id of the experiment to return
       """
-      url = "%s/services/rad/experiments/%s" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s" % (self.cl.server, expId)
       obj = self.cl.makeRequest(url, method="GET", objectify=True).experiment
       return obj
    
@@ -95,7 +95,7 @@ class RADClient(object):
       @param fullObjects: (optional) If True, return the full objects instead
                              of the list objects
       """
-      url = "%s/services/rad/experiments/" % WEBSITE_ROOT
+      url = "%s/services/rad/experiments/" % self.cl.server
       return self.cl.getList(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("epsgCode", epsgCode),
@@ -104,7 +104,7 @@ class RADClient(object):
                                               ("fullObjects", int(fullObjects))])
    
    # .........................................
-   def postExperiment(self, name, epsgCode, email=None):#, buckets=[], paLayers=[], ancLayers=[]):
+   def postExperiment(self, name, epsgCode, email=None, description=None):#, buckets=[], paLayers=[], ancLayers=[]):
       """
       @summary: Posts a new Lifemapper RAD experiment
       @param name: The name of this new experiment
@@ -122,11 +122,14 @@ class RADClient(object):
                <lmRad:name>%s</lmRad:name>
                <lmRad:epsgCode>%s</lmRad:epsgCode>
 %s
+%s
             </lmRad:experiment>
-         </lmRad:request>""" % (name, epsgCode, 
-                           "               <lmRad:email>%s</lmRad:email>" % \
+         </lmRad:request>""" % (name, epsgCode,
+               "               <lmRad:description>%s</lmRad:description>" % \
+                           description if description is not None else "", 
+               "               <lmRad:email>%s</lmRad:email>" % \
                            email if email is not None else "")
-      url = "%s/services/rad/experiments/" % WEBSITE_ROOT
+      url = "%s/services/rad/experiments/" % self.cl.server
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 body=postXml, 
@@ -147,7 +150,7 @@ class RADClient(object):
       @param beforeTime: Count buckets with creation times before this time 
                             (ISO 8601 format)
       """
-      url = "%s/services/rad/experiments/%s/buckets" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/buckets" % (self.cl.server, expId)
       return self.cl.getCount(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime)])
 
@@ -158,7 +161,7 @@ class RADClient(object):
       @param experimentId: The experiment containing buckets
       @param bucketId: The bucket to return
       """
-      url = "%s/services/rad/experiments/%s/buckets/%s" % (WEBSITE_ROOT, 
+      url = "%s/services/rad/experiments/%s/buckets/%s" % (self.cl.server, 
                                                         experimentId, bucketId)
       obj = self.cl.makeRequest(url, method="GET", objectify=True).bucket
       return obj
@@ -174,7 +177,7 @@ class RADClient(object):
                              shapefile, else returns the shapgrid itself
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/%sshapefile" % \
-               (WEBSITE_ROOT, expId, bucketId, 
+               (self.cl.server, expId, bucketId, 
                 "" if intersected else "shapegrid/")
       sf = self.cl.makeRequest(url, method="GET")
       try:
@@ -198,7 +201,7 @@ class RADClient(object):
       @param fullObjects: (optional) If True, return the full objects instead
                              of the list objects
       """
-      url = "%s/services/rad/experiments/%s/buckets" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/buckets" % (self.cl.server, expId)
       bkts = self.cl.getList(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("page", page),
@@ -257,7 +260,7 @@ class RADClient(object):
 </wps:Execute>
 """ % (shpName, cellShape, cellSize, mapUnits, epsgCode, bbox, "                 <lmRad:cutout>%s</lmRad:cutout>" % cutout if cutout is not None else "")
       
-      url = "%s/services/rad/experiments/%s/addbucket" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/addbucket" % (self.cl.server, expId)
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 parameters=[("request", "Execute")], 
@@ -300,10 +303,9 @@ class RADClient(object):
   </wps:ResponseForm>
 </wps:Execute>
 """ 
-         
-      url = "%s/services/rad/experiments/%s/%sintersect" % (WEBSITE_ROOT, expId, 
-               "buckets/%s/" % bucketId if bucketId is not None else "")
       
+      url = "%s/services/rad/experiments/%s/%sintersect" % (self.cl.server, expId, 
+               "buckets/%s/" % bucketId if bucketId is not None else "")
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 parameters=[("request", "Execute")], 
@@ -360,12 +362,11 @@ class RADClient(object):
   </wps:ResponseForm>
 </wps:Execute>
 """ % (method, iterations)
-      print postXml
+   
       url = "%s/services/rad/experiments/%s/buckets/%s/randomize" % (
-                                                                  WEBSITE_ROOT, 
+                                                                  self.cl.server, 
                                                                   expId, 
                                                                   bucketId)
-      print url
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 parameters=[("request", "Execute")], 
@@ -434,7 +435,7 @@ class RADClient(object):
           % minPercent if minPercent is not None else "",
       )
       
-      url = "%s/services/rad/experiments/%s/addanclayer" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/addanclayer" % (self.cl.server, expId)
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 parameters=[("request", "Execute")], 
@@ -454,7 +455,7 @@ class RADClient(object):
       @note: This service is still experimental and the results may not be as 
                 expected
       """
-      url = "%s/services/rad/experiments/%s/anc" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/anc" % (self.cl.server, expId)
       try:
          respObj = self.cl.makeRequest(url, method="GET", objectify=True)
          lyrs = respObj.layerset.layers
@@ -534,7 +535,7 @@ class RADClient(object):
           % percentAbsence if percentAbsence is not None else "",
       )
       
-      url = "%s/services/rad/experiments/%s/addpalayer" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/addpalayer" % (self.cl.server, expId)
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 parameters=[("request", "Execute")], 
@@ -552,7 +553,7 @@ class RADClient(object):
       @summary: Get presence / absence layers associated with an experiment
       @param expId: The id of the experiment to return layers for
       """
-      url = "%s/services/rad/experiments/%s/pa" % (WEBSITE_ROOT, expId)
+      url = "%s/services/rad/experiments/%s/pa" % (self.cl.server, expId)
       try:
          respObj = self.cl.makeRequest(url, method="GET", objectify=True)
          lyrs = respObj.layerset.layers
@@ -581,7 +582,7 @@ class RADClient(object):
                               0-not random, 1-swap, 2-splotch
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/pamsums/" % \
-               (WEBSITE_ROOT, expId, bucketId)
+               (self.cl.server, expId, bucketId)
       return self.cl.getCount(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("randomized", randomized),
@@ -596,7 +597,7 @@ class RADClient(object):
       @param pamSumId: The id of the pamsum to return
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/pamsums/%s" % \
-               (WEBSITE_ROOT, expId, bucketId, pamSumId)
+               (self.cl.server, expId, bucketId, pamSumId)
       obj = self.cl.makeRequest(url, method="GET", objectify=True).pamsum
       return obj
    
@@ -611,7 +612,7 @@ class RADClient(object):
                          shapegrid
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/pamsums/%s/shapefile" %\
-               (WEBSITE_ROOT, experimentId, bucketId, pamsumId)
+               (self.cl.server, experimentId, bucketId, pamsumId)
       sf = self.cl.makeRequest(url, method="GET")
       try:
          open(filePath, 'w').write(sf)
@@ -629,7 +630,7 @@ class RADClient(object):
       @param stat: The key of the statistic to return
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/pamsums/%s/statistics" %\
-                        (WEBSITE_ROOT, expId, bucketId, pamSumId)
+                        (self.cl.server, expId, bucketId, pamSumId)
       statResp = self.cl.makeRequest(url, 
                                      method="GET", 
                                      parameters=[("statistic", stat)]).strip()
@@ -658,7 +659,7 @@ class RADClient(object):
                                (keys | specieskeys | siteskeys | diversitykeys)
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/pamsums/%s/statistics" %\
-                  (WEBSITE_ROOT, expId, bucketId, pamSumId)
+                  (self.cl.server, expId, bucketId, pamSumId)
       keyResp = self.cl.makeRequest(url, 
                                     method="GET", 
                                     parameters=[("statistic", keys)]).strip()
@@ -686,7 +687,7 @@ class RADClient(object):
                              of the list objects
       """
       url = "%s/services/rad/experiments/%s/buckets/%s/pamsums/" % \
-               (WEBSITE_ROOT, expId, bucketId)
+               (self.cl.server, expId, bucketId)
       return self.cl.getList(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("page", page),
@@ -694,129 +695,6 @@ class RADClient(object):
                                               ("randomized", randomized),
                                               ("randomMethod", randomMethod),
                                               ("fullObjects", int(fullObjects))])
-
-   # .........................................
-   def calculatePamSumStatistics(self, expId, bucketId, pamsumId=None):
-      """
-      @summary: Requests that statistics are calculated for a pamsum or all of
-                   the pamsums in a bucket
-      @param expId: The id of the experiment that contains the buckets / pamsums
-      @param bucketId: The id of the bucket
-      @param pamSumId: (optional) The id of the pamsum to calculate statistics
-                          for.  If this is not provided, statistics will be 
-                          calculated for all pamsums in the bucket
-      """
-      postXml = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<wps:Execute version="1.0.0" service="WPS" 
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-             xmlns="http://www.opengis.net/wps/1.0.0" 
-             xmlns:wfs="http://www.opengis.net/wfs" 
-             xmlns:wps="http://www.opengis.net/wps/1.0.0" 
-             xmlns:ows="http://www.opengis.net/ows/1.1" 
-             xmlns:xlink="http://www.w3.org/1999/xlink" 
-             xmlns:lmRad="http://lifemapper.org"
-             xsi:schemaLocation="http://www.opengis.net/wps/1.0.0 http://schemas.opengis.net/wps/1.0.0/wpsAll.xsd">
-  <ows:Identifier>calculate</ows:Identifier>
-  <wps:DataInputs>
-%s
-  </wps:DataInputs>
-  <wps:ResponseForm>
-    <wps:RawDataOutput mimeType="application/gml-3.1.1">
-      <ows:Identifier>result</ows:Identifier>
-    </wps:RawDataOutput>
-  </wps:ResponseForm>
-</wps:Execute>
-""" % """\
-      <wps:Input>
-         <ows:Identifier>pamsumId</ows:Identifier>
-         <wps:Data>
-            <wps:LiteralData>%s</wps:LiteralData>
-         </wps:Data>
-      </wps:Input>
-""" % pamsumId if pamsumId is not None else """\
-      <wps:Input>
-         <ows:Identifier>bucketId</ows:Identifier>
-         <wps:Data>
-            <wps:LiteralData>%s</wps:LiteralData>
-         </wps:Data>
-      </wps:Input>
-""" % bucketId
-   
-      url = "%s/services/rad/experiments/%s/buckets/%s/%scalculate" % (
-               WEBSITE_ROOT, expId, bucketId, 
-               "pamsums/%s/" % pamsumId if pamsumId is not None else "")
-      obj = self.cl.makeRequest(url, 
-                                method="POST", 
-                                parameters=[("request", "Execute")], 
-                                body=postXml, 
-                                headers={"Content-Type" : "application/xml"},
-                                objectify=True)
-      if obj.Status.ProcessAccepted is not None:
-         if pamsumId is not None:
-            return lambda : self.getPamSumStatus(expId, bucketId, pamsumId)
-         else:
-            return lambda : self.getBucketStatus(expId, bucketId)
-      else:
-         return False
-
-   # .........................................
-   def compressPamSum(self, expId, bucketId, pamsumId=None):
-      """
-      @summary: Requests that a pamsum (or pamsums) is compressed
-      @param expId: The id of the experiment containing the bucket
-      @param bucketId: The id of the bucket containing the pamsum(s)
-      @param pamsumId: (optional) The id of the pamsum to compress.  If this is
-                          not provided, all pamsums in a bucket will be 
-                          compressed
-      """
-      postXml = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<wps:Execute version="1.0.0" service="WPS" 
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-             xmlns="http://www.opengis.net/wps/1.0.0" 
-             xmlns:wfs="http://www.opengis.net/wfs" 
-             xmlns:wps="http://www.opengis.net/wps/1.0.0" 
-             xmlns:ows="http://www.opengis.net/ows/1.1" 
-             xmlns:xlink="http://www.w3.org/1999/xlink" 
-             xmlns:lmRad="http://lifemapper.org"
-             xsi:schemaLocation="http://www.opengis.net/wps/1.0.0 http://schemas.opengis.net/wps/1.0.0/wpsAll.xsd">
-  <ows:Identifier>compress</ows:Identifier>
-  <wps:DataInputs>
-%s
-  </wps:DataInputs>
-  <wps:ResponseForm>
-    <wps:RawDataOutput mimeType="application/gml-3.1.1">
-      <ows:Identifier>result</ows:Identifier>
-    </wps:RawDataOutput>
-  </wps:ResponseForm>
-</wps:Execute>
-""" % """\
-      <wps:Input>
-         <ows:Identifier>pamsumId</ows:Identifier>
-         <wps:Data>
-            <wps:LiteralData>%s</wps:LiteralData>
-         </wps:Data>
-      </wps:Input>
-""" % pamsumId if pamsumId is not None else ""
-   
-      url = "%s/services/rad/experiments/%s/buckets/%s/compress" % (
-                                                                  WEBSITE_ROOT, 
-                                                                  expId, 
-                                                                  bucketId)
-      obj = self.cl.makeRequest(url, 
-                                method="POST", 
-                                parameters=[("request", "Execute")], 
-                                body=postXml, 
-                                headers={"Content-Type" : "application/xml"},
-                                objectify=True)
-      if obj.Status.ProcessAccepted is not None:
-         if bucketId is not None:
-            return lambda : self.getBucketStatus(expId, bucketId)
-         else:
-            return lambda : self.dummyCallback()
-      else:
-         return False
 
    # -------------------------------------------------------------------------
    
@@ -835,7 +713,7 @@ class RADClient(object):
       @param epsgCode: Count layers with this EPSG code
       @param layerName: Count layers that match this name
       """
-      url = "%s/services/rad/layers" % WEBSITE_ROOT
+      url = "%s/services/rad/layers" % self.cl.server
       lyrs = self.cl.getCount(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("epsgCode", epsgCode),
@@ -848,7 +726,7 @@ class RADClient(object):
       @summary: Gets a layer metadata object
       @param layerId: The id of the layer to return
       """
-      url = "%s/services/rad/layers/%s" % (WEBSITE_ROOT, layerId)
+      url = "%s/services/rad/layers/%s" % (self.cl.server, layerId)
       obj = self.cl.makeRequest(url, method="GET", objectify=True).layer
       return obj
    
@@ -868,7 +746,7 @@ class RADClient(object):
       @param fullObjects: (optional) If True, return the full objects instead
                              of the list objects
       """
-      url = "%s/services/rad/layers" % WEBSITE_ROOT
+      url = "%s/services/rad/layers" % self.cl.server
       lyrs = self.cl.getList(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("epsgCode", epsgCode),
@@ -932,7 +810,7 @@ class RADClient(object):
           ]
       for kw in keywords:
          p.append(("keyword", kw))
-      url = "%s/services/rad/layers" % WEBSITE_ROOT
+      url = "%s/services/rad/layers" % self.cl.server
       if filename is not None:
          body = open(filename).read()
          headers = {"Content-Type" : CONTENT_TYPES[dataFormat]}
@@ -1008,7 +886,7 @@ class RADClient(object):
           ]
       for kw in keywords:
          p.append(("keyword", kw))
-      url = "%s/services/rad/layers" % WEBSITE_ROOT
+      url = "%s/services/rad/layers" % self.cl.server
 
       if filename is not None:
          if filename.endswith('.zip'):
@@ -1057,7 +935,7 @@ class RADClient(object):
       @param layerId: Count shapegrids with this layer id
       @param layerName: Count shapegrids with this layer name
       """
-      url = "%s/services/rad/shapegrids/" % WEBSITE_ROOT
+      url = "%s/services/rad/shapegrids/" % self.cl.server
       return self.cl.getCount(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("epsgCode", epsgCode),
@@ -1071,7 +949,7 @@ class RADClient(object):
       @summary: Returns a shapegrid's metadata
       @param shpId: The id of the shapegrid to return
       """
-      url = "%s/services/rad/shapegrids/%s" % (WEBSITE_ROOT, shpId)
+      url = "%s/services/rad/shapegrids/%s" % (self.cl.server, shpId)
       obj = self.cl.makeRequest(url, method="GET", objectify=True).layer
       return obj
 
@@ -1095,7 +973,7 @@ class RADClient(object):
       @param fullObjects: (optional) If True, return the full objects instead
                              of the list objects
       """
-      url = "%s/services/rad/shapegrids/" % WEBSITE_ROOT
+      url = "%s/services/rad/shapegrids/" % self.cl.server
       return self.cl.getList(url, parameters=[("afterTime", afterTime), 
                                               ("beforeTime", beforeTime),
                                               ("epsgCode", epsgCode),
@@ -1138,7 +1016,7 @@ class RADClient(object):
        "                 <lmRad:cutout>%s</lmRad:cutout>" % \
                                           cutout if cutout is not None else "")
       
-      url = "%s/services/rad/shapegrids" % WEBSITE_ROOT
+      url = "%s/services/rad/shapegrids" % self.cl.server
       obj = self.cl.makeRequest(url, 
                                 method="POST", 
                                 body=postXml, 
@@ -1247,7 +1125,6 @@ class RADClient(object):
    
    # .........................................
    def intersect(self, expId, bucketId=None):
-      print "its at old intersect"
       """
       @summary: Requests that an intersection is performed against a bucket or
                    all of the buckets in an experiment

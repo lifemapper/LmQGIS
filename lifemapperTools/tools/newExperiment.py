@@ -161,7 +161,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       message = ""
       self.keyvalues['epsgCode'] = str(self.epsgEdit.text())
       self.keyvalues['name'] = str(self.expNameEdit.text())
-      #self.keyvalues['desc'] = str(self.description.toPlainText())
+      self.keyvalues['description'] = str(self.description.toPlainText())
       epsg = self.epsgEdit.text()   
       experimentname = self.expNameEdit.text()
       if len(experimentname) <= 0:
@@ -259,7 +259,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       """
       self.epsgEdit.setEnabled(False)
       self.expNameEdit.setEnabled(False)
-      #self.emailEdit.setEnabled(False)
+      self.description.setEnabled(False)
       self.emptyRadio.setEnabled(False)
       self.expId = item.id
       self.expEPSG = item.epsgcode

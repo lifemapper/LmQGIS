@@ -337,8 +337,8 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
          if self.parent is not None:
             try:
                self.parent.refresh()
-            except:
-               pass
+            except Exception,e:
+               print "Exception in construct refresh",str(e)
          self.close()
       else:
          message = "Could not retrieve the shapefile"

@@ -371,7 +371,7 @@ class MetoolsPlugin:
 # ..............................................................................
 
    def onReadProject(self):
-      print "ON READ PROJECT LM >>>>>>>>>>>>>>"
+      
       project = QgsProject.instance()
       # filename that is being opened
       filename = str(project.fileName())
@@ -421,7 +421,6 @@ class MetoolsPlugin:
 # ..............................................................................          
    def unload(self):
       # called when quiting Qgis
-      print "at unload"
       s = QSettings()
       currentExpId = self.retrieveCurrentExpId()
       if currentExpId != QGISProject.NOEXPID and currentExpId != '':

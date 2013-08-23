@@ -542,12 +542,18 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          self.tableview.clearSelection()
          self.clearTableLayout()
          #self.gridLayout.removeWidget(self.tableview)
-      self.table =  RADTable(modelData)
-      self.tableview = self.table.createTable(header)
-      self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
-      self.tableLayout.addWidget(self.tableview)
-      self.exportStatsBut.setEnabled(True)
-      self.scatterPlot.setEnabled(True)                
+      try:
+         a = np.array(modelData)
+         if len(a.shape) != 2:
+            modelData = [['Not All Pams have been randomized']]
+         self.table =  RADTable(modelData)
+         self.tableview = self.table.createTable(header)
+         self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
+         self.tableLayout.addWidget(self.tableview)
+         self.exportStatsBut.setEnabled(True)
+         self.scatterPlot.setEnabled(True)           
+      except:
+         pass     
 # ..............................................................................
    def buildSitesBasedTable(self, statistic, pam=None):
       self.tableLabel.setText("Sites-Based stats table: each row is a geographic site in the pam, each column is a pam's stat")
@@ -611,12 +617,18 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          self.tableview.clearSelection()
          self.clearTableLayout()
          #self.gridLayout.removeWidget(self.tableview)
-      self.table =  RADTable(modelData)
-      self.tableview = self.table.createTable(header)
-      self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
-      self.tableLayout.addWidget(self.tableview)
-      self.exportStatsBut.setEnabled(True)
-      self.scatterPlot.setEnabled(True)
+      try:
+         a = np.array(modelData)
+         if len(a.shape) != 2:
+            modelData = [['Not All Pams have been randomized']]
+         self.table =  RADTable(modelData)
+         self.tableview = self.table.createTable(header)
+         self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
+         self.tableLayout.addWidget(self.tableview)
+         self.exportStatsBut.setEnabled(True)
+         self.scatterPlot.setEnabled(True)
+      except:
+         pass
    
    def buildSpeciesBasedTable(self, statistic, pam=None):
       self.tableLabel.setText("Species-Based stats table: each row is a species in the pam, each column is a pam's stat")
@@ -676,12 +688,18 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          self.tableview.clearSelection()
          #self.gridLayout.removeWidget(self.tableview)
          self.clearTableLayout()
-      self.table =  RADTable(modelData)
-      self.tableview = self.table.createTable(header)
-      self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
-      self.tableLayout.addWidget(self.tableview)
-      self.exportStatsBut.setEnabled(True)
-      self.scatterPlot.setEnabled(True)
+      try:
+         a = np.array(modelData)
+         if len(a.shape) != 2:
+            modelData = [['Not All Pams have been randomized']]
+         self.table =  RADTable(modelData)
+         self.tableview = self.table.createTable(header)
+         self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
+         self.tableLayout.addWidget(self.tableview)
+         self.exportStatsBut.setEnabled(True)
+         self.scatterPlot.setEnabled(True)
+      except:
+         pass
          
    def buildScatterPlot(self):
       #self.setModal(False)
