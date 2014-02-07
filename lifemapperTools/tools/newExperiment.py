@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -38,7 +31,7 @@ import zipfile
 import numpy as np
 from collections import namedtuple
 from PyQt4.QtGui import *
-from PyQt4.QtCore import QSettings, Qt, SIGNAL, QUrl, QString
+from PyQt4.QtCore import QSettings, Qt, SIGNAL, QUrl
 from qgis.core import *
 from qgis.gui import *
 from lifemapperTools.tools.ui_newExperimentDialog import Ui_Dialog
@@ -46,13 +39,13 @@ from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.tools.listPALayers import ListPALayersDialog
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.uploadLayers import UploadDialog
-from lifemapperTools.tools.uploadAncLayers import UploadAncillDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
 from lifemapperTools.tools.addSDMLayer import UploadSDMDialog
 from lifemapperTools.common.pluginconstants import ListExperiments, GENERIC_REQUEST 
 from lifemapperTools.common.pluginconstants import QGISProject
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.tools.radTable import RADTable
+from lifemapperTools.common.communicate import Communicate
 
 
 
@@ -96,7 +89,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       s = QSettings()
       for key in s.allKeys():
          if 'RADExpProj' in key:
-            value = str(s.value(key).toString())
+            value = str(s.value(key))
             if value == filename:
                found = True
                expId = key.split('_')[1]
@@ -115,10 +108,10 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       qgis project
       """   
       s = QSettings()
-      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID).toInt()[0]
+      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID,type=int)
       if currentExpId != QGISProject.NOEXPID:
          currentpath = str(s.value("RADExpProj_"+str(currentExpId),
-                                   QGISProject.NOPROJECT).toString())
+                                   QGISProject.NOPROJECT))
          if currentpath != QGISProject.NOPROJECT and currentpath != '':
             self.interface.actionSaveProject().trigger()
          else:
@@ -163,6 +156,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       self.keyvalues['name'] = str(self.expNameEdit.text())
       self.keyvalues['description'] = str(self.description.toPlainText())
       epsg = self.epsgEdit.text()   
+      self.setMapUnitsFromEPSG(epsg=epsg)
       experimentname = self.expNameEdit.text()
       if len(experimentname) <= 0:
          message = "Please supply a experiment name"
@@ -170,6 +164,11 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       elif len(epsg) <= 0:
          message = "Please supply an EPSG code"
          valid = False
+      else:
+         self.setMapUnitsFromEPSG(epsg=epsg)
+         if self.mapunits is None or self.mapunits == 'UnknownUnit':
+            message = "Invalid EPSG Code"
+            valid = False
       if not valid:
          msgBox = QMessageBox.information(self,
                                                 "Problem...",
@@ -185,7 +184,8 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       """
       projSelector = QgsGenericProjectionSelector(self)
       dialog = projSelector.exec_()
-      EpsgCode = projSelector.selectedEpsg()
+      print dir(projSelector)
+      EpsgCode = projSelector.selectedAuthId().replace('EPSG:','')
       # some projections don't have epsg's
       if dialog != 0:
          if EpsgCode != 0:  # will be zero if projection doesn't have an epsg
@@ -198,7 +198,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
                self.mapunits = 'feet'
             elif mapunitscode == 2:
                self.mapunits = 'dd' 
-            
+            print "MAP UNITS ",self.mapunits
             self.epsgEdit.setText(str(EpsgCode))
          else:
             # error message saying that the users chosen projection doesn't have a epsg
@@ -241,9 +241,12 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
               
          self.gridLayout_input.update()  
 # ..............................................................................
-   def setMapUnitsFromEPSG(self):
+   def setMapUnitsFromEPSG(self,epsg=None):
       crs = QgsCoordinateReferenceSystem()
-      crs.createFromOgcWmsCrs( QString("EPSG:%s" % (str(self.expEPSG)) ))
+      if epsg:
+         crs.createFromOgcWmsCrs("EPSG:%s" % (str(epsg)))
+      else:
+         crs.createFromOgcWmsCrs("EPSG:%s" % (str(self.expEPSG)))
       mapunitscode = crs.mapUnits()
       if mapunitscode == 0:
          self.mapunits = 'meters'
@@ -251,6 +254,8 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
          self.mapunits = 'feet'
       elif mapunitscode == 2:
          self.mapunits = 'dd'
+      elif mapunitscode == 3:
+         self.mapunits = 'UnknownUnit'
 # ..............................................................................         
    def newExperimentCallBack(self, item, model):
       """
@@ -266,8 +271,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       if self.mapunits is None:
          self.setMapUnitsFromEPSG()
       self.setNewExperiment()
-      #self.interface.actionNewProject().trigger() # this way won't allow you to have a mask in the canvas prior
-      QgsProject.instance().emit( SIGNAL( "ActivateExp(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ), self.expId,self.expEPSG,self.mapunits)
+      Communicate.instance().activateRADExp.emit(int(self.expId),self.expEPSG,self.mapunits)
       self.openNewDialog()
 # ..............................................................................
    def setNewExperiment(self):
@@ -277,7 +281,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       """
       try:
          s = QSettings()
-         s.setValue("currentExpID", self.expId)
+         s.setValue("currentExpID", int(self.expId))
          self.workspace.saveQgsProjectAs(self.expId)
       except:
          QMessageBox.warning(self,"status: ",
@@ -318,10 +322,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
          d.exec_() 
          self.listPALayersRadio.show()
          
-      #elif self.envRadio.isChecked():    
-      #   d = UploadAncillDialog(self.interface, inputs = inputs,
-      #                    client = self.client) 
-      #   d.exec_()       
+           
       elif self.emptyRadio.isChecked():         
          pass      
       elif self.listBucketsRadio.isChecked():
@@ -346,7 +347,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('newRADExperiment')

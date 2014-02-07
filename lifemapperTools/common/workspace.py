@@ -1,16 +1,9 @@
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -37,7 +30,7 @@ import zipfile
 import numpy as np
 from collections import namedtuple
 from PyQt4.QtGui import *
-from PyQt4.QtCore import QSettings, Qt, SIGNAL, QUrl, QString, QDir
+from PyQt4.QtCore import QSettings, Qt, QUrl, QDir
 from qgis.core import *
 from qgis.gui import *
 from lifemapperTools.common.pluginconstants import ListExperiments, GENERIC_REQUEST 
@@ -52,7 +45,7 @@ class Workspace:
 # ...........................................................................      
    def setWSforUser(self, dirPath,user=None):
       s = QSettings()
-      currentUsr = str(s.value("currentUser",QGISProject.NOUSER).toString())
+      currentUsr = str(s.value("currentUser",QGISProject.NOUSER))
       if currentUsr != QGISProject.NOUSER:
          s.setValue("%s_ws" % (currentUsr),dirPath)
 
@@ -65,7 +58,7 @@ class Workspace:
       s = QSettings()
       for key in s.allKeys():
          if "_ws" in key:
-            value = str(s.value(key).toString())
+            value = str(s.value(key))
             if value == dirPath:
                user = key.split('_')[0]
       return user
@@ -75,9 +68,9 @@ class Workspace:
       if user is not None:
          currentUsr = user
       else:
-         currentUsr = str(s.value("currentUser",QGISProject.NOUSER).toString())
+         currentUsr = str(s.value("currentUser",QGISProject.NOUSER))
       if currentUsr != QGISProject.NOUSER:
-         ws = str(s.value("%s_ws" % (currentUsr),QGISProject.NOWS).toString())
+         ws = str(s.value("%s_ws" % (currentUsr),QGISProject.NOWS))
          if not os.path.exists(ws):
             ws = QGISProject.NOWS
       else:
@@ -106,7 +99,7 @@ class Workspace:
       if ws != QGISProject.NOWS:
          dirs = os.walk(ws).next()[1]
          for folder in dirs:
-            if str(expId) in folder:
+            if folder.endswith("_"+str(expId)):
                directory = os.path.join(ws,folder)
                break
       return directory
@@ -152,17 +145,20 @@ class Workspace:
       # what happens if ws is QGISProject.NOWS, in the case of the workspace having been deleted
       # or renamed?
       if expName:
-         prjName = "%s_%s" % (expName,expId)
+         prjDirName = "%s_%s" % (expName,expId)
          if ws != QGISProject.NOWS:
             if not self.getExpFolder(expId):
-               QDir().mkdir(os.path.join(ws,prjName))
-            filepath = os.path.join(ws,prjName,'%s.qgs' % expName)
+               QDir().mkdir(os.path.join(ws,prjDirName))
+            filepath = os.path.join(ws,prjDirName,'%s.qgs' % expName)
             prj.setFileName(filepath)
          else:
             print "path doesn't exist"
       else:
          if ws != QGISProject.NOWS:
             prj.setFileName(os.path.join(ws,'%s.qgs' % expId))
+      #if filepath: # one last check for dir before it saves
+      #   if not os.path.exists(os.path.join(ws,prjDirName)):
+      #      QDir().mkdir(os.path.join(ws,prjDirName))
       self.interface.actionSaveProject().trigger()
 
       

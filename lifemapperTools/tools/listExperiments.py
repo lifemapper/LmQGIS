@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -46,14 +39,13 @@ from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.tools.listPALayers import ListPALayersDialog
 from lifemapperTools.tools.uploadLayers import UploadDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
-from lifemapperTools.tools.listAncillLayers import ListAncillLayersDialog
 from lifemapperTools.common.pluginconstants import ListExperiments
 from lifemapperTools.common.pluginconstants import QGISProject,PER_PAGE
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.lmClientLib import LMClient
-from lifemapperTools.tools.uploadAncLayers import UploadAncillDialog
 from lifemapperTools.tools.addSDMLayer import UploadSDMDialog
 from lifemapperTools.tools.radTable import RADTable, RADTableModel
+from lifemapperTools.common.communicate import Communicate
 
 
 
@@ -97,7 +89,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
 # ..............................................................................
    def getMapUnitsForEPSG(self,epsg):
       crs = QgsCoordinateReferenceSystem()
-      crs.createFromOgcWmsCrs(QString('EPSG:%s'% (epsg)))
+      crs.createFromOgcWmsCrs('EPSG:%s'% (epsg))
       mapunitscode = crs.mapUnits()
       if mapunitscode == 0:
          mapunits = 'meters'
@@ -161,8 +153,8 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
 # ...........................................................................
    def _showNoExpWarning(self):
       
-      message = QString("The QGIS project file associated with this experiment is\n"
-                        "missing or can't be opened. This does not affect your experiment.\n\n")
+      message = """The QGIS project file associated with this experiment is
+                        missing or can't be opened. This does not affect your experiment."""
       QMessageBox.warning(self,"Warning: ",
       message)
 # ...........................................................................      
@@ -190,9 +182,11 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
          if int(newid) != int(currentId):
             project = QgsProject.instance()
             filename = project.fileName()
+            # this next section is just saving the current project
             if filename == '':
                if len(QgsMapLayerRegistry.instance().mapLayers().items()) > 0:
-                  #self.interface.actionSaveProjectAs().trigger()
+                  # wrapping the save as in the workspace allows us
+                  # to do a save as without using a file dialog
                   self.workspace.saveQgsProjectAs(currentId)
             else:
                # if there is a qgis project opened
@@ -206,14 +200,14 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
             newExpPath = self._retrieveRADExpProjPath(newid)
             if newExpPath == QGISProject.NOPROJECT or newExpPath == '':
                self.interface.actionNewProject().trigger()
-               self.workspace.saveQgsProjectAs(currentId)
+               self.workspace.saveQgsProjectAs(newid) 
             else:
                success = self.interface.addProject(newExpPath)
                if not success:
                   self._showNoExpWarning()
          elif int(newid) == int(currentId):
             project = QgsProject.instance()
-            filename = str(project.fileName())  # this will be '' if there is no
+            filename = str(project.fileName())  # this will be an empty string if there is no
             # project
             currentExpPath = self._retrieveRADExpProjPath(currentId)
             if filename != currentExpPath:
@@ -236,7 +230,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
 # ...........................................................................  
    def _retrieveRADExpProjPath(self,id):
       s = QSettings()
-      return str(s.value("RADExpProj_"+str(id),QGISProject.NOPROJECT).toString())
+      return str(s.value("RADExpProj_"+str(id),QGISProject.NOPROJECT))
 
 # ...........................................................................         
    def _storeRADExpProjPath(self,id,filename): 
@@ -261,7 +255,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
 # ...........................................................................         
    def _retrieveCurrentExpId(self):
       s = QSettings()
-      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID).toInt()[0]
+      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID,type=int)
       return currentExpId     
    
 
@@ -281,10 +275,11 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
    
    def tablerowselected(self,itemselectionSelected,itemselectionDeselected):
       
-      expId = itemselectionSelected.indexes()[1].data().toInt()[0]
-      expEPSG = str(itemselectionSelected.indexes()[2].data().toString())
+      expId = itemselectionSelected.indexes()[1].data()
+      expEPSG = str(itemselectionSelected.indexes()[2].data())
       mapunits = self.getMapUnitsForEPSG(expEPSG)
-      QgsProject.instance().emit( SIGNAL( "ActivateExp(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ), expId, expEPSG, mapunits)
+      #QgsProject.instance().emit( SIGNAL( "ActivateExp(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ), expId, expEPSG, mapunits)
+      Communicate.instance().activateRADExp.emit(expId,expEPSG,mapunits)
 
    def getExpCount(self):
       try:
@@ -311,8 +306,9 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
             data.append(row)
          self.expDataView.model().data = data
          self.expDataView.model().setCurrentPage(page)
-         self.expDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+         #self.expDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
+         #      QModelIndex(), QModelIndex())
+         self.expDataView.model().dataChanged.emit(QModelIndex(),QModelIndex())
 
          readOut = "%s/%s" % (str(page+1),str(self.tableview.noPages))
          self.tableview.pageReadOut.setText(readOut)
@@ -366,11 +362,17 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
          self.tableview =  RADTable(data, totalCount=expCount)
          header = ['   Experiment name   ', '  Exp id  ','  EPSG Code  ', 'ModTime','Description']
          self.expDataView = self.tableview.createTable(header,toolTips=[4])
-         QObject.connect(self.expDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+         #QObject.connect(self.expDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+         self.expDataView.model().getNext.connect(self.getNextPage)
          if self.expDataView.model().noPages == 1:
                self.tableview.pageForward.setEnabled(False)
-         QObject.connect(self.expDataView.selectionModel(), SIGNAL("selectionChanged(const QItemSelection&, const QItemSelection&)"),self.tablerowselected) 
-         QObject.connect(self.expDataView, SIGNAL("doubleClicked(const QModelIndex &)"), self.openOnDoubleClick)     
+               
+         #QObject.connect(self.expDataView.selectionModel(), SIGNAL("selectionChanged(const QItemSelection&, const QItemSelection&)"),self.tablerowselected) 
+         #QObject.connect(self.expDataView, SIGNAL("doubleClicked(const QModelIndex &)"), self.openOnDoubleClick)  
+         
+         self.expDataView.selectionModel().selectionChanged.connect(self.tablerowselected)
+         self.expDataView.doubleClicked.connect(self.openOnDoubleClick)
+            
          self.expDataView.setSelectionBehavior(QAbstractItemView.SelectRows)
          self.expDataView.setSelectionMode(QAbstractItemView.SingleSelection)
          #self.tableview.sortByColumn(3) # for non paginated tables sort has to be done like this,
@@ -379,7 +381,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
          self.gridLayout_input.addWidget(self.tableview,1,1,1,1)
          #self.acceptBut.setEnabled( True )
       except Exception,e:
-         #print e
+         
          self.viewLayers.setEnabled(False)
          self.addLayer.setEnabled(False)
          self.viewBuckets.setEnabled(False)
@@ -403,7 +405,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('listRADExperiments')
@@ -416,7 +418,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='blank', pwd='blank')
+   client =  LMClient(userId='', pwd='')
    qApp = QApplication(sys.argv)
    d = ListExperimentDialog(None,client=client)#,experimentId=596106
    d.show()

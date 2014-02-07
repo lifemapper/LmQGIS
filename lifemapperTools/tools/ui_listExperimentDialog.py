@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -110,86 +110,64 @@ class Ui_Dialog(object):
       self.openProj.setToolTip("Open any layers loaded into the project")
       self.gridLayout_radio1.addWidget(self.openProj)
       self.openProj.setDefault(True)
-      QtCore.QObject.connect(self.openProj, QtCore.SIGNAL("clicked()"), lambda: self.accept('openProj'))
+      #QtCore.QObject.connect(self.openProj, QtCore.SIGNAL("clicked()"), lambda: self.accept('openProj'))
+      self.openProj.clicked.connect(lambda:  self.accept('openProj'))
       
       self.viewBuckets = QtGui.QPushButton('Get Grids')
       self.viewBuckets.setToolTip('Get Grids')
       #self.viewBuckets.setChecked(True)   
       self.viewBuckets.setObjectName("viewBuckets")
       self.gridLayout_radio1.addWidget(self.viewBuckets)
-      QtCore.QObject.connect(self.viewBuckets, QtCore.SIGNAL("clicked()"), lambda: self.accept('buckets'))
+      #QtCore.QObject.connect(self.viewBuckets, QtCore.SIGNAL("clicked()"), lambda: self.accept('buckets'))
+      self.viewBuckets.clicked.connect(lambda: self.accept('buckets'))
       
       self.viewLayers = QtGui.QPushButton('Get PA layers')
       self.viewLayers.setToolTip("Get Presence Absence Layers")
       #self.viewLayers.setChecked(True)
       self.viewLayers.setObjectName("viewLayers")
       self.gridLayout_radio1.addWidget(self.viewLayers)
-      QtCore.QObject.connect(self.viewLayers, QtCore.SIGNAL("clicked()"), lambda: self.accept('viewLyrs'))
+      #QtCore.QObject.connect(self.viewLayers, QtCore.SIGNAL("clicked()"), lambda: self.accept('viewLyrs'))
+      self.viewLayers.clicked.connect(lambda: self.accept('viewLyrs'))
       
       self.addLayer = QtGui.QPushButton('Add PA layers')
       self.addLayer.setToolTip('Add Presence Absence Layers')
       #self.addLayer.setChecked(False)
       self.addLayer.setObjectName("addlayer")
       self.gridLayout_radio1.addWidget(self.addLayer)
-      QtCore.QObject.connect(self.addLayer, QtCore.SIGNAL("clicked()"), lambda: self.accept('addLyrs'))
+      #QtCore.QObject.connect(self.addLayer, QtCore.SIGNAL("clicked()"), lambda: self.accept('addLyrs'))
+      self.addLayer.clicked.connect(lambda: self.accept('addLyrs'))
       
       self.addSDMLayer = QtGui.QPushButton('Add LM modeled species layer')
       self.addSDMLayer.setToolTip('Add Lifemapper modeled species distribution')
       #self.addSDMLayer.setChecked(False)
       self.addSDMLayer.setObjectName("addSDMlayer")   
       self.gridLayout_radio1.addWidget(self.addSDMLayer)
-      QtCore.QObject.connect(self.addSDMLayer, QtCore.SIGNAL("clicked()"), lambda: self.accept('addSDM'))
+      #QtCore.QObject.connect(self.addSDMLayer, QtCore.SIGNAL("clicked()"), lambda: self.accept('addSDM'))
+      self.addSDMLayer.clicked.connect(lambda: self.accept('addSDM'))
       
-            
-      #self.viewEnvLayers = QtGui.QRadioButton('Get environmental layers')
-      #self.viewEnvLayers.setChecked(False)
-      ##self.viewEnvLayers.setGeometry(QtCore.QRect(10, 455, 193, 25))
-      #self.viewEnvLayers.setObjectName("viewLayers")
-      #self.viewEnvLayers.setEnabled(True)
-      #self.gridLayout_radio2.addWidget(self.viewEnvLayers)
-      #
-      #self.addEnvLayers = QtGui.QRadioButton('Add environmental layers')
-      #self.addEnvLayers.setChecked(False)
-      ##self.addEnvLayers.setGeometry(QtCore.QRect(221, 455, 193, 25))
-      #self.addEnvLayers.setObjectName("viewLayers")
-      #self.addEnvLayers.setEnabled(True)
-      #self.gridLayout_radio2.addWidget(self.addEnvLayers)
-      #
-      #self.viewExp = QtGui.QRadioButton('View Experiment')
-      #self.viewExp.setToolTip('Get Experiment Metadata')
-      #self.viewExp.setChecked(False)
-      ##self.viewExp.setGeometry(QtCore.QRect(424, 455, 143, 25))
-      #self.viewExp.setObjectName("viewExp")
-      #self.viewExp.setEnabled(False)
-      #self.gridLayout_radio2.addWidget(self.viewExp)
       
-      #self.acceptBut = QtGui.QPushButton("OK",self)
-      #self.acceptBut.setDefault(True)
       self.rejectBut = QtGui.QPushButton("Close",self)
       #
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+      self.helpBut.clicked.connect(self.help)
       
       self.buttonBox = QtGui.QDialogButtonBox(self)
       self.buttonBox.setObjectName("buttonBox")
       
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
-      
+     
          
       
       self.gridLayout.addWidget(self.buttonBox, 8, 0 ,7, 3)
       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      #QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      self.rejectBut.clicked.connect(self.reject)
       
       
       self.retranslateUi()
-       
-      #QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("rejected()"), self.reject)
-      #QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("accepted()"), self.accept) 
+     
       
           
    def retranslateUi(self):

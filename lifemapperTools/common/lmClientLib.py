@@ -3,10 +3,10 @@
 @author: CJ Grady
 @contact: cjgrady [at] ku [dot] edu
 @organization: Lifemapper (http://lifemapper.org)
-@version: 2.1.1
+@version: 2.1.3
 @status: release
 
-@license: Copyright (C) 2013, University of Kansas Center for Research
+@license: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -66,6 +66,10 @@ class OutOfDateException(Exception):
                 web services.
    """
    def __init__(self, myVersion, minVersion):
+      """
+      @param myVersion: The current version of the client library
+      @param minVersion: The minimum required version of the client library
+      """
       Exception.__init__(self)
       self.myVersion = myVersion
       self.minVersion = minVersion
@@ -89,6 +93,7 @@ class LMClient(object):
       @summary: Constructor
       @param userId: (optional) The id of the user to use for this session
       @param pwd: (optional) The password for the specified user
+      @param server: (optional) The Lifemapper webserver address
       @note: Lifemapper RAD services are not available anonymously
       """
       self._cl = _Client(userId=userId, pwd=pwd, server=server)
@@ -109,7 +114,7 @@ class _Client(object):
    """
    @summary: Private Lifemapper client class
    """
-   __version__ = "2.1.1"
+   __version__ = "2.1.3"
 
    # .........................................
    def __init__(self, userId=DEFAULT_POST_USER, pwd=None, server=WEBSITE_ROOT):
@@ -118,6 +123,7 @@ class _Client(object):
       @param userId: (optional) User id to use if different from the default
                         [string]
       @param pwd: (optional) Password for optional user id. [string]
+      @param server: (optional) The Lifemapper web server root address
       """
       self.userId = userId
       self.pwd = pwd
@@ -129,21 +135,23 @@ class _Client(object):
       self._login()
    
    # .........................................
-   def checkVersion(self):
+   def checkVersion(self, clientName="lmClientLib", verStr=None):
       """
       @summary: Checks the version of the client library against the versions
                    reported by the web server
+      @param clientName: (optional) Check this client if not the client library
+      @param verStr: (optional) The version string of the client to check
       @raise OutOfDateException: Raised if the client is out of date and 
                                     cannot continue
       """
       res = self.makeRequest(LM_CLIENT_VERSION_URL, objectify=True)
       for client in res:
-         if client.name == "lmClientLib":
+         if client.name == clientName:
             minVersionStr = client.versions.minimum
             curVersionStr = client.versions.current
             minVersion = self._getVersionNumbers(verStr=minVersionStr)
             curVersion = self._getVersionNumbers(verStr=curVersionStr)
-            myVersion = self._getVersionNumbers()
+            myVersion = self._getVersionNumbers(verStr=verStr)
             
             if myVersion < minVersion:
                raise OutOfDateException(myVersion, minVersion)

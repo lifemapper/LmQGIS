@@ -6,12 +6,12 @@
  Macro Ecology tools for presence absence matrices
                              -------------------
         begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
+        copyright            : (C) 2014 by Biodiversity Institute
         email                : jcavner@ku.edu
  ***************************************************************************/
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -197,7 +197,7 @@ class SpatialStatsDialog(_Controller, QDialog, Ui_Dialog):
       
       # get value from combo
       currentPamidx = self.pamsCombo.currentIndex()
-      pamsumid = str(self.pamsCombo.itemData(currentPamidx, role=Qt.UserRole).toString())
+      pamsumid = str(self.pamsCombo.itemData(currentPamidx, role=Qt.UserRole))
       if pamsumid == 'pleaseselect':
          message = "Please select a pam from the drop down list"
          msgBox = QMessageBox.information(self,
@@ -271,7 +271,7 @@ class SpatialStatsDialog(_Controller, QDialog, Ui_Dialog):
                   if str(lyrs[id].name()) == shapename.replace('.shp',''):
                      QgsMapLayerRegistry.instance().removeMapLayer(id) 
                classedLayer = self.classify(vectorLayer, fieldName)
-               classedLayer.setLayerName(QString(tocName))               
+               classedLayer.setLayerName(tocName)               
                QgsMapLayerRegistry.instance().addMapLayer(classedLayer)
  
          else:
@@ -298,7 +298,7 @@ class SpatialStatsDialog(_Controller, QDialog, Ui_Dialog):
       self.help.setMaximumSize(1000,1000)
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('spatialview')

@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -22,6 +22,7 @@
           02110-1301, USA.
 """
 from lifemapperTools.common.lmClientLib import LMClient
+from lifemapperTools.common.communicate import Communicate
 from PyQt4 import QtCore, QtGui
 from qgis.core import *
 from qgis.gui import *
@@ -78,26 +79,26 @@ class Ui_Dialog(object):
       self.epsgButton = QtGui.QPushButton("Browse")
       self.epsgButton.setMaximumSize(80, 30)
       self.epsgButton.setAutoDefault(False)
-      QtCore.QObject.connect(self.epsgButton, QtCore.SIGNAL("clicked()"), self.openProjSelectorSetEPSG)
+      self.epsgButton.clicked.connect(self.openProjSelectorSetEPSG)
       
       
       unitsLabel = QtGui.QLabel("Map Units")
       unitsLabel.setMaximumHeight(25)
       self.selectUnits = QtGui.QComboBox()
       self.selectUnits.addItem("decimal degrees",
-           QtCore.QVariant('dd'))
+           'dd')
       self.selectUnits.addItem("meters",
-           QtCore.QVariant('meters'))
+           'meters')
       self.selectUnits.addItem("feet",
-           QtCore.QVariant('feet'))
+           'feet')
       self.selectUnits.addItem("inches",
-           QtCore.QVariant('inches'))
+           'inches')
       self.selectUnits.addItem("kilometers",
-           QtCore.QVariant('kilometers'))
+           'kilometers')
       self.selectUnits.addItem("miles",
-           QtCore.QVariant('miles'))
+           'miles')
       self.selectUnits.addItem("nauticalmiles",
-           QtCore.QVariant('nauticalmiles'))
+           'nauticalmiles')
       
      
       topLevelInfoLayout.addWidget(scenarioNameLabel,     1,0,1,1)#,alignment = QtCore.Qt.AlignLeft)
@@ -155,9 +156,9 @@ class Ui_Dialog(object):
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
+      self.helpBut.clicked.connect(self.help)
       
       
       
@@ -225,7 +226,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       @summary: sets the select units combo for epsg from epsgCodeEdit form element
       """
       
-      authId = QtCore.QString("EPSG:%s" % (self.epsgCodeEdit.text()))
+      authId = "EPSG:%s" % (self.epsgCodeEdit.text())
       crs = QgsCoordinateReferenceSystem() 
       crs.createFromOgcWmsCrs(authId)
       mapunitscode = crs.mapUnits()
@@ -238,7 +239,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       else: #  if mapunitscode doesn't exist set to dd
          mapunits = 'dd'
          
-      unitsIdx = self.selectUnits.findData(QtCore.QVariant(mapunits), role=QtCore.Qt.UserRole)
+      unitsIdx = self.selectUnits.findData(mapunits, role=QtCore.Qt.UserRole)
       self.selectUnits.setCurrentIndex(unitsIdx)
       
 # ..............................................................................       
@@ -284,7 +285,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       self.epsgCodeEdit.setText(str(epsgCode))
       self.epsgCodeEdit.setEnabled(False)
       self.epsgButton.setEnabled(False)
-      unitsIdx = self.selectUnits.findData(QtCore.QVariant(mapunits), role=QtCore.Qt.UserRole)
+      unitsIdx = self.selectUnits.findData(mapunits, role=QtCore.Qt.UserRole)
       self.selectUnits.setCurrentIndex(unitsIdx)
       self.selectUnits.setEnabled(False)
       
@@ -327,9 +328,9 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
          matchingLayerNameEdit.setMinimumWidth(280)
          matchingLayerNameEdit.setMaximumWidth(280)
          layers = self.getLayers(layer.typeCode, epsgCode,getFull=True)
-         matchingLayerNameEdit.addItem("",QtCore.QVariant(int(0)))
+         matchingLayerNameEdit.addItem("",0)
          for idx,layer in enumerate(layers):
-            matchingLayerNameEdit.addItem(layer[0],QtCore.QVariant(int(layer[1])))
+            matchingLayerNameEdit.addItem(layer[0],int(layer[1]))
             toolTip = self.conCatToolTip(layer[2])
             matchingLayerNameEdit.setItemData(idx+1,toolTip,QtCore.Qt.ToolTipRole)
          newRow = QtGui.QHBoxLayout()      
@@ -409,8 +410,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       succeeded 
       """
       if not self.match and not self.postSucceeded:
-         QgsProject.instance().emit(QtCore.SIGNAL("PostScenarioFailed(PyQt_PyObject)" ),
-                                          self.match) 
+         Communicate.instance().postScenarioFailed.emit(self.match)
 # ..............................................................................
    def reject(self):
       """
@@ -418,20 +418,19 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       succeeded
       """
       if not self.match and not self.postSucceeded:
-         QgsProject.instance().emit(QtCore.SIGNAL("PostScenarioFailed(PyQt_PyObject)" ),
-                                          self.match) 
+         Communicate.instance().postScenarioFailed.emit(self.match)
       self.close()
    
    def getLayerIdFromCombo(self,layer):
       
       combo = layer.itemAt(self.layerIdIdx).widget()
       comboIdx = combo.currentIndex()
-      layerId = combo.itemData(comboIdx,role=QtCore.Qt.UserRole).toInt()[0]
+      layerId = combo.itemData(comboIdx,role=QtCore.Qt.UserRole)
       
       return layerId
 
 # ..............................................................................
-   #@self.acceptBut.clicked.connect #this won't work for obvious reasons
+   
    def accept(self):
       if len(self.layerRows) > 0:
          valid = self.validate() 
@@ -440,7 +439,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
             self.progressbar.show()
             epsgCode = str(self.epsgCodeEdit.text())
             unitsIdx = self.selectUnits.currentIndex()
-            units = str(self.selectUnits.itemData(unitsIdx, role=QtCore.Qt.UserRole).toString())
+            units = str(self.selectUnits.itemData(unitsIdx, role=QtCore.Qt.UserRole))
             scenarioTitle = str(self.scenarioTitle.text())
             scenarioCode = str(self.scenarioName.text())
             layerIds = []
@@ -458,8 +457,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
                self.postSucceeded = False
                self.progressbar.reset()
                self.progressbar.hide()
-               QgsProject.instance().emit(QtCore.SIGNAL("PostScenarioFailed(PyQt_PyObject)" ),
-                                          self.match)
+               Communicate.instance().postScenarioFailed.emit(self.match)
                message = "Problem with uploading scenario"
                msgBox = QtGui.QMessageBox.warning(self,
                                                 "Problem...",
@@ -469,8 +467,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
                self.progressbar.setValue(progress+1)   
                self.resetForm()
                self.postSucceeded = True                             
-               QgsProject.instance().emit(QtCore.SIGNAL("PostedScenario(PyQt_PyObject,PyQt_PyObject)" ),
-                                          scenario.id,self.match)
+               Communicate.instance().postedScenario.emit(scenario.id,self.match)
                message = "Successfully posted environmental layer set"
                msgBox = QtGui.QMessageBox.information(self,
                                              "Success...",
@@ -504,16 +501,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       
       self.gridLayout.addLayout(labelBox,2,0,1,1)
       
-#   def populateTypeCombo(self, index, layerNameEdit, typeCodeEdit):
-#      """
-#      @summary: populates a layer combobox for a row or layer
-#      @param index: QIndex object from the type code combobox
-#      @param typeCodeEdit: type code QComboBox for a layer
-#      @param layerNameEdit: layer QComboBox for a layer      
-#      """
-#      if index != 0:
-#         currrentIdx = layerNameEdit.currentIndex()
-         #layerId = layerNameEdit.itemData(currrentIdx,role=QtCore.Qt.UserRole).toInt()[0]
+
 # ..............................................................................
    def conCatToolTip(self,layer):
       """
@@ -537,20 +525,20 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
          layerNameEdit.setEnabled(True)
          #typeCode = str(typeCodeEdit.currentText())
          typeCurrentIdx = typeCodeEdit.currentIndex()
-         typeCode = str(typeCodeEdit.itemData(typeCurrentIdx, role=QtCore.Qt.UserRole).toString())
+         typeCode = str(typeCodeEdit.itemData(typeCurrentIdx, role=QtCore.Qt.UserRole))
          epsgCode = str(self.epsgCodeEdit.text())
          layers = self.getLayers(typeCode,epsgCode,getFull=True)
          layerNameEdit.clear()
          if layers is not None and len(layers) > 0:
-            layerNameEdit.addItem('',QtCore.QVariant(int(0)))
+            layerNameEdit.addItem('',0)
             for idx,layer in enumerate(layers):
                
-               layerNameEdit.addItem(layer[0],QtCore.QVariant(int(layer[1])))
+               layerNameEdit.addItem(layer[0],int(layer[1]))
                #toolTip = self.layerInfo[layer[1]]
                toolTip = self.conCatToolTip(layer[2])
                layerNameEdit.setItemData(idx+1,toolTip,QtCore.Qt.ToolTipRole)
          else:
-            layerNameEdit.addItem("No Layers",QtCore.QVariant(0))
+            layerNameEdit.addItem("No Layers",0)
       else:
          layerNameEdit.clear()
          
@@ -591,20 +579,18 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       """
       typeCodeEdit = QtGui.QComboBox()
       for code in self.allTypeCodes:
-         typeCodeEdit.addItem(code[0], userData=QtCore.QVariant(code[1]))
+         typeCodeEdit.addItem(code[0], userData=code[1])
       #typeCodeEdit.addItems(self.allTypeCodes)     
       layerNameEdit = QtGui.QComboBox()
-      layerNameEdit.addItem('',QtCore.QVariant(int(0)))
+      layerNameEdit.addItem('',0)
       layerNameEdit.setEnabled(False)  
-      populateLayerCombo = lambda index: self.populateLayerCombo(index, typeCodeEdit, layerNameEdit)
-      QtCore.QObject.connect(typeCodeEdit, 
-                             QtCore.SIGNAL("currentIndexChanged(int)"), populateLayerCombo)     
+      populateLayerCombo = lambda index: self.populateLayerCombo(index, typeCodeEdit, layerNameEdit) 
+      typeCodeEdit.currentIndexChanged.connect(populateLayerCombo)  
       subtractButton = LmPushButton("-",self)
       subtractButton.setMaximumSize(20, 20)      
       firstLayer = QtGui.QHBoxLayout()    
-      QtCore.QObject.connect(subtractButton, 
-                             QtCore.SIGNAL("clicked()"), 
-                             lambda: self.subtractRow(firstLayer))
+      
+      subtractButton.clicked.connect(lambda: self.subtractRow(firstLayer))
       
       firstLayer.addWidget(typeCodeEdit )
       firstLayer.addWidget(layerNameEdit)     
@@ -638,9 +624,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       addButton = LmPushButton("+",self)
       addButton.setMaximumSize(20, 20)
       
-      QtCore.QObject.connect(addButton, 
-                             QtCore.SIGNAL("clicked()"), 
-                             lambda: self.addRow())
+      addButton.clicked.connect(lambda: self.addRow())
       
       self.addRowLayout = QtGui.QHBoxLayout()
       
@@ -704,22 +688,22 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       that needs to be highlited
       """
       for y,x in position:
-         self.layerRows[y].itemAt(x).widget().setStyleSheet(QtCore.QString( "background-color: #F5693B"))
+         self.layerRows[y].itemAt(x).widget().setStyleSheet("background-color: #F5693B")
 
 # ..............................................................................         
    def unHighLiteAll(self):
       """
       @summary: unhighlites every elment in the form
       """
-      self.scenarioName.setStyleSheet(QtCore.QString( "background-color: white"))
-      self.scenarioTitle.setStyleSheet(QtCore.QString( "background-color: white"))
-      self.epsgCodeEdit.setStyleSheet(QtCore.QString( "background-color: white"))
+      self.scenarioName.setStyleSheet("background-color: white")
+      self.scenarioTitle.setStyleSheet("background-color: white")
+      self.epsgCodeEdit.setStyleSheet("background-color: white")
       for layer in self.layerRows:
          for itemIdx in range(0,layer.count()):
             if type(layer.itemAt(itemIdx).widget()) == QtGui.QLineEdit:
-               layer.itemAt(itemIdx).widget().setStyleSheet(QtCore.QString( "background-color: white"))
+               layer.itemAt(itemIdx).widget().setStyleSheet("background-color: white")
             elif type(layer.itemAt(itemIdx).widget()) == QtGui.QComboBox:
-               layer.itemAt(itemIdx).widget().setStyleSheet(QtCore.QString(""))   
+               layer.itemAt(itemIdx).widget().setStyleSheet("")   
                
 # ..............................................................................   
    def validate(self):
@@ -736,19 +720,19 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       #if self.postAsLayerSet:
       if len(layerSetName) == 0:
          valid = False
-         self.scenarioName.setStyleSheet(QtCore.QString( "background-color: #F5693B"))
+         self.scenarioName.setStyleSheet("background-color: #F5693B")
       if len(layerSetTitle) == 0: 
          valid = False
-         self.scenarioTitle.setStyleSheet(QtCore.QString( "background-color: #F5693B"))
+         self.scenarioTitle.setStyleSheet("background-color: #F5693B")
             
       try:
          int(epsgCode)
       except:
-         self.epsgCodeEdit.setStyleSheet(QtCore.QString( "background-color: #F5693B"))
+         self.epsgCodeEdit.setStyleSheet("background-color: #F5693B")
          valid = False
       else:
          if len(epsgCode) == 0: 
-            self.epsgCodeEdit.setStyleSheet(QtCore.QString( "background-color: #F5693B"))
+            self.epsgCodeEdit.setStyleSheet( "background-color: #F5693B")
             valid = False
       
              
@@ -822,9 +806,9 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
             layerLayout.itemAt(self.layerNameIdx).widget().setEnabled(True)
       settings = QtCore.QSettings()
       filetypestr = "raster Files (*.*)"
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       fileDialog = QgsEncodingFileDialog( self, "Open File", dirName,filetypestr)
-      fileDialog.setDefaultSuffix( QtCore.QString( "shp" ) )
+      fileDialog.setDefaultSuffix("shp"  )
       fileDialog.setFileMode( QtGui.QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QtGui.QFileDialog.AcceptOpen )
       fileDialog.setConfirmOverwrite( True )
@@ -832,7 +816,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       if not fileDialog.exec_() == QtGui.QFileDialog.Accepted:
          return
       filename = fileDialog.selectedFiles()
-      file = filename.first()
+      file = filename[0]
       self.addFileName(file,fileEdit)
 # ..........................................................................   
    def addFileName(self,file,fileEdit):
@@ -860,15 +844,13 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
 
       typeCodeEdit = QtGui.QComboBox()
       layerNameEdit = QtGui.QComboBox()
-      layerNameEdit.addItem('', userData=QtCore.QVariant(0))
+      layerNameEdit.addItem('', userData=0)
       layerNameEdit.setEnabled(False)
       #typeCodeEdit.addItems(self.allTypeCodes)
       for code in self.allTypeCodes:
-         typeCodeEdit.addItem(code[0], userData=QtCore.QVariant(code[1]))
+         typeCodeEdit.addItem(code[0], userData=code[1])
       populateLayerCombo = lambda index: self.populateLayerCombo(index, typeCodeEdit, layerNameEdit)
-      QtCore.QObject.connect(typeCodeEdit, 
-                             QtCore.SIGNAL("currentIndexChanged(int)"), populateLayerCombo)
-      
+      typeCodeEdit.currentIndexChanged.connect(populateLayerCombo)
       subtractButton = QtGui.QPushButton("-")
       subtractButton.setMaximumSize(20, 20)
       
@@ -879,10 +861,8 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       newRow.addWidget(layerNameEdit)      
       newRow.addWidget(subtractButton)
       
-      QtCore.QObject.connect(subtractButton, 
-                             QtCore.SIGNAL("clicked()"), 
-                             lambda: self.subtractRow(newRow))
       
+      subtractButton.clicked.connect(lambda: self.subtractRow(newRow))
       self.layerRows.append(newRow)  
            
     
@@ -897,7 +877,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       """
       projSelector = QgsGenericProjectionSelector(self)
       dialog = projSelector.exec_()
-      epsgCode = projSelector.selectedEpsg()
+      epsgCode = projSelector.selectedAuthId().replace('EPSG:','')
       # some projections don't have epsg's
       if dialog != 0:
          if epsgCode != 0:  # will be zero if projection doesn't have an epsg
@@ -923,7 +903,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       layout = QtGui.QVBoxLayout()
       helpDialog = QtGui.QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QtCore.QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor(self.helpAnchor)

@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -31,6 +31,7 @@ from qgis.core import *
 from qgis.gui import *
 from lifemapperTools.common.lmClientLib import LMClient
 from lifemapperTools.tools.ui_postScenario import PostScenarioDialog
+from lifemapperTools.common.communicate import Communicate
 
 
 
@@ -77,15 +78,16 @@ class Ui_Dialog(object):
       self.modelScenLabel = QtGui.QLabel("layer sets to create model with")
       self.modelScenLabel.setMaximumHeight(35)
       self.modelScenCombo = QtGui.QComboBox()
-      QtCore.QObject.connect(self.modelScenCombo, 
-                             QtCore.SIGNAL("currentIndexChanged(int)"), self.populateProjScenCombo)
+      
+      self.modelScenCombo.currentIndexChanged.connect(self.populateProjScenCombo)
       
       self.projScenLabel = QtGui.QLabel("matching layer sets to map on")
       self.projScenLabel.setMaximumHeight(35)
       self.projectionScenListView = QtGui.QListView()
       self.projectionScenListView.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
       self.projectionScenListView.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
-      QtCore.QObject.connect(self.projectionScenListView, QtCore.SIGNAL("clicked(const QModelIndex &)"), self.matchNew)
+     
+      self.projectionScenListView.clicked.connect(self.matchNew)
       
       self.scenLayout.addWidget(self.modelScenLabel,1,1,1,1)
       self.scenLayout.addWidget(self.modelScenCombo,2,1,1,1,QtCore.Qt.AlignTop)
@@ -107,8 +109,10 @@ class Ui_Dialog(object):
       
       self.acceptBut = QtGui.QPushButton("OK")
       self.rejectBut = QtGui.QPushButton("Close")
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+    
+      self.rejectBut.clicked.connect(self.reject)
+      self.helpBut.clicked.connect(self.help)
       
       self.buttonBox = QtGui.QDialogButtonBox()
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
@@ -137,13 +141,9 @@ class ListBuildScenariosDialog(QtGui.QDialog, Ui_Dialog):
       self.projectionScenListView.setItemDelegateForRow(0,self.projDelegate)     
       self.modelScenCombo.setItemDelegate(self.modelDelegate)
       
-      QObject.connect(QgsProject.instance(),
-                      SIGNAL("PostScenarioFailed(PyQt_PyObject)"),
-                      self.setModelCombo)
       
-      QObject.connect(QgsProject.instance(),
-                      SIGNAL("PostedScenario(PyQt_PyObject,PyQt_PyObject)"),
-                      self.refreshScenarios)
+      Communicate.instance().postScenarioFailed.connect(self.setModelCombo)
+      Communicate.instance().postedScenario.connect(self.refreshScenarios)
       
       
       self.populateModelScenCombo() 
@@ -193,7 +193,7 @@ class ListBuildScenariosDialog(QtGui.QDialog, Ui_Dialog):
          if newScenId is None:
             self.modelScenCombo.setCurrentIndex(0)
          else:
-            #newScenIdx = self.modelScenCombo.findData(QVariant(newScenId), role=Qt.UserRole)
+            #newScenIdx = self.modelScenCombo.findData(newScenId, role=Qt.UserRole)
             # using this loop against the data model since UserRole doesn't always apply
             for idx, resultObj in enumerate(self.scenModelListModel.listData):
                try:
@@ -215,7 +215,7 @@ class ListBuildScenariosDialog(QtGui.QDialog, Ui_Dialog):
       #print index
       # what happens if there are no matching scenarios?
       if index != 0 and index != 1:
-            modelScenId = self.modelScenCombo.itemData(index, role=Qt.UserRole).toInt()[0]
+            modelScenId = self.modelScenCombo.itemData(index, role=Qt.UserRole)
             try:  
                matchingScens = self.client.sdm.listScenarios(matchingScenario=modelScenId)
             except:
@@ -243,7 +243,7 @@ class ListBuildScenariosDialog(QtGui.QDialog, Ui_Dialog):
       if index.row() == 0:
          # get the id of model scenario
          currindex = self.modelScenCombo.currentIndex()
-         modelScenId = self.modelScenCombo.itemData(currindex, role=Qt.UserRole).toInt()[0]
+         modelScenId = self.modelScenCombo.itemData(currindex, role=Qt.UserRole)
          self.postScenarioDialog = PostScenarioDialog(match=True,scenarioId=modelScenId,client=self.client)
          self.postScenarioDialog.exec_()          
 
@@ -256,7 +256,7 @@ class ListBuildScenariosDialog(QtGui.QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('buildEnvlayerSet')
@@ -296,13 +296,13 @@ class LmListModel(QAbstractListModel):
       """
       if index.isValid() and (role == Qt.DisplayRole or role == Qt.EditRole):
          if index.row() == 1 and self.model:
-            return QVariant("build new model")
+            return "build new model"
          else:
-            return QVariant(str(self.listData[index.row()]))
+            return str(self.listData[index.row()])
       if index.isValid() and role == Qt.UserRole:
-         return QVariant(int(self.listData[index.row()]))
+         return int(self.listData[index.row()])
       else:
-         return QVariant()
+         return 
       
    # .........................................
    def rowCount(self, parent=QModelIndex()):

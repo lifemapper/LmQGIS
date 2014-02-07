@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -73,8 +73,8 @@ class Ui_Dialog(object):
       self.displayNameEdit = QtGui.QLineEdit()
       self.epsgCodeEdit = QtGui.QLineEdit()
       self.projectionPickerBut = QtGui.QPushButton("Browse")
-      QtCore.QObject.connect(self.projectionPickerBut, QtCore.SIGNAL("clicked()"), self.openProjSelectorSetEPSG)
-      #self.projectionPickerBut.setMaximumSize(35, 25)
+      self.projectionPickerBut.clicked.connect(self.openProjSelectorSetEPSG)
+      
       
       self.metaDataGrid.addWidget(self.displayNameLabel,   0,1,1,1)
       self.metaDataGrid.addWidget(self.displayNameEdit,    1,1,1,2)
@@ -116,7 +116,7 @@ class Ui_Dialog(object):
       self.filePathLabel = QtGui.QLabel("Upload file")
       self.file = QtGui.QLineEdit()
       self.browseBut = QtGui.QPushButton("Browse")
-      QtCore.QObject.connect(self.browseBut, QtCore.SIGNAL("clicked()"), self.showFileDialog)
+      self.browseBut.clicked.connect(self.showFileDialog)
       self.orLabel = QtGui.QLabel("OR")
       self.canvasLabel = QtGui.QLabel("Select from occurrence layers in canvas")
       self.canvasLayersCombo = QtGui.QComboBox()
@@ -146,8 +146,11 @@ class Ui_Dialog(object):
       self.buttonBox = QtGui.QDialogButtonBox(self)      
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.uploadBut, QtCore.SIGNAL("clicked()"), self.accept)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+     
+      self.uploadBut.clicked.connect(self.accept)
+      self.helpBut.clicked.connect(self.help)
+      
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.uploadBut, QtGui.QDialogButtonBox.ActionRole)
       
@@ -159,9 +162,6 @@ class Ui_Dialog(object):
    
       self.retranslateUi()
       
-      #QtCore.QObject.connect(self.listUserLayersBut, QtCore.SIGNAL("clicked()"), self.ListUserLayers)
-      #QtCore.QObject.connect(self.newExpBut, QtCore.SIGNAL("clicked()"), self.startNewExperiment)
-      #QtCore.QObject.connect(self.resumeExpBut, QtCore.SIGNAL("clicked()"), self.resumeExperiment)
        
       
      

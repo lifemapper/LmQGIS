@@ -6,7 +6,7 @@ Date Last Modified: 12 March 2005
 
 Do "python colorpalette.py > colorpalette.html" for documentation and examples.
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,

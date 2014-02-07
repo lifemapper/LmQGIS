@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -45,8 +38,9 @@ from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.randomizePAM import RandomizePAMDialog
 from lifemapperTools.tools.pamSumsStats import PamSumsStatsDialog
 from lifemapperTools.common.workspace import Workspace
+from lifemapperTools.common.communicate import Communicate
 from lifemapperTools.common.pluginconstants import ListExperiments, GENERIC_REQUEST, EXECUTE_REQUEST,\
-                                         RADJobStage, JobStatus,STAGELOOKUP,\
+                                         JobStage, JobStatus,STAGELOOKUP,\
                                          STAGEREVLOOKUP, STATUSLOOKUP, STATUSREVLOOKUP, PER_PAGE
 from lifemapperTools.tools.radTable import  RADTable, RADTableModel                                       
 
@@ -112,7 +106,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       @summary: sets the map units attribute given the epsg of the experiment
       """
       crs = QgsCoordinateReferenceSystem()
-      crs.createFromOgcWmsCrs(QString('EPSG:%s'% (self.epsg)))
+      crs.createFromOgcWmsCrs('EPSG:%s'% (self.epsg))
       mapunitscode = crs.mapUnits()
       if mapunitscode == 0:
          self.mapunits = 'meters'
@@ -181,7 +175,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          if PSstagestatus:
             PSstage = PSstagestatus[0]
             PSstatus = PSstagestatus[1]
-            if PSstage == RADJobStage.CALCULATE and PSstatus == JobStatus.RETRIEVE_COMPLETE:
+            if PSstage == JobStage.CALCULATE and PSstatus == JobStatus.RETRIEVE_COMPLETE:
                pamsumstats = PamSumsStatsDialog(self.interface, inputs=listPSinputs,
                                client=self.client, parent=self) 
                self.close()
@@ -235,7 +229,8 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       stagestring = selectedrow[2]
       stage = self.getStageCode(stagestring)
       status = int(selectedrow[5])
-      if stage == RADJobStage.GENERAL:
+      # this was: if stage == JobStage.GENERAL:
+      if status == JobStatus.GENERAL:
          
          try:
             self.getStatsBut.setEnabled(False)
@@ -312,7 +307,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       status, stage = self.client.rad.getBucketStatus(self.expId, bucketId)
       status = int(status)
       stage = int(stage)
-      if stage == RADJobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
+      if stage >= JobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
          randominputs = {}
          randominputs.update(self.inputs)
          randominputs.update({'bucketId':bucketId})
@@ -338,7 +333,6 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
    def refresh(self):
       try:
          self.getStatsBut.setEnabled(False)
-         #self.calcBut.setEnabled(False)
          self.intersectBut.setEnabled(False)
          self.addBucketBut.setEnabled(False)
          self.randomizeBut.setEnabled(False)
@@ -346,7 +340,12 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          
       except:
          pass
-      currentPage = self.bucketDataView.model().currentPage
+      try:
+         currentPage = self.bucketDataView.model().currentPage
+      except:
+         # no current view, which means there isn't a table in case of exp with no
+         # intial buckets
+         currentPage = 0
       refreshinputs = {'expId':self.expId} 
       refreshinputs.update({'perPage':PER_PAGE,'fullObjects':True,'page':currentPage})
       items = self.client.rad.listBuckets(**refreshinputs) 
@@ -433,10 +432,10 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             stagestring = index.model().data[index.row()][2]
             stage = self.getStageCode(stagestring)
             status = int(index.model().data[index.row()][5])
-            if stage >= RADJobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
+            if stage >= JobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
                self.getShapeFile(JobStatus.RETRIEVE_COMPLETE,None,fromIntersect=True)
-            elif (stage == RADJobStage.GENERAL and status == JobStatus.GENERAL) or \
-            (stage == RADJobStage.GENERAL and status == JobStatus.INITIALIZE):
+            elif (stage == JobStage.GENERAL and status == JobStatus.GENERAL) or \
+            (stage == JobStage.GENERAL and status == JobStatus.INITIALIZE):
                self.getShapeFile(JobStatus.RETRIEVE_COMPLETE,None,fromIntersect=False) 
             else:
                QMessageBox.warning(self.outputGroup,"status: ",
@@ -542,12 +541,13 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          for o in items:
             status = int(o.status)
             stage = int(o.stage)
-            if stage == RADJobStage.INTERSECT:
+            if stage >= JobStage.INTERSECT:
                try:
-                  if int(o.pamSum.stage) == RADJobStage.CALCULATE:
-                     stage = RADJobStage.CALCULATE
+                  if int(o.pamSum.stage) == JobStage.CALCULATE:
+                     stage = JobStage.CALCULATE
+                     status = int(o.pamSum.status)
                except:
-                  stage = RADJobStage.INTERSECT
+                  stage = JobStage.INTERSECT
             if status >= JobStatus.GENERAL_ERROR:
                statusstring = 'error'
             elif status == JobStatus.RETRIEVE_COMPLETE:
@@ -566,8 +566,10 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          self.bucketDataView.model().setCurrentPage(currentPage)
          
          
-         self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+         #self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
+         #      QModelIndex(), QModelIndex())
+         
+         self.bucketDataView.model().dataChanged.emit(QModelIndex(),QModelIndex())
          
          self.bucketTableView.viewport().update()
          
@@ -611,24 +613,23 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       @note: two things have to be true, origPS has to exist (grid intersected) and calc stage has to be
       completed on the PS
       """
-      
       # getStageCode, getStatusCode
-      self.gridName = str(itemselectionSelected.indexes()[0].data().toString())
-      bucketId = itemselectionSelected.indexes()[1].data().toInt()[0]
-      bucketstage = str(itemselectionSelected.indexes()[2].data().toString())
+      self.gridName = str(itemselectionSelected.indexes()[0].data())
+      bucketId = itemselectionSelected.indexes()[1].data()
+      bucketstage = str(itemselectionSelected.indexes()[2].data())
       stage =  self.getStageCode(bucketstage)
-      status = itemselectionSelected.indexes()[5].data().toInt()[0]
+      status = int(itemselectionSelected.indexes()[5].data())
       self.activateButtons(stage,status,bucketId)
-      if stage >= RADJobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
-         
-         QgsProject.instance().emit( SIGNAL( "ActivateGrid(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ), self.expId, bucketId,stage,status)
+      if stage >= JobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
+         #QgsProject.instance().emit( SIGNAL( "ActivateGrid(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ), self.expId, bucketId,stage,status)
+         Communicate.instance().activateGrid.emit(self.expId, bucketId, stage, status)
                
    def activateButtons(self,bucketstage,bucketstatus,bucketId): 
       """
       @summary: activates and deactivates buttons based on combination of bucket stage and pamsum stage
       """ 
       
-      if bucketstatus > JobStatus.GENERAL and bucketstage >= RADJobStage.INTERSECT:
+      if bucketstatus > JobStatus.GENERAL and bucketstage >= JobStage.INTERSECT:
          # this means a job has been sent
          self.intersectBut.setEnabled(False) 
          self.randomizeBut.setEnabled(True) 
@@ -709,12 +710,13 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          for o in nextPage:   
             status = int(o.status)
             stage = int(o.stage)
-            if stage == RADJobStage.INTERSECT:
+            if stage >= JobStage.INTERSECT:
                try:
-                  if int(o.pamSum.stage) == RADJobStage.CALCULATE:
-                     stage = RADJobStage.CALCULATE
+                  if int(o.pamSum.stage) == JobStage.CALCULATE:
+                     stage = JobStage.CALCULATE
+                     status = int(o.pamSum.status)
                except:
-                  stage = RADJobStage.INTERSECT
+                  stage = JobStage.INTERSECT
             if status >= JobStatus.GENERAL_ERROR:
                statusstring = 'error'
             elif status == JobStatus.RETRIEVE_COMPLETE:
@@ -729,8 +731,11 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             data.append([o.name,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get Grid</a>",o.status])
          self.bucketDataView.model().data = data
          self.bucketDataView.model().setCurrentPage(page)
-         self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+         
+         #self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
+         #      QModelIndex(), QModelIndex())
+         
+         self.bucketDataView.model().dataChanged.emit(QModelIndex(),QModelIndex())
 
          readOut = "%s/%s" % (str(page+1),str(self.bucketTableView.noPages))
          self.bucketTableView.pageReadOut.clear()
@@ -760,12 +765,13 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          for o in items:
             status = int(o.status)
             stage = int(o.stage) 
-            if stage == RADJobStage.INTERSECT:
+            if stage >= JobStage.INTERSECT:
                try:
-                  if int(o.pamSum.stage) == RADJobStage.CALCULATE:
-                     stage = RADJobStage.CALCULATE
+                  if int(o.pamSum.stage) == JobStage.CALCULATE:
+                     stage = JobStage.CALCULATE
+                     status = int(o.pamSum.status)
                except:
-                  stage = RADJobStage.INTERSECT
+                  stage = JobStage.INTERSECT
             if status >= JobStatus.GENERAL_ERROR:
                statusstring = 'error'
             elif status == JobStatus.RETRIEVE_COMPLETE:
@@ -783,11 +789,17 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          self.bucketDataView = self.bucketTableView.createTable(header,htmlIndexList=[4],
                                                                 editsIndexList=[999],
                                                                 controlsIndexList=[4],hiddencolumns=[5])
-         QObject.connect(self.bucketDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+         #QObject.connect(self.bucketDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+         self.bucketDataView.model().getNext.connect(self.getNextPage)
          if self.bucketDataView.model().noPages == 1:
             self.bucketTableView.pageForward.setEnabled(False)
-         QObject.connect(self.bucketDataView.selectionModel(), SIGNAL("selectionChanged(const QItemSelection&, const QItemSelection&)"),self.tablerowselected)
-         QObject.connect(self.bucketDataView, SIGNAL("clicked(const QModelIndex &)"), self.addGridtoMap)
+            
+         #QObject.connect(self.bucketDataView.selectionModel(), SIGNAL("selectionChanged(const QItemSelection&, const QItemSelection&)"),self.tablerowselected)
+         #QObject.connect(self.bucketDataView, SIGNAL("clicked(const QModelIndex &)"), self.addGridtoMap)
+         print self.bucketDataView.selectionModel()
+         self.bucketDataView.selectionModel().selectionChanged.connect(self.tablerowselected)
+         self.bucketDataView.clicked.connect(self.addGridtoMap)
+         
          self.bucketDataView.setSelectionBehavior(QAbstractItemView.SelectRows)
          self.bucketDataView.setSelectionMode(QAbstractItemView.SingleSelection)
       
@@ -833,7 +845,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('listgrids')

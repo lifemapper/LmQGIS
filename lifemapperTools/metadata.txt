@@ -3,10 +3,10 @@
 author=Jeff Cavner
 email=lifemapper@ku.edu
 name=Lifemapper MacroEcology Range and Diversity Tools (LmRAD)
-qgisMinimumVersion=1.7
+qgisMinimumVersion=2.0
 description=Lifemapper Macroecology tools for range and diversity statistics on presence absence matrices
 category=Web
-version=version 1.0.0 
+version=version 2.0.0 
 ; end of mandatory metadata
 
 ; start of optional metadata

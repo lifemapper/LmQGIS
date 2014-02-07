@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -35,6 +35,7 @@ class Ui_Dialog(object):
 
    
    def setupUi(self):
+      print "setting up V2 dialog from V2 ui import"
       self.setObjectName("Dialog")
       self.resize(818, 448)
       self.setMinimumSize(418,248)
@@ -113,11 +114,11 @@ class Ui_Dialog(object):
       self.projectionsLabel = QtGui.QLabel('Projections:')
       self.projectionsLink      = QtGui.QLabel('<a href="www.fake.com">Details</a>')
       self.backLink         = QtGui.QLabel('<a href="www.fake.com">Back to experiments</a>')
-      QtCore.QObject.connect(self.backLink, QtCore.SIGNAL("linkActivated(const QString &)"), self.switchtoExpTableFromDetails)
-      QtCore.QObject.connect(self.projectionsLink, QtCore.SIGNAL("linkActivated(const QString &)"), self.showProjTable)
-      QtCore.QObject.connect(self.occSetLink, QtCore.SIGNAL("linkActivated(const QString &)"), self.processOccSet)
-      #self.occSetLink.setOpenExternalLinks(True)
-      #QtCore.QObject.connect(self.occSetLink, QtCore.SIGNAL("linkActivated(const QString &)"), self.showOccSetTable)
+      
+     
+      self.backLink.linkActivated.connect(self.switchtoExpTableFromDetails)
+      self.projectionsLink.linkActivated.connect(self.showProjTable)
+      self.occSetLink.linkActivated.connect(self.processOccSet)
       
       self.viewExpGrid.addWidget(self.displayNameLabel,0,1,1,1)
       self.viewExpGrid.addWidget(self.displayName,     0,2,1,2)
@@ -145,11 +146,11 @@ class Ui_Dialog(object):
       self.helpBut.setAutoDefault(False)
       self.helpBut.setMaximumSize(30, 30)
       
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
+     
+      self.helpBut.clicked.connect(self.help)
+      self.rejectBut.clicked.connect(self.reject)
       
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)
       
       self.gridLayout.addLayout(self.tableGrid,      0,0,1,2)

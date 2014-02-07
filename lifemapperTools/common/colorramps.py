@@ -1,6 +1,9 @@
 """
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
+
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,

@@ -1,6 +1,9 @@
 """
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
+
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -40,7 +43,8 @@ from lifemapperTools.tools.ui_listBuildScenariosDialog import ListBuildScenarios
 from lifemapperTools.tools.ui_postEnvLayer import PostEnvLayerDialog
 from lifemapperTools.common.lmClientLib import LMClient
 from lifemapperTools.common.workspace import Workspace
-from lifemapperTools.common.pluginconstants import QGISProject, RADJobStage,\
+from lifemapperTools.common.communicate import Communicate
+from lifemapperTools.common.pluginconstants import QGISProject, JobStage,\
                                          JobStatus, STAGELOOKUP,STAGEREVLOOKUP, \
                                          STATUSLOOKUP, STATUSREVLOOKUP, PER_PAGE
 
@@ -48,15 +52,20 @@ from lifemapperTools.common.pluginconstants import QGISProject, RADJobStage,\
 
 class MetoolsPlugin:
    
+   
+   #a = pyqtSignal(str,name="activateSDMExp")
+   
    def __init__(self, iface):
-     
+      #QObject.__init__(self)
+      #self.communicate = Communicate()    
       self.iface = iface
-     
+      
+      
    def initGui(self):
       self.signInDialog = None
       self.menu = QMenu()
       self.menu.setTitle(QCoreApplication.translate("lifemapperTools", "&Lifemapper" ))
-      self.menu.setObjectName('macro')
+      self.menu.setObjectName('lifemapper')
       
       self._initSignInOutActions()
       self._initUploadEnvLayerAction()
@@ -86,16 +95,21 @@ class MetoolsPlugin:
       menu_bar.insertMenu( lastAction, self.menu )
       
       
+      #Communicate.activateSDMExp.connect(self.currentSDMExperiment)
       
-      QObject.connect(QgsProject.instance(),SIGNAL("ActivateSDMExp(PyQt_PyObject)"),self.currentSDMExperiment)
-      QObject.connect(QgsProject.instance(),SIGNAL("ActivateExp(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.currentExperiment)
-      QObject.connect(QgsProject.instance(),SIGNAL("ActivateGrid(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.currentGrid)
+      Communicate.instance().activateSDMExp.connect(self.currentSDMExperiment)
+      Communicate.instance().activateRADExp.connect(self.currentExperiment)
+      Communicate.instance().activateGrid.connect(self.currentGrid)
+      #QObject.connect(QgsProject.instance(),SIGNAL("ActivateSDMExp(PyQt_PyObject)"),self.currentSDMExperiment)
+      #QObject.connect(QgsProject.instance(),SIGNAL("ActivateExp(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.currentExperiment)
+      #QObject.connect(QgsProject.instance(),SIGNAL("ActivateGrid(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.currentGrid)
       
 # ..............................................................................
 
    def _initChangeWSAction(self):
       self.changeWSAction = QAction( QCoreApplication.translate("lifemapperTools", "Change Workspace"),self.iface.mainWindow())
-      QObject.connect(self.changeWSAction, SIGNAL("triggered()"), self.changeWS)
+      #QObject.connect(self.changeWSAction, SIGNAL("triggered()"), self.changeWS)
+      self.changeWSAction.triggered.connect(self.changeWS)
       self.changeWSAction.setEnabled(False)
       
    def _initSDMActions(self):
@@ -104,13 +118,17 @@ class MetoolsPlugin:
       self.postEnvLayerSetItem = QAction( QCoreApplication.translate("lifemapperTools", "Build Environmental Layer Set"),self.iface.mainWindow())
       self.listSDMExpsItem = QAction( QCoreApplication.translate("lifemapperTools", "List Experiments"),self.iface.mainWindow())
       # connect SDM actions
-      QObject.connect(self.postSDMExpItem, SIGNAL("triggered()"), self.postSDMExp)
-      QObject.connect(self.postEnvLayerSetItem, SIGNAL("triggered()"), self.postEnvLayerSet)
-      QObject.connect(self.listSDMExpsItem, SIGNAL("triggered()"), self.listSDMExp)
+      #QObject.connect(self.postSDMExpItem, SIGNAL("triggered()"), self.postSDMExp)
+      #QObject.connect(self.postEnvLayerSetItem, SIGNAL("triggered()"), self.postEnvLayerSet)
+      #QObject.connect(self.listSDMExpsItem, SIGNAL("triggered()"), self.listSDMExp)
+      self.postSDMExpItem.triggered.connect(self.postSDMExp)
+      self.postEnvLayerSetItem.triggered.connect(self.postEnvLayerSet)
+      self.listSDMExpsItem.triggered.connect(self.listSDMExp)
       
    def _initUploadEnvLayerAction(self):
       self.uploadEnvlayerAction =  QAction( QCoreApplication.translate("lifemapperTools", "Upload Layer"),self.iface.mainWindow()) 
-      QObject.connect(self.uploadEnvlayerAction, SIGNAL("triggered()"),self.uploadEnvLayer)
+      #QObject.connect(self.uploadEnvlayerAction, SIGNAL("triggered()"),self.uploadEnvLayer)
+      self.uploadEnvlayerAction.triggered.connect(self.uploadEnvLayer)
       self.uploadEnvlayerAction.setEnabled(False) 
 # ..............................................................................     
    def _initSignInOutActions(self):
@@ -120,8 +138,10 @@ class MetoolsPlugin:
       
       self.signInItem = QAction( QCoreApplication.translate("lifemapperTools", "Sign In"),self.iface.mainWindow())
       self.signOutItem = QAction( QCoreApplication.translate("lifemapperTools", "Sign Out"),self.iface.mainWindow())
-      QObject.connect(self.signInItem, SIGNAL("triggered()"), self.signIn)
-      QObject.connect(self.signOutItem, SIGNAL("triggered()"), self.signOut)
+      #QObject.connect(self.signInItem, SIGNAL("triggered()"), self.signIn)
+      #QObject.connect(self.signOutItem, SIGNAL("triggered()"), self.signOut)
+      self.signInItem.triggered.connect(self.signIn)
+      self.signOutItem.triggered.connect(self.signOut)
       self.signOutItem.setEnabled(False)
 # ..............................................................................        
    def _initRADActions(self):
@@ -129,8 +149,12 @@ class MetoolsPlugin:
       # these action go under the rad menu
       self.newExperimentItem = QAction( QCoreApplication.translate("lifemapperTools", "New Experiment"),self.iface.mainWindow())
       self.ResumeItem = QAction(QCoreApplication.translate("lifemapperTools", "List Experiments" ),self.iface.mainWindow())
-      QObject.connect(self.newExperimentItem, SIGNAL("triggered()"), self.newExperiment)
-      QObject.connect(self.ResumeItem, SIGNAL("triggered()"), self.resume)
+      
+      #QObject.connect(self.newExperimentItem, SIGNAL("triggered()"), self.newExperiment)
+      #QObject.connect(self.ResumeItem, SIGNAL("triggered()"), self.resume)
+      
+      self.newExperimentItem.triggered.connect(self.newExperiment)
+      self.ResumeItem.triggered.connect(self.resume)
       
       self.ResumeItem.setEnabled(False)    
       self.newExperimentItem.setEnabled(False)
@@ -191,12 +215,14 @@ class MetoolsPlugin:
       # actions for bucket
       
       self.plotstablesAction = QAction( QCoreApplication.translate("lifemapperTools", "Plots and Tables"),self.iface.mainWindow())
-      QObject.connect(self.plotstablesAction, SIGNAL("triggered()"), lambda :self.openStats(expId,bucketId))
+      #QObject.connect(self.plotstablesAction, SIGNAL("triggered()"), lambda :self.openStats(expId,bucketId))
+      self.plotstablesAction.triggered.connect(lambda: self.openStats(expId, bucketId))
       self.statsMenu.addAction(self.plotstablesAction)
   
       
       self.viewSiteBasedAction =  QAction( QCoreApplication.translate("lifemapperTools", "Spatially View Site Based Stats"),self.iface.mainWindow())
-      QObject.connect(self.viewSiteBasedAction, SIGNAL("triggered()"), lambda :self.openSpatialStats(expId,bucketId))
+      #QObject.connect(self.viewSiteBasedAction, SIGNAL("triggered()"), lambda :self.openSpatialStats(expId,bucketId))
+      self.viewSiteBasedAction.triggered.connect(lambda: self.openSpatialStats(expId, bucketId))
       self.statsMenu.addAction(self.viewSiteBasedAction)
       
       self.bucketMenu.addMenu(self.statsMenu)
@@ -205,7 +231,7 @@ class MetoolsPlugin:
 # ..............................................................................     
    def openStats(self,expId, bucketId):
       inputs = {'expId':expId,'bucketId':bucketId}
-      if self.retrieveCurrentExpId() != expId:
+      if str(self.retrieveCurrentExpId()) != str(expId):
          projPath = self._retrieveRADExpProjPath(expId)
       else:
          projPath = False
@@ -216,7 +242,7 @@ class MetoolsPlugin:
 # ..............................................................................        
    def openSpatialStats(self,expId, bucketId):  
       inputs = {'expId':expId,'bucketId':bucketId}
-      if self.retrieveCurrentExpId() != expId:
+      if str(self.retrieveCurrentExpId()) != str(expId):
          projPath = self._retrieveRADExpProjPath(expId)
       else:
          projPath = False
@@ -226,11 +252,11 @@ class MetoolsPlugin:
       self.SpatialStatsDialog.exec_()
       
    def currentSDMExperiment(self,expId):
-      
       self.currentSDMExpId = expId
       if self.currentSDMExpAction is None:
          self.currentSDMExpAction = QAction( QCoreApplication.translate("lifemapperTools", "Current Experiment"),self.iface.mainWindow())
-         QObject.connect(self.currentSDMExpAction, SIGNAL("triggered()"),self.resumeSDMExp)  
+         #QObject.connect(self.currentSDMExpAction, SIGNAL("triggered()"),self.resumeSDMExp)  
+         self.currentSDMExpAction.triggered.connect(self.resumeSDMExp)
          self.sdmMenu.addAction(self.currentSDMExpAction)
       
       
@@ -250,24 +276,28 @@ class MetoolsPlugin:
       
       # list grids action
       self.listBucketsAction = QAction( QCoreApplication.translate("lifemapperTools", "Access Grids"),self.iface.mainWindow()) 
-      QObject.connect(self.listBucketsAction, SIGNAL("triggered()"),lambda :self.resumeBuckets(expId, expEPSG, mapunits)) 
+      #QObject.connect(self.listBucketsAction, SIGNAL("triggered()"),lambda :self.resumeBuckets(expId, expEPSG, mapunits)) 
+      self.listBucketsAction.triggered.connect(lambda :self.resumeBuckets(expId, expEPSG, mapunits))
       self.experimentMenu.addAction(self.listBucketsAction)
       
       # list presence absence layers action
       self.listPALayersAction = QAction( QCoreApplication.translate("lifemapperTools", "List Species Layers"),self.iface.mainWindow()) 
-      QObject.connect(self.listPALayersAction, SIGNAL("triggered()"),lambda :self.resumePALayers(expId, expEPSG, mapunits)) 
+      #QObject.connect(self.listPALayersAction, SIGNAL("triggered()"),lambda :self.resumePALayers(expId, expEPSG, mapunits)) 
+      self.listPALayersAction.triggered.connect(lambda :self.resumePALayers(expId, expEPSG, mapunits))
       self.experimentMenu.addAction(self.listPALayersAction)
       
       # add PA layers action 
       
       self.addPALayersAction = QAction( QCoreApplication.translate("lifemapperTools", "Add Species Layers"),self.iface.mainWindow()) 
-      QObject.connect(self.addPALayersAction, SIGNAL("triggered()"),lambda :self.addPALayers(expId, expEPSG, mapunits)) 
+      #QObject.connect(self.addPALayersAction, SIGNAL("triggered()"),lambda :self.addPALayers(expId, expEPSG, mapunits)) 
+      self.addPALayersAction.triggered.connect(lambda :self.addPALayers(expId, expEPSG, mapunits))
       self.experimentMenu.addAction(self.addPALayersAction)
       
       # add SDM layers action 
       
       self.addSDMLayersAction = QAction( QCoreApplication.translate("lifemapperTools", "Add SDM Layers"),self.iface.mainWindow()) 
-      QObject.connect(self.addSDMLayersAction, SIGNAL("triggered()"),lambda :self.addSDMLayers(expId, expEPSG, mapunits)) 
+      #QObject.connect(self.addSDMLayersAction, SIGNAL("triggered()"),lambda :self.addSDMLayers(expId, expEPSG, mapunits)) 
+      self.addSDMLayersAction.triggered.connect(lambda :self.addSDMLayers(expId, expEPSG, mapunits))
       self.experimentMenu.addAction(self.addSDMLayersAction)
       
       # get env layers, and add env layers
@@ -280,7 +310,7 @@ class MetoolsPlugin:
  # ..............................................................................    
    def addSDMLayers(self,currentExpId, expEPSG, mapunits):
       if self.signInDialog.client is not None:
-         if self.retrieveCurrentExpId() != currentExpId:
+         if str(self.retrieveCurrentExpId()) != str(currentExpId):
             projPath = self._retrieveRADExpProjPath(currentExpId)
          else:
             projPath = False
@@ -294,7 +324,7 @@ class MetoolsPlugin:
 # ..............................................................................     
    def addPALayers(self,currentExpId, expEPSG, mapunits):
       if self.signInDialog.client is not None:
-         if self.retrieveCurrentExpId() != currentExpId:
+         if str(self.retrieveCurrentExpId()) != str(currentExpId):
             projPath = self._retrieveRADExpProjPath(currentExpId)
          else:
             projPath = False
@@ -310,7 +340,7 @@ class MetoolsPlugin:
 # ..............................................................................        
    def resumePALayers(self,currentExpId, expEPSG, mapunits):
       if self.signInDialog.client is not None:
-         if self.retrieveCurrentExpId() != currentExpId:
+         if str(self.retrieveCurrentExpId()) != str(currentExpId):
             projPath = self._retrieveRADExpProjPath(currentExpId)
          else:
             projPath = False
@@ -324,7 +354,7 @@ class MetoolsPlugin:
    def resumeBuckets(self,currentExpId,expEPSG, mapunits):
       #currentExpId = self.retrieveCurrentExpId()
       if self.signInDialog.client is not None:
-         if self.retrieveCurrentExpId() != currentExpId:
+         if str(self.retrieveCurrentExpId()) != str(currentExpId):
             projPath = self._retrieveRADExpProjPath(currentExpId)
          else:
             projPath = False
@@ -355,8 +385,11 @@ class MetoolsPlugin:
       except:
          pass
       
-      QObject.disconnect(QgsProject.instance(), SIGNAL("writeProject(QDomDocument &)"), self.onSaveSaveAs)
-      QObject.disconnect(self.iface,SIGNAL("projectRead()"),self.onReadProject)
+      #QObject.disconnect(QgsProject.instance(), SIGNAL("writeProject(QDomDocument &)"), self.onSaveSaveAs)
+      #QObject.disconnect(self.iface,SIGNAL("projectRead()"),self.onReadProject)
+      
+      QgsProject.instance().writeProject.disconnect(self.onSaveSaveAs)
+      self.iface.projectRead.disconnect(self.onReadProject)
       
       user = self.signInDialog.client._cl.userId
       s.remove("currentExpID")
@@ -386,7 +419,7 @@ class MetoolsPlugin:
          s = QSettings()
          for key in s.allKeys():
             if 'RADExpProj' in key:
-               value = str(s.value(key).toString())
+               value = str(s.value(key))
                if value == filename:
                   found = True
                   expId = key.split('_')[1]
@@ -396,12 +429,12 @@ class MetoolsPlugin:
 # ..............................................................................        
    def retrieveCurrentExpId(self):
       s = QSettings()
-      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID).toInt()[0]
+      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID,type=int)
       return currentExpId             
 # .............................................................................. 
    def _retrieveRADExpProjPath(self,expId):
       s = QSettings()
-      return str(s.value("RADExpProj_"+str(expId),QGISProject.NOPROJECT).toString())
+      return str(s.value("RADExpProj_"+str(expId),QGISProject.NOPROJECT))
 
 # .............................................................................. 
    def _comparePathToId(self):
@@ -411,7 +444,6 @@ class MetoolsPlugin:
       filename = str(project.fileName())
       currentExpId = self.retrieveCurrentExpId()
       currentPath = self._retrieveRADExpProjPath(currentExpId)
-      print "currentPath = ",currentPath," filename = ",filename
       #hasKey = self._hasProjKey(str(currentExpId)) # ?or if the saved project in settings is in a value for a key?
       if filename != currentPath:
          return False
@@ -435,7 +467,6 @@ class MetoolsPlugin:
    def onSaveSaveAs(self,domproject):
       # called on every save or save as, after the actual save
       # on unload comes here first if dirty
-      print "at save in main plugin"
       s = QSettings()
       currentExpId  = self.retrieveCurrentExpId()
       if currentExpId != QGISProject.NOEXPID and currentExpId != '':
@@ -452,7 +483,7 @@ class MetoolsPlugin:
       currentExpId  = self.retrieveCurrentExpId()
       if currentExpId != QGISProject.NOEXPID:
          currentpath = str(s.value("RADExpProj_"+str(currentExpId),
-                                   QGISProject.NOPROJECT).toString())
+                                   QGISProject.NOPROJECT))
          if currentpath != QGISProject.NOPROJECT and currentpath != '':
             self.iface.actionSaveProject().trigger()
          else:

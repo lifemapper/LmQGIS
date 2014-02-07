@@ -6,12 +6,12 @@
  Macro Ecology tools for presence absence matrices
                              -------------------
         begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
+        copyright            : (C) 2014 by Biodiversity Institute
         email                : jcavner@ku.edu
  ***************************************************************************/
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -105,17 +105,38 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
          fields.append(choices)
          handle.Destroy()
       return fields
+   
+   def checkCRS(self,record):
+      match = True
+      path = record[1][1]
+      f, extension = os.path.splitext(record[1][1])
+      if extension == SHAPEFILE_EXTENSION:
+         QgsLayer = QgsVectorLayer(path,'testCRS','ogr')
+         epsg = str(QgsLayer.crs().authid()).strip('EPSG:')
+      if extension == RASTER_EXTENSION:
+         QgsLayer = QgsRasterLayer(path,'testCRS')
+         epsg = str(QgsLayer.crs().authid()).strip('EPSG:')
+      if str(epsg) != str(self.expEPSG):
+         match = False
+      return match
 # ..............................................................................       
-   def checkNames(self):
+   def checkNamesCRS(self):
       renameList = []
       idList = []
+      crsMismatch = []
       for record in enumerate(self.table.tableView.model().data):
-         name = record[1][0]
-         layerList = self.client.rad.listLayers(layerName=name,epsgCode=self.expEPSG)
-         if len(layerList) > 0:
-            renameList.append(name)
-            idList.append(layerList[0].id)
-      return renameList, idList
+         crsMatch = self.checkCRS(record)
+         if crsMatch:
+            crsMismatch.append(True)
+            name = record[1][0]
+            layerList = self.client.rad.listLayers(layerName=name,epsgCode=self.expEPSG)
+            if len(layerList) > 0:
+               renameList.append(name)
+               idList.append(layerList[0].id)
+         else:
+            crsMismatch.append(False)
+            
+      return renameList, idList, crsMismatch
 # ..............................................................................   
    def addUpload(self, names, ids, record, skipUpload=False):
       if not skipUpload:  
@@ -199,15 +220,18 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
       layercount = len(self.table.tableView.model().data)
       self.progressbar.setMinimum(0)
       self.progressbar.setMaximum(layercount)
-      names, ids = self.checkNames()    
+      names, ids, crsMatch = self.checkNamesCRS()    
       successcount = 0
       addedAndUploadedrecords = []
       progress = 0
-      for record in enumerate(self.table.tableView.model().data):
-         if record[1][0] not in names:
+      wrongCrsLyrNames = []
+      for crs, record in zip(crsMatch,enumerate(self.table.tableView.model().data)):
+         if record[1][0] not in names  and crs:
             if self.addUpload(names, ids, record, skipUpload=False):
                addedAndUploadedrecords.append(record)
                successcount += 1
+         if not crs:
+            wrongCrsLyrNames.append(record[1][0])
          progress +=1
          self.progressbar.setValue(progress)
       self.removeUploadedRows(addedAndUploadedrecords,layercount,successcount)            
@@ -219,11 +243,11 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
          namesString = ''
          for layer in names:
             namesString = namesString + layer + '\n'
-         message =  QString("The following layers already exist by name for this user,\n"
-                    "if you wish to upload again click No on this dialog, rename\n" 
-                    "the remaining layers and submit again, or click Yes to skip\n"
-                    "uploading the actual data and just add the existing data for\n"
-                    "these layers to the current experiment with the new parameters.\n\n" + namesString)
+         message =  """The following layers already exist by name for this user,
+                    if you wish to upload again click No on this dialog, rename 
+                    the remaining layers and submit again, or click Yes to skip
+                    uploading the actual data and just add the existing data for
+                    these layers to the current experiment with the new parameters.""" + namesString
          
          reply = QMessageBox.question(self, 'Layers exist',
                                                message, QMessageBox.Yes | 
@@ -244,6 +268,13 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
             self.removeUploadedRows(addedrecords,layercount,successcount)
             message = 'Added '+str(successcount) +" of "+ str(layercount) +" layers"
             QMessageBox.information(self,"status: ", message)
+         if len(wrongCrsLyrNames) > 0:
+            namesString = ''
+            for layer in wrongCrsLyrNames:
+               namesString = namesString + layer + '\n'
+            message = """The following layers EPSG do not match the ESPG of the experiment, you will not
+                         be able to upload them to this experiment.""" + namesString
+            QMessageBox.warning(self, 'Layers CRS Wrong', message)
             
       self.acceptBut.setEnabled(True)
       self.outputGroup.hide()
@@ -257,7 +288,7 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
       self.help.setMaximumSize(1000,1000)
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('uploadLayers')

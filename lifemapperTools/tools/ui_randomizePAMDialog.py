@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -37,18 +37,6 @@ class Ui_Dialog(object):
        
       self.gridLayout = QtGui.QGridLayout(self)
       self.gridLayout.setObjectName("gridLayout")
-       
- 
-      #self.selectDescribeProcess = QtGui.QComboBox(self)
-      #self.selectDescribeProcess.setObjectName("selectDescribeProcess")
-      #self.selectDescribeProcess.addItem("KU NHM Grid Constructor",
-      #     QtCore.QVariant(KUNHM_GC_DESCRIBE_PROCESS_URL))
-      #self.selectDescribeProcess.addItem("Populate Grid",
-      #     QtCore.QVariant(KUNHM_GC_DESCRIBE_PROCESS_URL))
-      #self.gridLayout.addWidget(self.selectDescribeProcess, 0, 1, 1, 1)
-
-       
-       
        
       # This is my controls Group that gets populated with input controls 
       # when the model is updated
@@ -126,25 +114,21 @@ class Ui_Dialog(object):
       self.buttonBox.setObjectName("buttonBox")
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.RejectRole)
      
       self.gridLayout.addWidget(self.buttonBox, 8, 0 ,7, 3)
        
-         
-   
       self.retranslateUi()
-      QtCore.QObject.connect(self.swapCheck, QtCore.SIGNAL("toggled(bool)"), 
-                             lambda : self.iterationsEdit.setEnabled(True))
-      QtCore.QObject.connect(self.splotchCheck, QtCore.SIGNAL("toggled(bool)"), 
-                             lambda : self.iterationsEdit.setEnabled(False))  
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      
        
+      self.swapCheck.toggled.connect(lambda : self.iterationsEdit.setEnabled(True))
+      self.splotchCheck.toggled.connect(lambda : self.iterationsEdit.setEnabled(False))
       
-      
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)      
       
 
 

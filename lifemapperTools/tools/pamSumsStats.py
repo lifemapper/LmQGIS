@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -37,6 +30,7 @@ import types
 import zipfile
 import csv
 import sys
+import cPickle
 from types import ListType
 from random import randint
 import numpy as np
@@ -51,10 +45,10 @@ from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.tools.radTable import RADTable
 from lifemapperTools.common.pluginconstants import RADStatTypes
 from lifemapperTools.common.colorpalette import ColorPalette
-#from lifemapperTools.common.RADPlotter import DataPlot, RADCanvas
 from lifemapperTools.common.matPlotLibPlotter import PlotWindow
 from lifemapperTools.common.colorramps import HOTCOLD
 from lifemapperTools.common.workspace import Workspace
+from lifemapperTools.common.communicate import Communicate
 
 
 
@@ -86,10 +80,202 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
       self.tableview = None
       self._origPamId = None
       self.speciesOrSites = None
+      self.activeLyr = None
+      self.attachedNonFIDNonLyrId = False
+      self.plot = None
+      self.selectedFIDs = [] # running list of selected FIDs in the plot
+      self.setSitesPresent()
+      
       _Controller.__init__(self, iface, BASE_URL=None, STATUS_URL=None, REST_URL=None,
                            ids=RADids,initializeWithData=False,
                            requestfunc=self.client.rad.listExperiments, 
                            client = client)
+
+# ..............................................................................
+   def checkActiveLyrPlot(self,checked):
+      if self.isModal():
+         self.setModal(False)
+      if checked:
+         selectLyr = self.interface.mapCanvas().currentLayer()
+         if not selectLyr:
+            self.attachActiveLyr.setChecked(False)
+            self.activeLyr = None
+            message = "There is no active layer"
+            self.msgBox = QMessageBox.information(self,
+                                                   "Problem...",
+                                                   message,
+                                                   QMessageBox.Ok) 
+         else:
+            siteIdIdx = selectLyr.fieldNameIndex('siteid')
+            if siteIdIdx == -1:
+               self.attachActiveLyr.setChecked(False)
+               self.activeLyr = None
+               message = """The active layer does not have a siteid field, try downloading
+                          a spatial view and making that layer active."""
+               msgBox = QMessageBox.information(self,
+                                                   "Problem...",
+                                                   message,
+                                                   QMessageBox.Ok) 
+            else:
+               self.activeLyr = selectLyr
+               
+               self.activeLyr.selectionChanged.connect(self.layerSelectionSlot)
+               
+               if self.tableview is not None:
+                  if self.attachedNonFIDNonLyrId and self.speciesOrSites == 'sites':
+                     # need to think about this,  what if a table exists and its from a splotch conflicting with
+                     # original or swapped
+                     self.scatterPlot.setEnabled(False)
+                     self.buildTable()
+                     self.scatterPlot.setEnabled(True) 
+# ..............................................................................
+   def setSitesPresent(self):     
+      try:
+         bucketId = self.inputs['bucketId']
+         expId = self.inputs['expId']
+         # get the workspace and project folder
+         filePath = os.path.join(self.saveDirectory,'sitesPresent.pkl')
+         success = self.client.rad.getBucketSitesPresent(filePath, expId, bucketId)
+         if os.path.exists(filePath) and success:
+            presentDict = cPickle.load(open(filePath))
+            self.sitesPresent = presentDict
+            try:
+               self.lyrsPresent = presentDict[int(bucketId)]['layersPresent']
+            except:
+               self.lyrsPresent = None
+      except Exception,e:
+         print str(e)
+         self.sitesPresent = None
+         self.lyrsPresent = None
+         
+
+# ..............................................................................
+   def disconnectAddPlotKeys(self,modelData,lenMatch=True):
+      try:
+         Communicate.instance().RADSpeciesSelected.disconnect(self.selectSpecies)
+      except Exception, e:
+         pass
+      try:
+         Communicate.instance().RADSitesSelected.disconnect(self.selectSites)
+      except Exception, e:
+         pass
+      length = len(modelData)
+      ids = [tableId for tableId in range(0,length)]
+      for rec,tableId in zip(modelData,ids):
+         rec.insert(0,tableId)
+      self.attachedNonFIDNonLyrId = True
+      if not lenMatch:
+         message = """sites in layer do not match the number of stats records, 
+                     unable to attach map, plot can still be built."""
+         msgBox = QMessageBox.information(self,
+                                                   "Problem...",
+                                                   message,
+                                                   QMessageBox.Ok)
+# ..............................................................................
+   def reject(self):
+      try:
+         if self.plot is not None:
+            self.plot.close()
+      except:
+         pass
+      super(PamSumsStatsDialog, self).reject()
+            
+# ..............................................................................
+   def attachFIDs(self,modelData,pam=None):
+      """
+      @summary: attaches the FIDs from a current Layer given sites present to the 
+      model data for the sites table
+      """
+      if self.activeLyr is not None:
+         try:
+            Communicate.instance().RADSpeciesSelected.disconnect(self.selectSpecies)
+         except Exception, e:
+            pass
+         Communicate.instance().RADSitesSelected.connect(self.selectSites)
+         bucketId = int(self.inputs['bucketId'])
+         if pam is None:
+            sitesPresent = self.sitesPresent[bucketId]['sitesPresent'] # original
+         else:
+            if int(pam) in self.sitesPresent: # this means it is splotched, since only
+               # splotched ids are keys
+               sitesPresent = self.sitesPresent[int(pam)]['sitesPresent']
+            else:
+               sitesPresent = self.sitesPresent[bucketId]['sitesPresent']
+               
+         selectLyr = self.activeLyr
+         siteIdIdx = selectLyr.fieldNameIndex('siteid')
+         featuresIter = selectLyr.getFeatures()
+         try:
+            listofFIDs = [f.id() for f in featuresIter if sitesPresent[f.attributes()[siteIdIdx]]]  
+         except Exception, e:
+            self.disconnectAddPlotKeys(modelData,lenMatch=False)
+         else:
+            if len(listofFIDs) == len(modelData):
+               for rec,FID in zip(modelData,listofFIDs):
+                  rec.insert(0,FID)
+            else:
+               self.disconnectAddPlotKeys(modelData,lenMatch=False)
+      else:
+         self.disconnectAddPlotKeys(modelData)
+         
+            
+         
+# ..............................................................................
+   def attachLyrIDs(self,modelData):
+      """
+      @summary: attaches the lyrIDs to the model data given the lyrs present
+      @param modelData: lists of lists of table model data
+      """
+      lyrIds = [x for x,y in sorted(self.lyrsPresent.iteritems()) if y]
+      try:
+         Communicate.instance().RADSitesSelected.disconnect(self.selectSites)
+      except Exception, e:
+         pass
+      Communicate.instance().RADSpeciesSelected.connect(self.selectSpecies)
+      for rec,lyrId in zip(modelData,lyrIds):
+         rec.insert(0,lyrId)
+# ..............................................................................
+   def selectSpecies(self,speciesSelected,lyrIds,ctrl):
+      print "at select Species"
+      print speciesSelected
+      print lyrIds
+      print ctrl
+      
+   # ..............................................................................
+   def layerSelectionSlot(self, *args):
+      try:
+         selectedFIDs = args[0]
+         deselectedFIDs = args[1]
+      except:
+         pass
+      
+      #print self.selectedFIDs
+      
+# ..............................................................................
+   def selectSites(self,sitesSelected,fids,ctrl):      
+      """
+      @summary: connected to signal emitted in matplotlib
+      @param sitesSelected: a one dimensional numpy array of booleans indicating if sites
+      were selected, e.g. [True, True, False,...], returned in the order matching the order
+      of the values in the table.
+      @param fids: list of fids originally from the table
+      """
+      sitesSelectedList = list(sitesSelected)
+      #selectLyr = self.interface.mapCanvas().currentLayer()
+      selectLyr = self.activeLyr
+      if not ctrl:
+         self.selectedFIDs = [fid for fid,selected in zip(fids,sitesSelectedList) if selected]   
+         selectLyr.setSelectedFeatures(self.selectedFIDs) # using just select, gives the option of 
+         # not emiting selectionChanged signal, in 2.0, setSelectedFeatures sends args to slot for
+         # selectionChanged
+      else:
+         if len(self.selectedFIDs) > 0:
+            added = [fid for fid,selected in zip(fids,sitesSelectedList) if selected]
+            self.selectedFIDs = list(set(added + self.selectedFIDs))
+            selectLyr.setSelectedFeatures(self.selectedFIDs)
+         else:
+            self.selectedFIDs = [fid for fid,selected in zip(fids,sitesSelectedList) if selected]   
+            selectLyr.setSelectedFeatures(self.selectedFIDs) 
 
 
 # ..............................................................................
@@ -146,6 +332,10 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          allSitesstats = self.getAvailableSitesStats()
          self.populateStatsCombo(allSitesstats,statstype='sites')
          self.spatiallyView.setEnabled(True)
+         self.attachActiveLyr.setEnabled(True)
+      else:
+         self.attachActiveLyr.setChecked(False)
+         self.attachActiveLyr.setEnabled(False)
              
 # ..............................................................................
    def checkSpeciesStatsSelected(self,checked):
@@ -350,21 +540,21 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
 # ..............................................................................      
    def openFileDialog(self,defaultfilename):
       #settings = QSettings()
-      #shpPath = settings.value( "/UI/lastShapefileDir" ).toString()
+      #shpPath = settings.value( "/UI/lastShapefileDir" )
       #if not os.path.exists(shpPath):
-      #   shpPath = settings.value("UI/lastProjectDir").toString()     
+      #   shpPath = settings.value("UI/lastProjectDir")     
       #dirName = shpPath +"/"+defaultfilename.replace(' ','_')
       expFolder = self.saveDirectory
       dirName = os.path.join(expFolder,defaultfilename)
       fileDialog = QgsEncodingFileDialog( self, "Save .csv File", dirName,"csv Files (*.csv)")
-      fileDialog.setDefaultSuffix( QString( "csv" ) )
+      fileDialog.setDefaultSuffix(  "csv"  )
       fileDialog.setFileMode( QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QFileDialog.AcceptSave )
       fileDialog.setConfirmOverwrite( True )    
       if not fileDialog.exec_() == QFileDialog.Accepted:
          return None
       filename = fileDialog.selectedFiles() 
-      return str(filename.first())
+      return str(filename[0])
 # ..............................................................................
    def exportStats(self):
       filename = self.openFileDialog('stats')
@@ -399,10 +589,10 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
       if self.isModal():
          self.setModal(False)
       currentPamidx = self.pamsumsCombo.currentIndex()
-      pam = str(self.pamsumsCombo.itemData(currentPamidx, role=Qt.UserRole).toString())
+      pam = str(self.pamsumsCombo.itemData(currentPamidx, role=Qt.UserRole))
       currentStatidx = self.statsCombo.currentIndex()
-      stat = str(self.statsCombo.itemData(currentStatidx, role=Qt.UserRole).toString())
-      if stat == '' or pam == '':
+      stat = str(self.statsCombo.itemData(currentStatidx, role=Qt.UserRole))
+      if stat == '' or pam == '' or stat == 'None' or pam == 'None':
          message = "Choose a pam and a stat from the drop down lists, after using the radio buttons to narrow the lists"
          msgBox = QMessageBox.information(self,
                                              "Problem...",
@@ -612,7 +802,12 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
             reverseArray = np.array(reversedata)
             transposeArray = reverseArray.transpose()
             modelData = transposeArray.tolist()
-            
+      if self.sitesPresent is not None:
+         self.attachFIDs(modelData,pam=pam)
+         header.insert(0,'FID')   
+         hiddenColumns = [0]   
+      else:
+         hiddenColumns = []      
       if self.tableview is not None:
          self.tableview.clearSelection()
          self.clearTableLayout()
@@ -622,7 +817,7 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          if len(a.shape) != 2:
             modelData = [['Not All Pams have been randomized']]
          self.table =  RADTable(modelData)
-         self.tableview = self.table.createTable(header)
+         self.tableview = self.table.createTable(header,hiddencolumns=hiddenColumns)
          self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
          self.tableLayout.addWidget(self.tableview)
          self.exportStatsBut.setEnabled(True)
@@ -683,7 +878,12 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          reverseArray = np.array(reversedata)
          transposeArray = reverseArray.transpose()
          modelData = transposeArray.tolist()
-            
+      if self.lyrsPresent is not None:
+         self.attachLyrIDs(modelData)
+         header.insert(0,'FID')   
+         hiddenColumns = [0]   
+      else:
+         hiddenColumns = []        
       if self.tableview is not None:
          self.tableview.clearSelection()
          #self.gridLayout.removeWidget(self.tableview)
@@ -693,7 +893,7 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          if len(a.shape) != 2:
             modelData = [['Not All Pams have been randomized']]
          self.table =  RADTable(modelData)
-         self.tableview = self.table.createTable(header)
+         self.tableview = self.table.createTable(header,hiddencolumns=hiddenColumns)
          self.tableview.setSelectionBehavior(QAbstractItemView.SelectColumns)# ? 
          self.tableLayout.addWidget(self.tableview)
          self.exportStatsBut.setEnabled(True)
@@ -703,20 +903,24 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          
    def buildScatterPlot(self):
       #self.setModal(False)
-      selectedcolumns = self.tableview.selectionModel().selectedColumns()
-      if len(selectedcolumns)!= 2:
+      try:
+         selectedcolumns = self.tableview.selectionModel().selectedColumns()
+         if len(selectedcolumns)!= 2:
+            
+            QMessageBox.warning(self,"status: ",
+                            "Please select two columns from the table to plot")
+            return
          
+         if self.speciesOrSites == 'sites':
+            self.createSitesPlot()
+         elif self.speciesOrSites == 'species':
+            self.createSpeciesPlot()
+         elif self.speciesOrSites == 'beta':
+            QMessageBox.warning(self,"status: ",
+                            "scatter plots is only enabled for site or species based data")
+      except:
          QMessageBox.warning(self,"status: ",
-                         "Please select two columns from the table to plot")
-         return
-      
-      if self.speciesOrSites == 'sites':
-         self.createSitesPlot()
-      elif self.speciesOrSites == 'species':
-         self.createSpeciesPlot()
-      elif self.speciesOrSites == 'beta':
-         QMessageBox.warning(self,"status: ",
-                         "scatter plots is only enabled for site or species based data")
+                            "no data to plot")
       
    def createSitesPlot(self):
       
@@ -734,10 +938,14 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          
          yvector = [float(row[selectedcolindex1]) for row in self.tableview.model().data]
          xvector = [float(row[selectedcolindex0]) for row in self.tableview.model().data]
+         if self.sitesPresent is not None:
+            fids = [int(row[0]) for row in self.tableview.model().data]
+         else:
+            fids = []
          xs = np.array(xvector) 
          ys = np.array(yvector) 
          
-         self.plot = PlotWindow(xs,ys,xLegend,yLegend,'Geographic Sites',self.saveDirectory)
+         self.plot = PlotWindow(xs,ys,xLegend,yLegend,'Geographic Sites',self.saveDirectory,ids=fids)
          self.plot.show()      
            
 # ..............................................................................
@@ -755,17 +963,21 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          xLegend = self.tableview.model().headerdata[selectedcolindex0]
          yLegend = self.tableview.model().headerdata[selectedcolindex1]                 
          yvector = [float(row[selectedcolindex1]) for row in self.tableview.model().data]
-         xvector = [float(row[selectedcolindex0]) for row in self.tableview.model().data]         
+         xvector = [float(row[selectedcolindex0]) for row in self.tableview.model().data] 
+         if self.lyrsPresent is not None:
+            lyrIds = [int(row[0]) for row in self.tableview.model().data]
+         else:
+            lyrIds = []         
          xs = np.array(xvector) 
          ys = np.array(yvector)          
-         self.plot = PlotWindow(xs,ys,xLegend,yLegend,'Species',self.saveDirectory)
+         self.plot = PlotWindow(xs,ys,xLegend,yLegend,'Species',self.saveDirectory,ids=lyrIds)
          self.plot.show()  
           
    
    def mapStats(self):
       currentPamidx = self.pamsumsCombo.currentIndex()
-      pamsumid = str(self.pamsumsCombo.itemData(currentPamidx, role=Qt.UserRole).toString())
-      if pamsumid == 'allrandom' or pamsumid == 'allswapped' or pamsumid == 'allsplotched' or pamsumid == '':
+      pamsumid = str(self.pamsumsCombo.itemData(currentPamidx, role=Qt.UserRole))
+      if pamsumid == 'allrandom' or pamsumid == 'allswapped' or pamsumid == 'allsplotched' or pamsumid == '' or pamsumid == 'None':
          message = "Please select a specific pam from the drop down list, using the radio button options to filter"
          msgBox = QMessageBox.information(self,
                                              "Problem...",
@@ -792,68 +1004,68 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
             self.rampIndex = 0
       colorramp = ColorPalette(ptype=self.rampTypes[self.rampIndex],n=numberOfClasses-1)
       self.rampIndex += 1
-      if layer.isUsingRendererV2():         
+      #if layer.isUsingRendererV2():         
          # Get the field index based on the field name
-         fieldIndex = layer.fieldNameIndex(fieldName)
-         provider = layer.dataProvider()
-         minimum = provider.minimumValue( fieldIndex ).toDouble()[ 0 ]
-         maximum = provider.maximumValue( fieldIndex ).toDouble()[ 0 ]
-         ranges = []       
-         for i in range(0,numberOfClasses):
-            red = colorramp[i][1] 
-            green = colorramp[i][2]
-            blue = colorramp[i][3]      
-            color = QColor(red,green,blue)
-            
-            symbol = QgsSymbolV2.defaultSymbol(layer.geometryType())
-            symbol.setColor(color)
-            lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
-            upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
-            label = "%s - %s" % (lower, upper)
-            newrange = QgsRendererRangeV2(
-                                       float(lower),
-                                       float(upper),
-                                       symbol,
-                                       label)
-            ranges.append(newrange)
-         renderer = QgsGraduatedSymbolRendererV2('',ranges)
-         renderer.setMode(
-                 QgsGraduatedSymbolRendererV2.EqualInterval)
-         renderer.setClassAttribute(fieldName)
+      fieldIndex = layer.fieldNameIndex(fieldName)
+      provider = layer.dataProvider()
+      minimum = float(provider.minimumValue( fieldIndex ))
+      maximum = float(provider.maximumValue( fieldIndex ))
+      ranges = []       
+      for i in range(0,numberOfClasses):
+         red = colorramp[i][1] 
+         green = colorramp[i][2]
+         blue = colorramp[i][3]      
+         color = QColor(red,green,blue)
          
-         layer.setRendererV2(renderer)
-      else:
-         # old style renderer
-         # Get the field index based on the field name
-         fieldIndex = layer.fieldNameIndex(fieldName)
-         print "fieldIndex", fieldIndex
-         # Create the renderer object to be associated to the layer later
-         renderer = QgsGraduatedSymbolRenderer( layer.geometryType() )
-         
-         # Here you may choose the renderer mode from EqualInterval/Quantile/Empty
-         renderer.setMode( QgsGraduatedSymbolRenderer.EqualInterval )
-         
-         # Define classes (lower and upper value as well as a label for each class)
-         provider = layer.dataProvider()
-         minimum = provider.minimumValue( fieldIndex ).toDouble()[ 0 ]
-         maximum = provider.maximumValue( fieldIndex ).toDouble()[ 0 ]
-
-         for i in range( numberOfClasses ):
-            # Switch if attribute is int or double
-            lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
-            upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
-            label = "%s - %s" % (lower, upper)
-            red = colorramp[i][1] 
-            green = colorramp[i][2]
-            blue = colorramp[i][3]      
-            color = QColor(red,green,blue)
-            #color = QColor(255*i/numberOfClasses, 0, 255-255*i/numberOfClasses)
-            sym = QgsSymbol( layer.geometryType(), lower, upper, label, color )
-            renderer.addSymbol( sym )
-         
-         # Set the field index to classify and set the created renderer object to the layer
-         renderer.setClassificationField( fieldIndex )
-         layer.setRenderer( renderer )
+         symbol = QgsSymbolV2.defaultSymbol(layer.geometryType())
+         symbol.setColor(color)
+         lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
+         upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
+         label = "%s - %s" % (lower, upper)
+         newrange = QgsRendererRangeV2(
+                                    float(lower),
+                                    float(upper),
+                                    symbol,
+                                    label)
+         ranges.append(newrange)
+      renderer = QgsGraduatedSymbolRendererV2('',ranges)
+      renderer.setMode(
+              QgsGraduatedSymbolRendererV2.EqualInterval)
+      renderer.setClassAttribute(fieldName)
+      
+      layer.setRendererV2(renderer)
+      #else:
+      #   # old style renderer
+      #   # Get the field index based on the field name
+      #   fieldIndex = layer.fieldNameIndex(fieldName)
+      #   print "fieldIndex", fieldIndex
+      #   # Create the renderer object to be associated to the layer later
+      #   renderer = QgsGraduatedSymbolRenderer( layer.geometryType() )
+      #   
+      #   # Here you may choose the renderer mode from EqualInterval/Quantile/Empty
+      #   renderer.setMode( QgsGraduatedSymbolRenderer.EqualInterval )
+      #   
+      #   # Define classes (lower and upper value as well as a label for each class)
+      #   provider = layer.dataProvider()
+      #   minimum = provider.minimumValue( fieldIndex ).toDouble()[ 0 ]
+      #   maximum = provider.maximumValue( fieldIndex ).toDouble()[ 0 ]
+      #
+      #   for i in range( numberOfClasses ):
+      #      # Switch if attribute is int or double
+      #      lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
+      #      upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
+      #      label = "%s - %s" % (lower, upper)
+      #      red = colorramp[i][1] 
+      #      green = colorramp[i][2]
+      #      blue = colorramp[i][3]      
+      #      color = QColor(red,green,blue)
+      #      #color = QColor(255*i/numberOfClasses, 0, 255-255*i/numberOfClasses)
+      #      sym = QgsSymbol( layer.geometryType(), lower, upper, label, color )
+      #      renderer.addSymbol( sym )
+      #   
+      #   # Set the field index to classify and set the created renderer object to the layer
+      #   renderer.setClassificationField( fieldIndex )
+      #   layer.setRenderer( renderer )
          
       return layer
    # .......................................................................................      
@@ -901,13 +1113,20 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
             QMessageBox.warning(self.outputGroup,"status: ",
               warningname)
          else: 
-            lyrs = QgsMapLayerRegistry.instance().mapLayers()
-            for id in lyrs.keys():
-               if str(lyrs[id].name()) == shapename.replace('.shp',''):
-                  QgsMapLayerRegistry.instance().removeMapLayer(id) 
-            classedLayer = self.classify(vectorLayer, fieldName)
-            classedLayer.setLayerName(QString(tocName))               
-            QgsMapLayerRegistry.instance().addMapLayer(classedLayer)
+            try:
+               lyrs = QgsMapLayerRegistry.instance().mapLayers()
+               for id in lyrs.keys():
+                  if str(lyrs[id].name()) == shapename.replace('.shp',''):
+                     QgsMapLayerRegistry.instance().removeMapLayer(id) 
+               classedLayer = self.classify(vectorLayer, fieldName)
+               classedLayer.setLayerName(tocName)               
+               QgsMapLayerRegistry.instance().addMapLayer(classedLayer)
+            except:
+               message = "Species Lyrs did not produce an intersection"
+               msgBox = QMessageBox.information(self,
+                                          "Problem...",
+                                          message,
+                                          QMessageBox.Ok)
  
       else:
          message = "Could not retrieve the shapefile"
@@ -930,9 +1149,9 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
       @summary: Shows a file selection dialog
       """
       settings = QSettings()
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       fileDialog = QgsEncodingFileDialog( self, "Save .zip File", dirName,"Zip Files (*.zip)")
-      fileDialog.setDefaultSuffix( QString( "zip" ) )
+      fileDialog.setDefaultSuffix(  "zip"  )
       fileDialog.setFileMode( QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QFileDialog.AcceptSave )
       fileDialog.setConfirmOverwrite( True )
@@ -940,7 +1159,7 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
       if not fileDialog.exec_() == QFileDialog.Accepted:
          return
       filename = fileDialog.selectedFiles()
-      self.addFile(filename.first())
+      self.addFile(filename[0])
       
    def addFile(self,filename):
       self.outEdit.setText(filename)   
@@ -955,7 +1174,7 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('statistics')

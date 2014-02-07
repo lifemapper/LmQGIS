@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -143,7 +136,8 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
          self.tableview = self.table.createTable(headerList,editsIndexList=[999],
                                                  controlsIndexList=[2],
                                                  htmlIndexList=[2])
-         QObject.connect(self.tableview, SIGNAL("clicked(const QModelIndex &)"), self.addWMS)            
+         #QObject.connect(self.tableview, SIGNAL("clicked(const QModelIndex &)"), self.addWMS)  
+         self.tableview.clicked.connect(self.addWMS)          
          self.holderGroup.hide()     
          self.gridLayout.addWidget(self.tableview,1,1,1,1) 
          header = self.tableview.horizontalHeader()
@@ -155,7 +149,8 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
          self.loadTabelLabel.setText("No layers to view")
          self.addLayersBut = QPushButton("Add Layers",self)
          self.buttonBox.addButton(self.addLayersBut, QDialogButtonBox.ActionRole)
-         QObject.connect(self.addLayersBut, SIGNAL("clicked()"), self.openAddLayers)
+         #QObject.connect(self.addLayersBut, SIGNAL("clicked()"), self.openAddLayers)
+         self.addLayersBut.clicked.connect(self.openAddLayers)
          message = "There are no presence absence layers for this experiment"
          msgBox = QMessageBox.information(self,
                                                    "Problem...",
@@ -189,20 +184,7 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
                                                    message,
                                                    QMessageBox.Ok)
          return
-      
-         value = index.model().data[index.row()][index.column()]
-         anchorList = value.split('>')
-         urlList = anchorList[0].split("'")
-         url = urlList[1]
-         url = "http://lifemapper.org/ogc?request=GetMap&service=WMS&version=1.1.0&map=scen_NIES_B1_1039&"
-         layers = [ 'BIO3' ]
-         styles = [ '' ]
-         format = 'image/png'
-         crs = 'EPSG:4326'
-         rlayer = QgsRasterLayer(0, url, 'some layer name', 'wms', layers, styles, format, crs)
-         if not rlayer.isValid():
-            print "Layer failed to load!"
-         QgsMapLayerRegistry.instance().addMapLayer(rlayer)
+
 # ...........................................................................       
    def help(self):
       self.help = QWidget()
@@ -213,7 +195,7 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('listPALayers')

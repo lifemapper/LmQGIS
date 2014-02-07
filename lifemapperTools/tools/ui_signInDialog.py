@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -79,9 +79,12 @@ class Ui_Dialog(object):
       self.emailEdit.setGeometry(QtCore.QRect(10, 270, 213, 25))
       self.emailEdit.setObjectName("emailEdit")
       
-      #self.workspaceBut = QtGui.QPushButton("WS",self)
-      #self.workspaceBut.setGeometry(QtCore.QRect(20, 320, 35, 35))
-      #QtCore.QObject.connect(self.workspaceBut, QtCore.SIGNAL("clicked()"), self.openDirectoryDialog)
+      
+      self.signupLink = QtGui.QLabel(self.inputGroup)
+      self.signupLink.setText('<a href="signup">sign up</a>')
+      self.signupLink.setGeometry(QtCore.QRect(10, 310, 243, 40))
+      self.signupLink.linkActivated.connect(self.signup)
+      
     
       
       self.helpBut = QtGui.QPushButton("?",self)
@@ -98,13 +101,12 @@ class Ui_Dialog(object):
       
       self.buttonBox.setObjectName("buttonBox")
       self.gridLayout.addWidget(self.buttonBox, 8, 0 ,7, 3)
-       
-           
+            
    
       self.retranslateUi()
       
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      self.helpBut.clicked.connect(self.help)
+      self.acceptBut.clicked.connect(self.accept)
       
       
      

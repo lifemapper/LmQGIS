@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -53,7 +53,8 @@ class Ui_Dialog(object):
       self.useSelectedFeature = QtGui.QRadioButton('Use selected feature')
       self.useSelectedFeature.setChecked(False)
       self.useSelectedFeature.setAutoExclusive(False)
-      QtCore.QObject.connect(self.useSelectedFeature, QtCore.SIGNAL("clicked()"), self.checkUseSelected)
+      #QtCore.QObject.connect(self.useSelectedFeature, QtCore.SIGNAL("clicked()"), self.checkUseSelected)
+      self.useSelectedFeature.clicked.connect(self.checkUseSelected)
       self.gridLayout_input.addWidget(self.useSelectedFeature)
       
       self.drawPoly = QtGui.QRadioButton('Draw Polygon')
@@ -65,7 +66,8 @@ class Ui_Dialog(object):
       self.enterCoords = QtGui.QRadioButton('Enter Coords')
       self.enterCoords.setChecked(True)
       self.enterCoords.setAutoExclusive(False)   
-      QtCore.QObject.connect(self.enterCoords, QtCore.SIGNAL("clicked()"), self.checkEnterCoords)
+      #QtCore.QObject.connect(self.enterCoords, QtCore.SIGNAL("clicked()"), self.checkEnterCoords)
+      self.enterCoords.clicked.connect(self.checkEnterCoords)
       self.gridLayout_input.addWidget(self.enterCoords)
       
       
@@ -156,19 +158,19 @@ class Ui_Dialog(object):
       self.selectUnits = QtGui.QComboBox()
       self.selectUnits.setMaximumWidth(218)
       self.selectUnits.addItem("feet",
-           QtCore.QVariant('1'))
+           '1')
       self.selectUnits.addItem("inches",
-           QtCore.QVariant('inches'))
+          'inches')
       self.selectUnits.addItem("kilometers",
-           QtCore.QVariant('kilometers'))
+           'kilometers')
       self.selectUnits.addItem("meters",
-           QtCore.QVariant('0'))
+           '0')
       self.selectUnits.addItem("miles",
-           QtCore.QVariant('miles'))
+           'miles')
       self.selectUnits.addItem("nauticalmiles",
-           QtCore.QVariant('nauticalmiles'))
+           'nauticalmiles')
       self.selectUnits.addItem("dd",
-           QtCore.QVariant('2'))
+           '2')
       self.gridLayout_input.addWidget(self.mapunitslabel)
       self.gridLayout_input.addWidget(self.selectUnits)
       #   
@@ -233,7 +235,8 @@ class Ui_Dialog(object):
       
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      #QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
       
       self.buttonBox = QtGui.QDialogButtonBox(self)
       
@@ -248,9 +251,12 @@ class Ui_Dialog(object):
          
    
       self.retranslateUi()
-      #QtCore.QObject.connect(self.fileButton, QtCore.SIGNAL("clicked()"), self.showFileDialog)
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      
+      #QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
+      #QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
        
       
       
@@ -260,9 +266,9 @@ class Ui_Dialog(object):
       @summary: Shows a file selection dialog
       """
       settings = QtCore.QSettings()
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       fileDialog = QgsEncodingFileDialog( self, "Save .zip File", dirName,"Zip Files (*.zip)")
-      fileDialog.setDefaultSuffix( QtCore.QString( "zip" ) )
+      fileDialog.setDefaultSuffix( "zip"  )
       fileDialog.setFileMode( QtGui.QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QtGui.QFileDialog.AcceptSave )
       fileDialog.setConfirmOverwrite( True )
@@ -270,7 +276,7 @@ class Ui_Dialog(object):
       if not fileDialog.exec_() == QtGui.QFileDialog.Accepted:
          return
       filename = fileDialog.selectedFiles()
-      self.addFile(filename.first())
+      self.addFile(filename[0])
 
    def addFile(self,filename):
       self.outEdit.setText(filename)

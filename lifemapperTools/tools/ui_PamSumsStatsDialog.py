@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -75,18 +75,22 @@ class Ui_Dialog(object):
       
       
       self.allRandomizedRadio = QtGui.QRadioButton("All pams")
-      QtCore.QObject.connect(self.allRandomizedRadio, QtCore.SIGNAL("clicked()"), self.checkPamSelected)
+      self.allRandomizedRadio.clicked.connect(self.checkPamSelected)
+      
       self.swappedRadio = QtGui.QRadioButton("Swapped pams")
-      QtCore.QObject.connect(self.swappedRadio, QtCore.SIGNAL("clicked()"), self.checkPamSelected)
+      self.swappedRadio.clicked.connect(self.checkPamSelected)
+      
       self.splotchedRadio = QtGui.QRadioButton("Dye-dispersion pams")
-      QtCore.QObject.connect(self.splotchedRadio, QtCore.SIGNAL("clicked()"), self.checkPamSelected)
+      self.splotchedRadio.clicked.connect(self.checkPamSelected)
       
       self.sitesStatsRadio = QtGui.QRadioButton("Site based")
-      QtCore.QObject.connect(self.sitesStatsRadio, QtCore.SIGNAL("toggled(bool)"), self.checkSitesStatsSelected)
+      self.sitesStatsRadio.toggled.connect(self.checkSitesStatsSelected)
+      
       self.speciesStatsRadio = QtGui.QRadioButton("Species based")
-      QtCore.QObject.connect(self.speciesStatsRadio, QtCore.SIGNAL("toggled(bool)"), self.checkSpeciesStatsSelected)
+      self.speciesStatsRadio.toggled.connect(self.checkSpeciesStatsSelected)
+      
       self.betaStatsRadio = QtGui.QRadioButton("Diversity Beta's")
-      QtCore.QObject.connect(self.betaStatsRadio, QtCore.SIGNAL("toggled(bool)"), self.checkBetaStatsSelected)
+      self.betaStatsRadio.toggled.connect(self.checkBetaStatsSelected)
       
       
       
@@ -104,13 +108,21 @@ class Ui_Dialog(object):
       self.pamsLabel = QtGui.QLabel("original and randomized pams")
       self.sitesLabel = QtGui.QLabel("Statistics")
       
+      self.attachActiveLyr = QtGui.QCheckBox("Link Plot to Active Lyr")
+      self.attachActiveLyr.setEnabled(False)
+      self.attachActiveLyr.clicked.connect(self.checkActiveLyrPlot)
+      
+      self.statsLblLink = QtGui.QHBoxLayout()
+      self.statsLblLink.addWidget(self.sitesLabel)
+      self.statsLblLink.addWidget(self.attachActiveLyr)
+      
       self.pamsumsCombo = QtGui.QComboBox()
-      QtCore.QObject.connect(self.pamsumsCombo, QtCore.SIGNAL("currentIndexChanged(int)"), self.checkPamSumNotAll)
+      self.pamsumsCombo.currentIndexChanged.connect(self.checkPamSumNotAll)
       self.statsCombo = QtGui.QComboBox()
       
       
       self.comboLayout.addWidget(self.pamsLabel,        0,1,1,1)
-      self.comboLayout.addWidget(self.sitesLabel,       0,3,1,1)
+      self.comboLayout.addLayout(self.statsLblLink,       0,3,1,1)
      
       
       self.comboLayout.addWidget(self.allRandomizedRadio,    1,1,1,1)
@@ -124,24 +136,24 @@ class Ui_Dialog(object):
       self.HButtonBox = QtGui.QHBoxLayout()
             
       self.addtoTable = QtGui.QPushButton("View in table")
-      QtCore.QObject.connect(self.addtoTable, QtCore.SIGNAL("clicked()"), self.buildTable)
+      self.addtoTable.clicked.connect(self.buildTable)
       self.addtoTable.setMaximumSize(104, 30)
       self.addtoTable.setMinimumSize(104, 30)
       
       self.scatterPlot = QtGui.QPushButton("Scatter Plot")
-      QtCore.QObject.connect(self.scatterPlot, QtCore.SIGNAL("clicked()"), self.buildScatterPlot)
+      self.scatterPlot.clicked.connect(self.buildScatterPlot)
       self.scatterPlot.setMaximumSize(104, 30)
       self.scatterPlot.setMinimumSize(104, 30)
       self.scatterPlot.setEnabled(False)
       
       self.exportStatsBut = QtGui.QPushButton("Export Table")
-      QtCore.QObject.connect(self.exportStatsBut, QtCore.SIGNAL("clicked()"), self.exportStats)
+      self.exportStatsBut.clicked.connect(self.exportStats)
       self.exportStatsBut.setMaximumSize(104, 30)
       self.exportStatsBut.setMinimumSize(104, 30)
       self.exportStatsBut.setEnabled(False)
       
       self.spatiallyView = QtGui.QPushButton("Spatially View")
-      QtCore.QObject.connect(self.spatiallyView, QtCore.SIGNAL("clicked()"), self.buildSpatialView)
+      self.spatiallyView.clicked.connect(self.buildSpatialView)
       self.spatiallyView.setMaximumSize(104, 30)
       self.spatiallyView.setMinimumSize(104, 30)
       self.spatiallyView.setEnabled(False)
@@ -164,7 +176,7 @@ class Ui_Dialog(object):
       
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       
       ############ spatial layout #####################
@@ -270,14 +282,14 @@ class Ui_Dialog(object):
       
       self.mapItBut = QtGui.QPushButton("Map it!")
       self.mapItBut.setMaximumWidth(60)
-      QtCore.QObject.connect(self.mapItBut, QtCore.SIGNAL("clicked()"), self.mapStats)
+      self.mapItBut.clicked.connect(self.mapStats)
       self.gridLayout_output.addWidget(self.mapItBut,1,0,1,3,QtCore.Qt.AlignCenter)
       
       self.gridLayout_output.addLayout(self.verticalLayout,0,2,1,1)
       
       self.outputGroup.setLayout(self.gridLayout_output)
       
-      QtCore.QObject.connect(self.fileButton, QtCore.SIGNAL("clicked()"), self.showFileDialog)
+      self.fileButton.clicked.connect(self.showFileDialog)
       
       
       self.outputGroup.hide()   

@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -116,7 +116,7 @@ class Ui_Dialog(object):
       self.getStatsBut = QtGui.QPushButton("Get Statistics",self)
       self.buttonHzLayout.addWidget(self.getStatsBut)
       #self.calcBut = QtGui.QPushButton("Calculate",self)   
-      self.intersectBut = QtGui.QPushButton("Intersect",self)
+      self.intersectBut = QtGui.QPushButton("Intersect && Calculate",self)
       self.buttonHzLayout.addWidget(self.intersectBut)
      
       self.addBucketBut = QtGui.QPushButton("Add Grid",self)
@@ -143,14 +143,10 @@ class Ui_Dialog(object):
       self.helpBut.setMaximumSize(30, 30)
       self.helpBut.setEnabled(True)
       
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+      self.helpBut.clicked.connect(self.help)
       
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.getStatsBut, QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.calcBut,      QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.intersectBut, QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.addBucketBut, QtGui.QDialogButtonBox.ActionRole)
-      #self.buttonBox.addButton(self.randomizeBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut,    QtGui.QDialogButtonBox.RejectRole)
       
       
@@ -162,36 +158,17 @@ class Ui_Dialog(object):
       self.retranslateUi()
       
       
-
-      #QtCore.QObject.connect(self.splitBucketBut, QtCore.SIGNAL("clicked()"), self.splitBucket)
-      QtCore.QObject.connect(self.getStatsBut, QtCore.SIGNAL("clicked()"), self.listPamSums)
-      #QtCore.QObject.connect(self.fileButton, QtCore.SIGNAL("clicked()"), self.showFileDialog) 
-      QtCore.QObject.connect(self.randomizeBut, QtCore.SIGNAL("clicked()"), self.randomizeBucket)
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.intersectBut, QtCore.SIGNAL("clicked()"), self.intersectPAM)
-      QtCore.QObject.connect(self.addBucketBut, QtCore.SIGNAL("clicked()"), self.addBucket) 
-      #QtCore.QObject.connect(self.calcBut, QtCore.SIGNAL("clicked()"), self.calcBucket)
-      QtCore.QObject.connect(self.refreshBut, QtCore.SIGNAL("clicked()"), self.refresh) 
       
-   def showFileDialog(self):
-      """
-      @summary: Shows a file selection dialog
-      """
-      settings = QtCore.QSettings()
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
-      fileDialog = QgsEncodingFileDialog( self, "Save .zip File", dirName,"Zip Files (*.zip)")
-      fileDialog.setDefaultSuffix( QtCore.QString( "zip" ) )
-      fileDialog.setFileMode( QtGui.QFileDialog.AnyFile ) 
-      fileDialog.setAcceptMode( QtGui.QFileDialog.AcceptSave )
-      fileDialog.setConfirmOverwrite( True )
-     
-      if not fileDialog.exec_() == QtGui.QFileDialog.Accepted:
-         return
-      filename = fileDialog.selectedFiles()
-      self.addFile(filename.first())
-
-   def addFile(self,filename):
-      self.outEdit.setText(filename)
+      self.getStatsBut.clicked.connect(self.listPamSums)
+      self.randomizeBut.clicked.connect(self.randomizeBucket)
+      self.rejectBut.clicked.connect(self.reject)
+      self.intersectBut.clicked.connect(self.intersectPAM)
+      self.addBucketBut.clicked.connect(self.addBucket)
+      self.refreshBut.clicked.connect(self.refresh)
+      
+      
+      
+      
              
    def retranslateUi(self):
       self.setWindowTitle(QtGui.QApplication.translate("self", 

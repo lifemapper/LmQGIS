@@ -6,12 +6,12 @@
  Macro Ecology tools for presence absence matrices
                              -------------------
         begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
+        copyright            : (C) 2014 by Biodiversity Institute
         email                : jcavner@ku.edu
  ***************************************************************************/
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -133,7 +133,7 @@ class RandomizePAMDialog( _Controller, QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('randomizePAM')

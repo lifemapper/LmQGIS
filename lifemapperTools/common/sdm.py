@@ -2,10 +2,10 @@
 @summary: Module containing client functions for interacting with Lifemapper
              Species Distribution Modeling services
 @author: CJ Grady
-@version: 2.1.1
+@version: 2.1.3
 @status: release
 
-@license: Copyright (C) 2013, University of Kansas Center for Research
+@license: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -38,6 +38,7 @@
             Example for June 7, 2009 9:23:15 AM - 2009-06-07T09:23:15Z
 """
 from collections import namedtuple
+import json
 
 from pluginconstants import CONTENT_TYPES
 
@@ -48,6 +49,15 @@ class AlgorithmParameter(object):
    """
    def __init__(self, name, pType, pDefault=None, pMin=None, pMax=None, 
                                                                   pValue=None):
+      """
+      @summary: Constructor
+      @param name: The name of the algorithm parameter
+      @param pType: The type of the parameter (integer, string, float, etc)
+      @param pDefault: (optional) The default value of the parameter
+      @param pMin: (optional) The minimum value of the parameter
+      @param pMax: (optional) The maximum value of the parameter
+      @param pValue: (optional) The value of the parameter
+      """
       self.name = name
       self.type = pType
       self.default = pDefault
@@ -57,7 +67,15 @@ class AlgorithmParameter(object):
       
 # .............................................................................
 class Algorithm(object):
+   """
+   @summary: Algorithm class
+   """
+   # .........................................
    def __init__(self, clAlg):
+      """
+      @summary: Constructor
+      @param clAlg: Client library algorithm object
+      """
       self.code = clAlg.code
       self.name = clAlg.name
       self.parameters = []
@@ -76,6 +94,45 @@ class Algorithm(object):
                                 pMin=pMin, pMax=pMax)
          self.parameters.append(p)
          
+   # .........................................
+   def getParameter(self, parameterName):
+      """
+      @summary: Gets the algorithm parameter specified by parameterName
+      @param parameterName: The name of the parameter to return
+      @rtype: AlgorithmParameter
+      """
+      for param in self.parameters:
+         if param.name.lower() == parameterName.lower():
+            return param
+      
+      # If parameter not found, raise exception
+      raise Exception, "Parameter '%s' not found for this algorithm" \
+         % parameterName
+   
+   # .........................................
+   def listParameterNames(self):
+      """
+      @summary: Gets the names of the available parameters for the algorithm
+      """
+      return [p.name for p in self.parameters]
+   
+   # .........................................
+   def setParameter(self, parameterName, value):
+      """
+      @summary: Sets the algorithm parameter to the specified value
+      @param parameterName: The name of the parameter to set
+      @param value: The new value to set the parameter to
+      @note: Does not check to make sure the value is valid
+      """
+      for param in self.parameters:
+         if param.name.lower() == parameterName.lower():
+            param.value = value
+            return
+         
+      # If parameter not found, raise exception
+      raise Exception, "Parameter '%s' not found for this algorithm" \
+         % parameterName
+   
 # .............................................................................
 class SDMClient(object):
    """
@@ -85,6 +142,7 @@ class SDMClient(object):
    def __init__(self, cl):
       """
       @summary: Constructor
+      @param cl: Lifemapper client for connection to web services
       """
       self.cl = cl
       self.algos = self._getAlgorithms()
@@ -105,6 +163,7 @@ class SDMClient(object):
       @summary: Deep copies an algorithm object and adds a value attribute to 
                    each parameter that is populated with the default value for
                    that parameter
+      @param code: The code of the algorithm to return
       """
       alg = None
       for algo in self.algos:
@@ -123,8 +182,9 @@ class SDMClient(object):
    # ===============
    # .........................................
    def countExperiments(self, afterTime=None, beforeTime=None, 
-                              displayName=None, epsgCode=None, algorithmCode=None, 
-                              occurrenceSetId=None, status=None, public=False):
+                              displayName=None, epsgCode=None, 
+                              algorithmCode=None, occurrenceSetId=None, 
+                              status=None, public=False):
       """
       @summary: Counts the number of experiments that match the specified 
                    criteria.
@@ -237,6 +297,14 @@ class SDMClient(object):
                           experiment. [integer]
       @param prjScns: (optional) List of projection scenario ids to use for the 
                          experiment [list of integers]
+      @param mdlMask: (optional) A layer id mask to use when looking at the 
+                         input climate layers of the model [integer]
+      @param prjMask: (optional) A layer id mask to use when projecting onto a 
+                         new set of climate layers [integer]
+      @param email: (optional) Lifemapper will send a notification email to 
+                       this address when the experiment has completed
+      @param name: (optional) A name for this experiment
+      @param description: (optional) A description for this experiment
       @return: Experiment
       """
       try:
@@ -376,7 +444,7 @@ class SDMClient(object):
       url = "%s/services/sdm/layers/%s/tiff" % (self.cl.server, lyrId)
       cnt = self.cl.makeRequest(url, method="GET")
       if filename is not None:
-         f = open(filename, 'w')
+         f = open(filename, 'wb')
          f.write(cnt)
          f.close()
          return None
@@ -481,7 +549,7 @@ class SDMClient(object):
          params.append(("keyword", kw))
          
       if fileName is not None:
-         body = open(fileName).read()
+         body = open(fileName, 'rb').read()
          headers={"Content-Type" : CONTENT_TYPES[dataFormat]}
       elif layerContent is not None:
          body = layerContent
@@ -588,7 +656,7 @@ class SDMClient(object):
       url = "%s/services/sdm/occurrences/%s/shapefile" % (self.cl.server, occId)
       cnt = self.cl.makeRequest(url, method="GET")
       if filename is not None:
-         f = open(filename, 'w')
+         f = open(filename, 'wb')
          f.write(cnt)
          f.close()
          return None
@@ -663,7 +731,7 @@ class SDMClient(object):
       
       if fileType.lower() == "shapefile":
          if fileName.endswith('.zip'):
-            postBody = open(fileName).read()
+            postBody = open(fileName, 'rb').read()
          else:
             postBody = self.cl.getAutozipShapefileStream(fileName)
       else:
@@ -780,7 +848,7 @@ class SDMClient(object):
       url = "%s/services/sdm/projections/%s/tiff" % (self.cl.server, prjId)
       cnt = self.cl.makeRequest(url, method="GET")
       if filename is not None:
-         f = open(filename, 'w')
+         f = open(filename, 'wb')
          f.write(cnt)
          f.close()
          return None
@@ -1099,7 +1167,7 @@ class SDMClient(object):
    # --------------------------------------------------------------------------
 
    # .........................................
-   def hint(self, query, maxReturned=20):
+   def hint(self, query, maxReturned=None):
       """
       @summary: Queries for occurrence sets that match the partial query string
       @param query: The partial string to match (genus species).  Must be at 
@@ -1111,19 +1179,29 @@ class SDMClient(object):
          raise Exception, "Please provide at least 3 characters to hint service"
       
       params = [
-                ("maxReturned", maxReturned)
+                ("maxReturned", maxReturned),
+                ("format", "json")
                ]
       url = "%s/hint/species/%s" % (self.cl.server, query)
       
       res = self.cl.makeRequest(url, method="get", parameters=params)
       
+      jObj = json.loads(res)
+      
+      try:
+         # Old json format
+         jsonItems = jObj.get('columns')[0]
+      except:
+         # New json format
+         jsonItems = jObj.get('hits')
+      
       items = []
-      for item in res.split('\n'):
-         comps = item.split("\t")
-         if len(comps) >= 3:
-            items.append(SearchHit(name=comps[0], 
-                                id=comps[1], 
-                                numPoints=comps[2]))
+      for item in jsonItems:
+         items.append(SearchHit(name=item.get('name'),
+                                id=int(item.get('occurrenceSet')),
+                                numPoints=int(item.get('numPoints'))))
+      if maxReturned is not None and maxReturned < len(items):
+         items = items[:maxReturned]
       return items
 
    # .........................................

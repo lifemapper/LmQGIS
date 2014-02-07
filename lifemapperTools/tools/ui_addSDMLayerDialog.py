@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -64,8 +64,12 @@ class Ui_Dialog(object):
       self.tableview1.setSelectionBehavior(QAbstractItemView.SelectRows)
       self.tableview1.setContextMenuPolicy(Qt.CustomContextMenu)
       self.tableview1.customContextMenuRequested.connect(self.showInfoPopUp)
-      QObject.connect(self.tableview1, SIGNAL("clicked(const QModelIndex &)"), self.addWMS)
-      QObject.connect(self.tableview1.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+      
+      #QObject.connect(self.tableview1, SIGNAL("clicked(const QModelIndex &)"), self.addWMS)
+      #QObject.connect(self.tableview1.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+      
+      self.tableview1.clicked.connect(self.addWMS)
+      self.tableview1.model().getNext.connect(self.getNextPage)
 
       self.inputGroup = QtGui.QGroupBox()
       self.inputGroup.setObjectName("inputGroup")
@@ -97,9 +101,11 @@ class Ui_Dialog(object):
       self.AlgCodeCombo = QComboBox()                  
       self.publicRadio = QtGui.QRadioButton("Public") 
       self.publicRadio.setChecked(True) 
-      QtCore.QObject.connect(self.publicRadio, QtCore.SIGNAL("toggled(bool)"), self.checkPublic)
+      #QtCore.QObject.connect(self.publicRadio, QtCore.SIGNAL("toggled(bool)"), self.checkPublic)
+      self.publicRadio.toggled.connect(self.checkPublic)
       self.userRadio   = QtGui.QRadioButton("User") 
-      QtCore.QObject.connect(self.userRadio, QtCore.SIGNAL("toggled(bool)"), self.checkUser)
+      #QtCore.QObject.connect(self.userRadio, QtCore.SIGNAL("toggled(bool)"), self.checkUser)
+      self.userRadio.toggled.connect(self.checkUser)
       self.horizRadio  = QtGui.QHBoxLayout()
       self.horizRadio.addWidget(self.publicRadio)
       self.horizRadio.addWidget(self.userRadio)
@@ -111,7 +117,8 @@ class Ui_Dialog(object):
       self.searchText.setObjectName('searchspecies')
       self.searchButton = QtGui.QPushButton(QtGui.QIcon("search.ico"), "Search")
       self.searchButton.setFocusPolicy(QtCore.Qt.NoFocus)
-      self.connect(self.searchButton, QtCore.SIGNAL("clicked()"), self.searchSpecies)
+      #self.connect(self.searchButton, QtCore.SIGNAL("clicked()"), self.searchSpecies)
+      self.searchButton.clicked.connect(self.searchSpecies)
       #########################################################################
       
       self.queryHorizBoxLayout.addLayout(self.horizRadio,    0,0,1,1)
@@ -148,12 +155,14 @@ class Ui_Dialog(object):
       self.addButton = QtGui.QPushButton(QtGui.QIcon("search.ico"),"+")
       self.addButton.setMaximumSize(30, 30)
       self.addButton.setMinimumSize(30, 30)
-      self.connect(self.addButton, QtCore.SIGNAL("clicked()"), self.addLayersToUploadTable)
+      #self.connect(self.addButton, QtCore.SIGNAL("clicked()"), self.addLayersToUploadTable)
+      self.addButton.clicked.connect(self.addLayersToUploadTable)
       
       self.removeButton = QtGui.QPushButton(QtGui.QIcon("search.ico"),"-")
       self.removeButton.setMaximumSize(30, 30)
       self.removeButton.setMinimumSize(30, 30)
-      self.connect(self.removeButton, QtCore.SIGNAL("clicked()"), self.removeSelectedLayersFromUploadTable)
+      #self.connect(self.removeButton, QtCore.SIGNAL("clicked()"), self.removeSelectedLayersFromUploadTable)
+      self.removeButton.clicked.connect(self.removeSelectedLayersFromUploadTable)
       ##########################################################################
       
       self.addSubtractLayout.addWidget(self.addButton,0,2,1,1,Qt.AlignCenter)
@@ -166,8 +175,9 @@ class Ui_Dialog(object):
       self.acceptBut.setMaximumSize(buttonLen, 30)
       self.acceptBut.setMinimumSize(buttonLen, 30)
       #self.acceptBut.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
-      self.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), 
-                                                         self.accept)
+      #self.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), 
+      #                                                   self.accept)
+      self.acceptBut.clicked.connect(self.accept)
       
       self.gridLayout_input.addWidget(self.inputGroup,0,0,1,1)
       self.gridLayout_input.addWidget(self.table1,2,0,1,1)
@@ -213,7 +223,8 @@ class Ui_Dialog(object):
       self.buttonBox.setObjectName("buttonBox")
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      #QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)   
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.RejectRole)
       
@@ -222,7 +233,8 @@ class Ui_Dialog(object):
          
       self.retranslateUi()
       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
+      #QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
+      self.rejectBut.clicked.connect(self.reject)
       
    def setAllPopUp(self,pos):
       try:

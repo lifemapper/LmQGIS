@@ -5,12 +5,12 @@
  Macro Ecology tools for presence absence matrices
                              -------------------
         begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
+        copyright            : (C) 2014 by Biodiversity Institute
         email                : jcavner@ku.edu
  ***************************************************************************/
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -49,6 +49,7 @@ from lifemapperTools.tools.ui_postSDMExp import Ui_Dialog
 from lifemapperTools.tools.postOccSet import UploadOccSetDialog
 from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.tools.ui_postScenario import PostScenarioDialog
+from lifemapperTools.common.communicate import Communicate
 from lifemapperTools.common.pluginconstants import GridConstructor,\
                                          ZIP_EXTENSION, RASTER_EXTENSION,\
                                          SHAPEFILE_EXTENSION, QGISProject,GENERIC_REQUEST
@@ -103,17 +104,23 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       _Controller.__init__(self, iface, cancel_close=self.rejectBut,okayButton=self.acceptBut,
                            initializeWithData=False, client=client)
       
-      QObject.connect(QgsProject.instance(),
-                      SIGNAL("PostScenarioFailed(PyQt_PyObject)"),
-                      self.setModelCombo)
+      #QObject.connect(QgsProject.instance(),
+      #                SIGNAL("PostScenarioFailed(PyQt_PyObject)"),
+      #                self.setModelCombo)
+      #
+      #QObject.connect(QgsProject.instance(),
+      #                SIGNAL("PostedScenario(PyQt_PyObject,PyQt_PyObject)"),
+      #                self.refreshScenarios)
+      #
+      #QObject.connect(QgsProject.instance(),
+      #                SIGNAL("PostedOccurrenceSet(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),
+      #                self.setExpValues)
       
-      QObject.connect(QgsProject.instance(),
-                      SIGNAL("PostedScenario(PyQt_PyObject,PyQt_PyObject)"),
-                      self.refreshScenarios)
+      Communicate.instance().postScenarioFailed.connect(self.setModelCombo)
+      Communicate.instance().postedScenario.connect(self.refreshScenarios)
+      Communicate.instance().postedOccurrenceSet.connect(self.setExpValues)
       
-      QObject.connect(QgsProject.instance(),
-                      SIGNAL("PostedOccurrenceSet(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),
-                      self.setExpValues)
+      
       self.populateAlgoCombo()
       if iface is not None:
          self.checkExperiments()
@@ -140,7 +147,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       qgis project
       """   
       s = QSettings()
-      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID).toInt()[0]
+      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID,type=int)
       #############################
       # this saves any changes that might have been made if using an existing
       # experiment to that experiment's (existing) project
@@ -167,7 +174,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       """
       try:
          s = QSettings()
-         s.setValue("currentExpID", self.expId)
+         s.setValue("currentExpID", int(self.expId))
          self.workspace.saveQgsProjectAs(self.expId)
       except:
          QMessageBox.warning(self,"status: ",
@@ -196,7 +203,8 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          prj.dirty(False)
          self.interface.actionNewProject().trigger()
          self.setNewExperiment()
-         QgsProject.instance().emit( SIGNAL( "ActivateSDMExp(PyQt_PyObject)" ), self.expId)
+         #QgsProject.instance().emit( SIGNAL( "ActivateSDMExp(PyQt_PyObject)" ), self.expId)
+         Communicate.instance().activateSDMExp.emit(self.expId)
          self.resetInputs()
          self.acceptBut.setEnabled(True)
          
@@ -338,7 +346,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       @return: algo code string
       """
       currentIdx = self.algCodeCombo.currentIndex()
-      algoCode = str(self.algCodeCombo.itemData(currentIdx, role=Qt.UserRole).toString())
+      algoCode = str(self.algCodeCombo.itemData(currentIdx, role=Qt.UserRole))
       return algoCode  
    
    def getModelScenId(self):
@@ -348,7 +356,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       """
       currentIdx = self.modelScenCombo.currentIndex()
       if currentIdx != 0:
-         modelScenId = str(self.modelScenCombo.itemData(currentIdx, role=Qt.UserRole).toInt()[0])         
+         modelScenId = str(self.modelScenCombo.itemData(currentIdx, role=Qt.UserRole))         
       else:
          modelScenId = -999
       return modelScenId
@@ -395,19 +403,19 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       filename = self.occListModel.listData[currentIdx].displayName
       
       settings = QSettings()
-      shpPath = settings.value( "/UI/lastShapefileDir" ).toString()
+      shpPath = settings.value( "/UI/lastShapefileDir" )
       if not os.path.exists(shpPath):
-         shpPath = settings.value("UI/lastProjectDir").toString()     
+         shpPath = settings.value("UI/lastProjectDir")     
       dirName = shpPath +"/"+filename.replace(' ','_')
       fileDialog = QgsEncodingFileDialog( self, "Save .zip File", dirName,"Zip Files (*.zip)")
-      fileDialog.setDefaultSuffix( QString( "zip" ) )
+      fileDialog.setDefaultSuffix(  "zip"  )
       fileDialog.setFileMode( QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QFileDialog.AcceptSave )
       fileDialog.setConfirmOverwrite( True )    
       if not fileDialog.exec_() == QFileDialog.Accepted:
          return ''
       filename = fileDialog.selectedFiles() 
-      return str(filename.first())
+      return str(filename[0])
       
 
 # ..............................................................................   
@@ -486,7 +494,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
             displayName = self.occListModel.listData[currentIdx].displayName
             self.setPreviewDownloadText(displayName)
             self.clearScenarios()
-            self.occIdText.setText(occurrenceSetId)
+            self.occIdText.setText(str(occurrenceSetId))
             self.epsgCode = 4326
             return
          if ' ' in text:
@@ -533,6 +541,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
 # ..............................................................................
    def getOccSet(self, occId):
       #if self.occIdText.isModified():
+      
       #if not self.outOfOccId[0]:
       #occId = self.occIdText.text()
       
@@ -615,7 +624,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          if newScenId is None:
             self.modelScenCombo.setCurrentIndex(0)
          else:
-            #newScenIdx = self.modelScenCombo.findData(QVariant(newScenId), role=Qt.UserRole)
+            #newScenIdx = self.modelScenCombo.findData(newScenId, role=Qt.UserRole)
             # using this loop against the data model since UserRole doesn't always apply
             for idx, resultObj in enumerate(self.scenModelListModel.listData):
                try:
@@ -642,7 +651,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       #print index
       # what happens if there are no matching scenarios?
       if index != 0 and index != 1:
-         modelScenId = self.modelScenCombo.itemData(index, role=Qt.UserRole).toInt()[0]
+         modelScenId = self.modelScenCombo.itemData(index, role=Qt.UserRole)
          try:
             publicmatchingScens = []
             usermatchingScens = []
@@ -680,10 +689,12 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       self.algCodeCombo.addItem('',userData='select')
       for alg in self.algos:
          self.algCodeCombo.addItem(alg.name,userData=alg.code)
-      QObject.connect(self.algCodeCombo, 
-                             SIGNAL("currentIndexChanged(int)"), self.enableAdvanced)
-      QObject.connect(self.advancedBut, 
-                             SIGNAL("clicked()"), self.showAlgParams)
+      #QObject.connect(self.algCodeCombo, 
+      #                       SIGNAL("currentIndexChanged(int)"), self.enableAdvanced)
+      self.algCodeCombo.currentIndexChanged.connect(self.enableAdvanced)
+      #QObject.connect(self.advancedBut, 
+      #                       SIGNAL("clicked()"), self.showAlgParams)
+      self.advancedBut.clicked.connect(self.showAlgParams)
    
    def enableAdvanced(self,index):
       if index != 0:
@@ -694,7 +705,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
    def showAlgParams(self):
       index = self.algCodeCombo.currentIndex()
       if index != 0:
-         algcode = str(self.algCodeCombo.itemData(index, role=Qt.UserRole).toString())
+         algcode = str(self.algCodeCombo.itemData(index, role=Qt.UserRole))
          self.algSubWindow = AdvancedAlgo(self.client,algcode)
          self.algSubWindow.exec_()
       else:
@@ -716,7 +727,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
             # get the id of model scenario
             self.projectionScenListView.clearSelection()
             currindex = self.modelScenCombo.currentIndex()
-            modelScenId = self.modelScenCombo.itemData(currindex, role=Qt.UserRole).toInt()[0]
+            modelScenId = self.modelScenCombo.itemData(currindex, role=Qt.UserRole)
             self.postScenarioDialog = PostScenarioDialog(match=True,scenarioId=modelScenId,client=self.client)
             self.postScenarioDialog.exec_()      
              
@@ -733,7 +744,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('newSDMExperiment')
@@ -772,8 +783,12 @@ class Ui_SubDialog(object):
       self.buttonBox.addButton(self.rejectBut, QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut, QDialogButtonBox.ActionRole)
       
-      QObject.connect(self.rejectBut, SIGNAL("clicked()"), self.reject)
-      QObject.connect(self.acceptBut, SIGNAL("clicked()"), self.accept)
+      #QObject.connect(self.rejectBut, SIGNAL("clicked()"), self.reject)
+      #QObject.connect(self.acceptBut, SIGNAL("clicked()"), self.accept)
+      
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
+      
       #QObject.connect(self.helpBut, SIGNAL("clicked()"), self.help)
       
       self.gridLayout.addLayout(self.verticalLayout,0,0,1,1)
@@ -956,7 +971,7 @@ class BackSpaceEventHandler(QObject):
                numPoints = object.model().listData[currentIdx].numPoints
                if numPoints in currentText:               
                   displayName = object.model().listData[currentIdx].displayName
-                  object.setEditText(QString(displayName+displayName[-1:]))
+                  object.setEditText(displayName+displayName[-1:])
                   # this should also probably clear the scenario models and 
                   # and disable
             except:
@@ -1037,13 +1052,13 @@ class LmListModel(QAbstractListModel):
       """
       if index.isValid() and (role == Qt.DisplayRole or role == Qt.EditRole):
          if index.row() == 1 and self.model:
-            return QVariant("build new model")
+            return "build new model"
          else:
-            return QVariant(str(self.listData[index.row()]))
+            return str(self.listData[index.row()])
       if index.isValid() and role == Qt.UserRole:
-         return QVariant(int(self.listData[index.row()]))
+         return int(self.listData[index.row()])
       else:
-         return QVariant()
+         return 
       
    # .........................................
    def rowCount(self, parent=QModelIndex()):

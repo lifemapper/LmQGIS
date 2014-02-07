@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -37,7 +30,7 @@ import types
 import sys
 import zipfile
 from PyQt4.QtGui import *
-from PyQt4.QtCore import Qt, QVariant, QUrl, QStringList, QDir
+from PyQt4.QtCore import Qt, QUrl, QDir
 from qgis.core import *
 from lifemapperTools.common.lmClientLib import LMClient
 from lifemapperTools.common.workspace import Workspace
@@ -100,10 +93,10 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
       """
       # get the index in the combo that matches mapunits
       if type(mapunits) == int:
-         unitIdx = self.selectUnits.findData(QVariant(str(mapunits)),
+         unitIdx = self.selectUnits.findData(str(mapunits),
                                              role=Qt.UserRole)
       else:
-         unitIdx = self.selectUnits.findData(QVariant(str(mapunits)),
+         unitIdx = self.selectUnits.findData(str(mapunits),
                                              role=Qt.DisplayRole)
       self.selectUnits.setCurrentIndex(unitIdx)
       self.selectUnits.setEnabled(False)
@@ -309,43 +302,51 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
       to canvas
       @param model: not used here but sent by the controller
       """
-      expFolder = self.workspace.getExpFolder(self.expId)
-      if not expFolder:
-         expFolder = self.workspace.createProjectFolder(self.expId)
-      gridZipName = "%s_%s" % (str(self.expId),str(bucketId))
-      pathname = os.path.join(expFolder,gridZipName)
-      success = self.client.rad.getShapegridData(pathname, str(self.expId),
-                                                 str(bucketId))  
-      #success = self.client.rad.getShapegridData(str(self.outEdit.text()), str(self.expId),
-      #                                          str(bucketId))   
-      if success:
-         #pathname = self.outEdit.text()
-         zippath = os.path.dirname(str(pathname))                         
-         z = zipfile.ZipFile(str(pathname),'r')
-         for name in z.namelist():
-            f,e = os.path.splitext(name)
-            if e == '.shp':
-               shapename = name
-            z.extract(name,str(zippath))
-         vectorpath = os.path.join(zippath,shapename)
-         vectorLayer = QgsVectorLayer(vectorpath,shapename.replace('.shp',''),'ogr')
-         warningname = shapename         
-         if not vectorLayer.isValid():
-            QMessageBox.warning(self.outputGroup,"status: ",
-              warningname)             
-         QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
-         if self.parent is not None:
-            try:
-               self.parent.refresh()
-            except Exception,e:
-               print "Exception in construct refresh",str(e)
-         self.close()
+      if bucketId is not None:
+         expFolder = self.workspace.getExpFolder(self.expId)
+         if not expFolder:
+            expFolder = self.workspace.createProjectFolder(self.expId)
+         gridZipName = "%s_%s" % (str(self.expId),str(bucketId))
+         pathname = os.path.join(expFolder,gridZipName)
+         success = self.client.rad.getShapegridData(pathname, str(self.expId),
+                                                    str(bucketId))  
+         #success = self.client.rad.getShapegridData(str(self.outEdit.text()), str(self.expId),
+         #                                          str(bucketId))   
+         if success:
+            #pathname = self.outEdit.text()
+            zippath = os.path.dirname(str(pathname))                         
+            z = zipfile.ZipFile(str(pathname),'r')
+            for name in z.namelist():
+               f,e = os.path.splitext(name)
+               if e == '.shp':
+                  shapename = name
+               z.extract(name,str(zippath))
+            vectorpath = os.path.join(zippath,shapename)
+            vectorLayer = QgsVectorLayer(vectorpath,shapename.replace('.shp',''),'ogr')
+            warningname = shapename         
+            if not vectorLayer.isValid():
+               QMessageBox.warning(self.outputGroup,"status: ",
+                 warningname)             
+            QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
+            if self.parent is not None:
+               try:
+                  self.parent.refresh()
+               except Exception,e:
+                  print "Exception in construct refresh",str(e)
+            self.close()
+         else:
+            message = "Could not retrieve the shapefile"
+            msgBox = QMessageBox.information(self,
+                                                      "Problem...",
+                                                      message,
+                                                      QMessageBox.Ok)
       else:
-         message = "Could not retrieve the shapefile"
+         message = "Grid may be too large, check resolution, limit is < 400,000 cells"
          msgBox = QMessageBox.information(self,
-                                                   "Problem...",
-                                                   message,
-                                                   QMessageBox.Ok)
+                                                      "Problem...",
+                                                      message,
+                                                      QMessageBox.Ok)
+         
 # .............................................................................         
    def help(self):
       self.help = QWidget()
@@ -356,7 +357,7 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('constructGrid')

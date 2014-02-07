@@ -1,6 +1,9 @@
 """
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
+
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -39,6 +42,9 @@ class _Model(QObject):
    """Superclass for all data models"""
 # ..............................................................................
 # Constructor
+
+   HTTPError = pyqtSignal(str,str)
+   DocumentError = pyqtSignal(str)
 # ..............................................................................   
    def __init__(self, urlEndPoint=None, statusurl=None, client=None):
       
@@ -60,7 +66,8 @@ class _Model(QObject):
          req = urllib2.Request(url)
          ret = urllib2.urlopen(req)
       except Exception, e:
-         self.emit(SIGNAL("HTTPError"), url,str(e))
+         #self.emit(SIGNAL("HTTPError"), url,str(e))
+         self.HTTPError.emit(url,str(e))
           
       return ret
         
@@ -76,7 +83,8 @@ class _Model(QObject):
          req = urllib2.Request(url)
          ret = urllib2.urlopen(req)
       except Exception, e:
-         self.emit(SIGNAL("HTTPError"), url,str(e))
+         #self.emit(SIGNAL("HTTPError"), url,str(e))
+         self.HTTPError.emit(url,str(e))
          return 'error'
      
      
@@ -92,6 +100,7 @@ class _Model(QObject):
 class RequestModel(_Model):
    
    """Subclass of _Model. Model based on the Describe Process XML."""
+   
    
    def __init__(self, url=None, getStatusUrl=None, client=None):
       
@@ -117,10 +126,10 @@ class RequestModel(_Model):
          self.status = status
          self.outputs = outputs          
       except Exception, e:
-         self.emit(SIGNAL("HTTPError"), "",str(e))
+         #self.emit(SIGNAL("HTTPError"), "",str(e))
+         self.HTTPError.emit("",str(e))
          return 'Failed'        
       else:
-         #return self.client.inputs, self.client.outputs
          return  self.outputs, self.status
 # ..............................................................................
    def getStatus(self, requestfunc=None):
@@ -132,7 +141,8 @@ class RequestModel(_Model):
       try:
          status, stage = requestfunc()
       except Exception, e:
-         self.emit(SIGNAL("HTTPError"), 'getStatus',str(e))
+         #self.emit(SIGNAL("HTTPError"), 'getStatus',str(e))
+         self.HTTPError.emit('getStatus',str(e))
          return 'Failed','Failed'
           
       else:
@@ -146,23 +156,15 @@ class RequestModel(_Model):
       
       try:
          statusFunction = requestfunc(**inputs)
-         #statusFunction = requestfunc(self.client, **inputs)
-         #status = self.client.Execute()
          if not(statusFunction):
             raise Exception('status function not returned')
       except Exception, e:
-         print "EXCEPTION TRYING TO GET STATUS ",e 
-         self.emit(SIGNAL("HTTPError"), 'executeRequest', str(e))
-         # this used to be self.emit(SIGNAL("HTTPError"), self.client.endpoint, str(e))
+         #self.emit(SIGNAL("HTTPError"), 'executeRequest', str(e))
+         self.HTTPError.emit('executeRequest',str(e))
          return "error"
       
       else:
-         #if status == "Failed":           
-         #   self.emit(SIGNAL("HTTPError"), 'request', "Process Failed")
-         # this used to be self.emit(SIGNAL("HTTPError"), self.client.endpoint, str(e))
-         #   return status
-         #else:
-       
+        
          return statusFunction      
 
               

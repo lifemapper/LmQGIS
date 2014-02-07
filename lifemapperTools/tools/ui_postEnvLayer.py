@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -108,7 +108,7 @@ class Ui_Dialog(object):
       #self.fileEdit.setMaximumSize(220,27)
       self.fileButton = QtGui.QPushButton("Browse")
       self.fileButton.setMaximumSize(100, 27)
-      QtCore.QObject.connect(self.fileButton, QtCore.SIGNAL("clicked()"), self.showFileDialog)
+      self.fileButton.clicked.connect(self.showFileDialog)
       
       
       self.titleLayout.addWidget(self.layerNameLabel,  0,0,1,1) 
@@ -130,21 +130,16 @@ class Ui_Dialog(object):
       
       self.selectTypeCode = QtGui.QComboBox()
       self.selectTypeCode.addItem('',
-                                     QtCore.QVariant(0))
+                                     0)
       self.selectTypeCode.addItem('new...',
-                                     QtCore.QVariant(1))
+                                     1)
       
-      QObject.connect(self.selectTypeCode, 
-                      SIGNAL("currentIndexChanged(int)"), self.newTypeCode)
+      
+      self.selectTypeCode.currentIndexChanged.connect(self.newTypeCode)
       
       self.inputElements.append(self.formElement('typeCode',self.selectTypeCode))
       self.selectTypeCode.setMaximumHeight(28)
-      
-      #self.layerTypeCode = QtGui.QLineEdit()
-      #self.userEntersType = EnterTextEventHandler()
-      #self.layerTypeCode.installEventFilter(self.userEntersType)
-      #self.inputElements.append(self.formElement('line',self.layerTypeCode))
-      #self.layerTypeCode.setMaximumHeight(28)
+
       
       self.epsgGroup = QtGui.QGroupBox()
       style = QtGui.QStyleFactory.create("motif") # try plastique too!
@@ -161,7 +156,7 @@ class Ui_Dialog(object):
       self.epsgCodeEdit.setMaximumHeight(28)
      
       self.epsgButton = QtGui.QPushButton("Browse")
-      QtCore.QObject.connect(self.epsgButton, QtCore.SIGNAL("clicked()"), self.openProjSelectorSetEPSG)
+      self.epsgButton.clicked.connect(self.openProjSelectorSetEPSG)
       
       self.unitsLabel = QtGui.QLabel("Map Units")
       self.unitsLabel.setMaximumHeight(28)
@@ -171,19 +166,19 @@ class Ui_Dialog(object):
       self.selectUnits.setMaximumHeight(28)
       
       self.selectUnits.addItem("decimal degrees",
-           QtCore.QVariant('dd'))
+           'dd')
       self.selectUnits.addItem("meters",
-           QtCore.QVariant('meters'))
+           'meters')
       self.selectUnits.addItem("feet",
-           QtCore.QVariant('feet'))
+           'feet')
       self.selectUnits.addItem("inches",
-           QtCore.QVariant('inches'))
+           'inches')
       self.selectUnits.addItem("kilometers",
-           QtCore.QVariant('kilometers'))
+           'kilometers')
       self.selectUnits.addItem("miles",
-           QtCore.QVariant('miles'))
+          'miles')
       self.selectUnits.addItem("nauticalmiles",
-           QtCore.QVariant('nauticalmiles'))
+           'nauticalmiles')
       self.selectUnits.setMaximumWidth(300)
       
       self.epsgLayout = QtGui.QGridLayout()
@@ -252,9 +247,10 @@ class Ui_Dialog(object):
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+     
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
+      self.helpBut.clicked.connect(self.help)
       
       self.outerGroup.setLayout(self.gridLayout_input)   
       
@@ -274,7 +270,7 @@ class EnterTextEventHandler(QObject):
    def eventFilter(self,object,event):
       if event.type() == QtCore.QEvent.FocusIn:
          if object.styleSheet() == 'background-color: #F5693B':
-            object.setStyleSheet(QtCore.QString( "background-color: white"))
+            object.setStyleSheet("background-color: white")
       return QtGui.QWidget.eventFilter(self, object, event)
 # ............................................................................. 
 
@@ -310,34 +306,37 @@ class Ui_SubDialog(object):
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
-      # self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close|QtGui.QDialogButtonBox.Help|QtGui.QDialogButtonBox.Ok)
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+ 
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
+      self.helpBut.clicked.connect(self.help)
       
       self.gridLayout.addLayout(self.verticalLayout,0,0,1,1)
       self.gridLayout.addWidget(self.buttonBox,     8,0,1,3)
       self.setWindowTitle("Create New Type Code")
           
 class PostTypeCodeDialog(QtGui.QDialog,Ui_SubDialog):
-      def __init__(self,client=None,interface=None):
+   
+      def __init__(self,client=None,interface=None,parent=None):
          QtGui.QDialog.__init__(self)
          self.setupUi()
          self.typeSubmited = False
          self.client = client
+         self.parent = parent
       
       def unHighLiteAll(self):
-         self.typeCodeName.setStyleSheet(QtCore.QString( "background-color: white"))
-         self.typeCodeTitle.setStyleSheet(QtCore.QString( "background-color: white"))
+         self.typeCodeName.setStyleSheet("background-color: white")
+         self.typeCodeTitle.setStyleSheet("background-color: white")
       def validate(self):
          valid = True
          self.unHighLiteAll()
          if self.typeCodeName.text() == '':
             valid = False
-            self.typeCodeName.setStyleSheet(QtCore.QString( "background-color: #F5693B")) 
+            self.typeCodeName.setStyleSheet("background-color: #F5693B") 
          if self.typeCodeTitle.text() == '':
             valid = False
-            self.typeCodeTitle.setStyleSheet(QtCore.QString( "background-color: #F5693B"))  
+            self.typeCodeTitle.setStyleSheet("background-color: #F5693B")  
          return valid
       
       def reject(self):
@@ -345,15 +344,17 @@ class PostTypeCodeDialog(QtGui.QDialog,Ui_SubDialog):
          # combo to first index
          self.close()
          if not self.typeSubmited:
-            QgsProject.instance().emit( SIGNAL( "insertTypeCode(PyQt_PyObject)" ), None)
-         
+            self.parent.insertedTypeCode.emit('')
          
       def closeEvent(self,event):
          if not self.typeSubmited:
-            QgsProject.instance().emit( SIGNAL( "insertTypeCode(PyQt_PyObject)" ), None)
-      
+            self.parent.insertedTypeCode.emit('')
+            
       def insertTypeCode(self,typeCodeCode):
-         QgsProject.instance().emit( SIGNAL( "insertTypeCode(PyQt_PyObject)" ), typeCodeCode)
+         """
+         @summary: called on successful submission of a type code into the database
+         """
+         self.parent.insertedTypeCode.emit(typeCodeCode)
          
       def accept(self):
          valid = self.validate()
@@ -384,7 +385,7 @@ class PostTypeCodeDialog(QtGui.QDialog,Ui_SubDialog):
          layout = QVBoxLayout()
          helpDialog = QTextBrowser()
          helpDialog.setOpenExternalLinks(True)
-         #helpDialog.setSearchPaths(QStringList('documents'))
+         #helpDialog.setSearchPaths(['documents'])
          helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
          helpDialog.setSource(QUrl.fromLocalFile(helppath))
          helpDialog.scrollToAnchor('newTypeCode')
@@ -397,6 +398,8 @@ class PostTypeCodeDialog(QtGui.QDialog,Ui_SubDialog):
                
 class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):   
    
+   insertedTypeCode = pyqtSignal(str)
+   
    def __init__(self, client=None, interface=None):
       QtGui.QDialog.__init__(self)
       self.inputElements = []
@@ -405,9 +408,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       self.client = client
       self.postSucceeded = False
       self.setupUi()
-      QObject.connect(QgsProject.instance(),
-                      SIGNAL("insertTypeCode(PyQt_PyObject)"),
-                      self.insertTypeCode)
+      self.insertedTypeCode.connect(self.insertTypeCode)
       self.typeCodes = self.getTypeCodes()
       if self.typeCodes is not None:
          self.populateTypeCodes()
@@ -417,8 +418,8 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       @summary: inserts new type code into combobox, connected to signal from new
       type code sub dialog
       """
-      if newTypeCode is not None:
-         self.selectTypeCode.insertItem(2, newTypeCode, userData=QVariant(newTypeCode))
+      if newTypeCode is not '':
+         self.selectTypeCode.insertItem(2, newTypeCode, userData=newTypeCode)
          self.selectTypeCode.setCurrentIndex(2)
       else:
          self.selectTypeCode.setCurrentIndex(0)
@@ -426,9 +427,9 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
 # .............................................................................
    def newTypeCode(self, index):
       if self.selectTypeCode.styleSheet():
-         self.selectTypeCode.setStyleSheet(QtCore.QString(""))
+         self.selectTypeCode.setStyleSheet("")
       if index == 1:
-         self.uploadTypeCode = PostTypeCodeDialog(interface=self.iface, client=self.client)
+         self.uploadTypeCode = PostTypeCodeDialog(interface=self.iface, client=self.client,parent=self)
          self.uploadTypeCode.exec_()
 # .............................................................................       
    def addFileName(self,file):
@@ -438,7 +439,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
    def unHighLiteAll(self):
       for t in self.inputElements:
          if t.type != 'combo' and t.type != 'block' and t.type != 'typeCombo':
-            t.element.setStyleSheet(QtCore.QString( "background-color: white"))
+            t.element.setStyleSheet("background-color: white")
 
 # ............................................................................. 
    def getTypeCodes(self):
@@ -454,11 +455,11 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       for code in self.typeCodes:
          try:
             self.selectTypeCode.addItem(code.typeTitle,
-                                     QtCore.QVariant(code.typeCode))
+                                     code.typeCode)
          except:
             try:
                self.selectTypeCode.addItem(code.typeCode,
-                                     QtCore.QVariant(code.typeCode))
+                                     code.typeCode)
             except:
                pass
 # ................................................................................            
@@ -470,21 +471,21 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
             if t.type == 'file':
                if not(os.path.exists(t.element.text())):
                   valid = False
-                  t.element.setStyleSheet(QtCore.QString( "background-color: #F5693B"))             
+                  t.element.setStyleSheet("background-color: #F5693B")             
             elif t.type == 'epsg':
                try:
                   int(t.element.text())
                except:
                   valid = False
-                  t.element.setStyleSheet(QtCore.QString( "background-color: #F5693B"))                                  
+                  t.element.setStyleSheet("background-color: #F5693B")                                  
             else:
                if len(t.element.text()) == 0:
                   valid = False
-                  t.element.setStyleSheet(QtCore.QString( "background-color: #F5693B")) 
+                  t.element.setStyleSheet("background-color: #F5693B") 
          elif t.type == 'typeCode':
             currentIdx = t.element.currentIndex()
             if currentIdx == 0 or currentIdx == 1:
-               t.element.setStyleSheet(QtCore.QString( "background-color: #F5693B"))
+               t.element.setStyleSheet("background-color: #F5693B")
             
                                           
       return valid                 
@@ -515,9 +516,9 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
             epsgCode = str(self.epsgCodeEdit.text())
             title = str(self.layerTitle.text())
             typeIdx = self.selectTypeCode.currentIndex()
-            envLayerType = str(self.selectTypeCode.itemData(typeIdx,role=QtCore.Qt.UserRole).toString())
+            envLayerType = str(self.selectTypeCode.itemData(typeIdx,role=QtCore.Qt.UserRole))
             unitsIdx = self.selectUnits.currentIndex()
-            units = str(self.selectUnits.itemData(unitsIdx, role=QtCore.Qt.UserRole).toString())
+            units = str(self.selectUnits.itemData(unitsIdx, role=QtCore.Qt.UserRole))
             fileName = str(self.fileEdit.text())
             description = str(self.layerDesc.toPlainText())
             #     GTiff 
@@ -530,6 +531,8 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
          except HTTPError,e:
             if e.code == 409:
                message = "Layer already exists with this name with a different type code, unable to upload"
+            else:
+               message = str(e)
          except Exception, e:
             message = "Upload Layer Failed "+str(e)
             self.progressbar.reset()
@@ -551,7 +554,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       """
       projSelector = QgsGenericProjectionSelector(self)
       dialog = projSelector.exec_()
-      epsgCode = projSelector.selectedEpsg()
+      epsgCode = projSelector.selectedAuthId().replace('EPSG:','')
       # some projections don't have epsg's
       if dialog != 0:
          if epsgCode != 0:  # will be zero if projection doesn't have an epsg
@@ -565,7 +568,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
             elif mapunitscode == 2:
                mapunits = 'dd' 
             self.epsgCodeEdit.setText(str(epsgCode))
-            unitsIdx = self.selectUnits.findData(QtCore.QVariant(mapunits), role=QtCore.Qt.UserRole)
+            unitsIdx = self.selectUnits.findData(mapunits, role=QtCore.Qt.UserRole)
             self.selectUnits.setCurrentIndex(unitsIdx)
          else:
             # error message saying that the users chosen projection doesn't have a epsg
@@ -585,9 +588,9 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       
       settings = QtCore.QSettings()
       filetypestr = "raster Files (*.tif  *.asc)"
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       fileDialog = QgsEncodingFileDialog( self, "Open File", dirName,filetypestr)
-      #fileDialog.setDefaultSuffix( QtCore.QString( "shp" ) )
+      #fileDialog.setDefaultSuffix( QtCore. "shp"  )
       fileDialog.setFileMode( QtGui.QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QtGui.QFileDialog.AcceptOpen )
       fileDialog.setConfirmOverwrite( True )
@@ -595,7 +598,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       if not fileDialog.exec_() == QtGui.QFileDialog.Accepted:
          return
       filename = fileDialog.selectedFiles()
-      file = filename.first()
+      file = filename[0]
       self.addFileName(file)
 # ...........................................................................      
    def help(self):
@@ -607,7 +610,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('uploadEnvLayer')
@@ -620,7 +623,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='blank', pwd='blank')
+   client =  LMClient(userId='Dermot', pwd='Dermot')
    qApp = QtGui.QApplication(sys.argv)
    #d = PostScenarioDialog(match=True,scenarioId=112,client=client)
    d = PostEnvLayerDialog(client=client)

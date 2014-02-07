@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -155,9 +155,11 @@ class Ui_Dialog(object):
       #
       self.buttonBox = QtGui.QDialogButtonBox(self)
       self.buttonBox.setObjectName("buttonBox")
+      
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
+      
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.getStatsBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.RejectRole)
@@ -165,9 +167,8 @@ class Ui_Dialog(object):
       
       self.gridLayout.addWidget(self.buttonBox, 1, 1 ,1, 1)
       
-      #QtCore.QObject.connect(self.fileButton, QtCore.SIGNAL("clicked()"), self.showFileDialog)
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.getStatsBut, QtCore.SIGNAL("clicked()"), self.accept)
+      self.rejectBut.clicked.connect(self.reject)
+      self.getStatsBut.clicked.connect(self.accept)
       
       self.retranslateUi()
     
@@ -176,9 +177,9 @@ class Ui_Dialog(object):
       @summary: Shows a file selection dialog
       """
       settings = QtCore.QSettings()
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       fileDialog = QgsEncodingFileDialog( self, "Save .zip File", dirName,"Zip Files (*.zip)")
-      fileDialog.setDefaultSuffix( QtCore.QString( "zip" ) )
+      fileDialog.setDefaultSuffix("zip"  )
       fileDialog.setFileMode( QtGui.QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QtGui.QFileDialog.AcceptSave )
       fileDialog.setConfirmOverwrite( True )
@@ -186,7 +187,7 @@ class Ui_Dialog(object):
       if not fileDialog.exec_() == QtGui.QFileDialog.Accepted:
          return
       filename = fileDialog.selectedFiles()
-      self.addFile(filename.first())
+      self.addFile(filename[0])
       
    def addFile(self,filename):
       self.outEdit.setText(filename)

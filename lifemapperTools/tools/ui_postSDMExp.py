@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -137,7 +137,7 @@ class Ui_Dialog(object):
       
       self.uploadOccBut = QtGui.QPushButton("Upload")
       self.uploadOccBut.setAutoDefault(False)
-      QtCore.QObject.connect(self.uploadOccBut, QtCore.SIGNAL("clicked()"), self.openOccUpload)
+      self.uploadOccBut.clicked.connect(self.openOccUpload)
       self.uploadOccBut.setMaximumWidth(180)
      
       
@@ -148,7 +148,7 @@ class Ui_Dialog(object):
       self.occSetCombo.setMaximumWidth(320)
       self.occSetCombo.setEditable(True)
       self.occSetCombo.setAutoCompletion(True)
-      QtCore.QObject.connect(self.occSetCombo, QtCore.SIGNAL("textChanged(const QString &)"), self.onTextChange)
+      self.occSetCombo.textChanged.connect(self.onTextChange)
       
 
       pointIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/addPointLayer.png")
@@ -157,8 +157,8 @@ class Ui_Dialog(object):
       self.download.setToolTip("optional: Load Data from search") 
       self.download.setEnabled(False)
       self.download.setAutoDefault(False)
-      #QtCore.QObject.connect(self.download, QtCore.SIGNAL("linkActivated(const QString &)"), self.downloadLayer)
-      QtCore.QObject.connect(self.download,QtCore.SIGNAL("clicked()"), self.downloadLayer)
+
+      self.download.clicked.connect(self.downloadLayer)
       
       self.occIdLabel = QtGui.QLabel("Lifemapper species point set id")
       self.occIdLabel.setMaximumHeight(18)
@@ -172,7 +172,8 @@ class Ui_Dialog(object):
       self.getScenBut.setToolTip("Get environmental layer sets for this ID")
       self.getScenBut.setMaximumSize(26, 26)
       self.getScenBut.setAutoDefault(False)
-      QtCore.QObject.connect(self.getScenBut,QtCore.SIGNAL("clicked()"), self.getScenarios)
+      
+      self.getScenBut.clicked.connect(self.getScenarios)
       
       
       self.orLabel = QtGui.QLabel("or")
@@ -226,8 +227,7 @@ class Ui_Dialog(object):
       self.modelScenLabel = QtGui.QLabel("Layer sets for modeling (populate by clicking upper right layer icon)")
       #self.modelScenLabel.setWordWrap(True)
       self.modelScenCombo = QComboBox()
-      QObject.connect(self.modelScenCombo, 
-                             SIGNAL("currentIndexChanged(int)"), self.populateProjScenCombo)
+      self.modelScenCombo.currentIndexChanged.connect(self.populateProjScenCombo)
       self.modelScenCombo.setEnabled(False)
       self.projScenLabel = QtGui.QLabel("Layer sets for mapping")
       
@@ -235,7 +235,7 @@ class Ui_Dialog(object):
       #self.projectionScenListView.setMinimumHeight(80)
       self.projectionScenListView.setSelectionMode(QAbstractItemView.MultiSelection)
       self.projectionScenListView.setSelectionBehavior(QAbstractItemView.SelectRows)
-      QtCore.QObject.connect(self.projectionScenListView, QtCore.SIGNAL("clicked(const QModelIndex &)"), self.matchNew)
+      self.projectionScenListView.clicked.connect(self.matchNew)
       self.projectionScenListView.setEnabled(False)
       self.scenLayout.addWidget(self.modelScenLabel,        1,1,1,1)
       self.scenLayout.addWidget(self.modelScenCombo,        2,1,1,1,Qt.AlignTop)
@@ -269,7 +269,6 @@ class Ui_Dialog(object):
       self.advancedBut.setMaximumWidth(90)
       self.advancedBut.setAutoDefault(False)
       self.advancedBut.setEnabled(False)
-      #QtCore.QObject.connect(self.advancedBut, QtCore.SIGNAL("clicked()"), self.showAlgParams)
       
       self.algoGrid.addWidget(self.algorithmLabel,0,0,1,1,Qt.AlignLeft)
       self.algoGrid.addWidget(self.algCodeCombo,  1,0,1,1,Qt.AlignLeft)
@@ -313,16 +312,20 @@ class Ui_Dialog(object):
      
       self.rejectBut = QtGui.QPushButton("Close",self)
       self.rejectBut.setAutoDefault(False)  
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)  
+      self.rejectBut.clicked.connect(self.reject)
+      
       self.buttonBox = QtGui.QDialogButtonBox(self)
       self.buttonBox.setObjectName("buttonBox")
+      
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setAutoDefault(False)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
+      
       self.acceptBut = QtGui.QPushButton("Submit Exp", self)
       self.acceptBut.setAutoDefault(False)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"),self.accept)
+      self.acceptBut.clicked.connect(self.accept)
+      
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)   
       self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole) 

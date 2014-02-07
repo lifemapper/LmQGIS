@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -44,6 +37,7 @@ from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.tools.ui_listSDMExpsDialog import Ui_Dialog
 from lifemapperTools.tools.radTable import RADTable
 from lifemapperTools.icons import icons
+from lifemapperTools.common.communicate import Communicate
 from lifemapperTools.common.pluginconstants import STATUSLOOKUP,QGISProject, JobStatus,\
                                                    PER_PAGE
 
@@ -52,7 +46,7 @@ from lifemapperTools.common.pluginconstants import STATUSLOOKUP,QGISProject, Job
 class ListSDMExpDialog(QDialog, Ui_Dialog):
    
    
-   
+  
 # .............................................................................
 # Constructor
 # .............................................................................
@@ -60,6 +54,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       
       QDialog.__init__(self)
       self.setupUi()
+      #self.communicate = Communicate()
       self.interface = iface
       self.client = client
       self.workspace = Workspace(self.interface,self.client)
@@ -83,8 +78,8 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       @summary: shows a warning if the qgis project file is missing
       """
       
-      message = QString("The QGIS project file associated with this experiment is\n"
-                        "missing or can't be opened. This does not affect your experiment.\n\n")
+      message = """The QGIS project file associated with this experiment is
+                        "missing or can't be opened. This does not affect your experiment."""
       QMessageBox.warning(self,"Warning: ",
       message)
 # ...........................................................................      
@@ -170,7 +165,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       @param id: experiment id
       """
       s = QSettings()
-      return str(s.value("RADExpProj_"+str(id),QGISProject.NOPROJECT).toString())
+      return str(s.value("RADExpProj_"+str(id),QGISProject.NOPROJECT))
 
 # ...........................................................................         
    def _storeRADExpProjPath(self,id,filename): 
@@ -194,7 +189,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       """
       try:
          s = QSettings()
-         s.setValue("currentExpID", id)
+         s.setValue("currentExpID", int(id))
       except:
          QMessageBox.warning(self,"status: ",
                          "Could not save expId to settings") 
@@ -207,7 +202,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       @return: the current exp id
       """
       s = QSettings()
-      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID).toInt()[0]
+      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID,type=int)
       return currentExpId     
    
 
@@ -368,7 +363,8 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          if experiment is not None:  
             self.expId = expId
             self._compareExpId(expId)  # UNCOMMENT when in QGIS
-            QgsProject.instance().emit( SIGNAL( "ActivateSDMExp(PyQt_PyObject)" ), expId)     
+            #QgsProject.instance().emit( SIGNAL( "ActivateSDMExp(PyQt_PyObject)" ), expId)
+            Communicate.instance().activateSDMExp.emit(expId)
             try:
                expDisplayName = experiment.model.name
             except:
@@ -396,45 +392,27 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
             self.setWindowTitle("Experiment Details")
             self.expTableView.hide()
             self.viewExpGroup.show()
-# ...........................................................................      
-   def addWMS(self, guid, id, tocName):
-      """
-      @summary: adds a wms layer to the qgis canvas
-      @param guid: unique map prefix
-      @param id: projection id [integer]
-      @param tocName: name to present in the toc
-      """
-      layer = 'prj_'+str(id)      
-      requestserviceversion = "&request=GetMap&service=WMS&version=1.1.0&"
-      url = guid+requestserviceversion   
-      layers = [layer]
-      styles = [ '' ]
-      format = 'image/png'
-      crs = 'EPSG:4326'
-      rlayer = QgsRasterLayer(0, url, tocName, 'wms', layers, styles, format, crs)
-      if not rlayer.isValid():
-         pass
-      QgsMapLayerRegistry.instance().addMapLayer(rlayer)
+
 # ...........................................................................
         
    def openFileDialog(self,defaultfilename,caption,filter,suffix):
       settings = QSettings()
-      shpPath = settings.value( "/UI/lastShapefileDir" ).toString()
+      shpPath = settings.value( "/UI/lastShapefileDir" )
       if not os.path.exists(shpPath):
-         shpPath = settings.value("UI/lastProjectDir").toString()     
+         shpPath = settings.value("UI/lastProjectDir")     
       dirName = shpPath +"/"+defaultfilename.replace(' ','_')
       fileDialog = QgsEncodingFileDialog( self, caption, dirName,filter)
-      fileDialog.setDefaultSuffix( QString(suffix) )
+      fileDialog.setDefaultSuffix( suffix )
       fileDialog.setFileMode( QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QFileDialog.AcceptSave )
       fileDialog.setConfirmOverwrite( True )    
       if not fileDialog.exec_() == QFileDialog.Accepted:
          return ''
       filename = fileDialog.selectedFiles() 
-      return str(filename.first())
+      return str(filename[0])
 # .............................................................................. 
    def addTiffToCanvas(self, path, tocName):
-     
+      print "TYPE TOCNAME ",type(tocName)
       fileInfo = QFileInfo(path)
       baseName = fileInfo.baseName()
       rasterLayer = QgsRasterLayer(path,tocName)  
@@ -482,7 +460,6 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       and either adds a WMS or downloads and adds tiff
       @param index: index of item in table view [QModelIndex]
       """
-     
       if index.model().data[index.row()][5] == str(JobStatus.RETRIEVE_COMPLETE):
          if index.column() in self.projsTable.tableModel.controlIndexes:
             if index.column() == 2:
@@ -503,10 +480,12 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       success = self.buildProjsTable(self.projections)     
       if self.backOneLinkProj is None:
          self.backOneLinkProj = QLabel('<a href="www.fake.com">Back to experiment details</a>')
-         QObject.connect(self.backOneLinkProj, SIGNAL("linkActivated(const QString &)"), self.switchtoExpViewFromProj)
+         #QObject.connect(self.backOneLinkProj, SIGNAL("linkActivated(const QString &)"), self.switchtoExpViewFromProj)
+         self.backOneLinkProj.linkActivated.connect(self.switchtoExpViewFromProj)
          if not self.currentExp:
             self.backTwoLinkProj = QLabel('<a href="www.fake.com">Back to experiments</a>')       
-            QObject.connect(self.backTwoLinkProj, SIGNAL("linkActivated(const QString &)"), self.switchtoExpTableFromProj)
+            #QObject.connect(self.backTwoLinkProj, SIGNAL("linkActivated(const QString &)"), self.switchtoExpTableFromProj)
+            self.backTwoLinkProj.linkActivated.connect(self.switchtoExpTableFromProj)
             self.gridLayout.addWidget(self.backTwoLinkProj,8,0,1,1)
          self.tableGrid.addWidget(self.backOneLinkProj,2,0,1,2)
          
@@ -582,7 +561,8 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          hLayout.addWidget(QLabel(metadata))
          pointIcon = QIcon(":/plugins/lifemapperTools/icons/addPointLayer.png")
          downloadbutton = QPushButton(pointIcon,"")
-         QObject.connect(downloadbutton, SIGNAL("clicked()"),lambda: self.downloadOccShape(occSetId))
+         #QObject.connect(downloadbutton, SIGNAL("clicked()"),lambda: self.downloadOccShape(occSetId))
+         downloadbutton.clicked.connect(lambda: self.downloadOccShape(occSetId))
          downloadbutton.setMaximumSize(26, 26)   
          hLayout.addWidget(downloadbutton)
          hLayout.addSpacing(350)
@@ -618,10 +598,12 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       else:
          success = False
       self.backOneLinkOcc = QLabel('<a href="www.fake.com">Back to experiment details</a>')
-      QObject.connect(self.backOneLinkOcc, SIGNAL("linkActivated(const QString &)"), self.switchtoExpViewFromOcc)
+      #QObject.connect(self.backOneLinkOcc, SIGNAL("linkActivated(const QString &)"), self.switchtoExpViewFromOcc)
+      self.backOneLinkOcc.linkActivated.connect(self.switchtoExpViewFromOcc)
       if not self.currentExp:
          self.backTwoLinkOcc = QLabel('<a href="www.fake.com">Back to experiments</a>') 
-         QObject.connect(self.backTwoLinkOcc, SIGNAL("linkActivated(const QString &)"), self.switchtoExpTableFromOcc)
+         #QObject.connect(self.backTwoLinkOcc, SIGNAL("linkActivated(const QString &)"), self.switchtoExpTableFromOcc)
+         self.backTwoLinkOcc.linkActivated.connect(self.switchtoExpTableFromOcc)
       self.setWindowTitle("Experiment Species Points")
       if success:        
          self.switchView(self.viewExpGroup, self.viewOccSetGroup)
@@ -652,7 +634,8 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
                                                               editsIndexList=[999],
                                                               controlsIndexList=[2],
                                                               htmlIndexList=[2]) 
-            QObject.connect(self.projsTableView, SIGNAL("clicked(const QModelIndex &)"), self.viewDownloadProjection)                    
+            #QObject.connect(self.projsTableView, SIGNAL("clicked(const QModelIndex &)"), self.viewDownloadProjection) 
+            self.projsTableView.clicked.connect(self.viewDownloadProjection)                   
             self.tableGrid.addWidget(self.projsTableView,1,1,1,1)             
          except Exception, e:
             self.showEmptyTable('No Projections', '')
@@ -691,8 +674,9 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          self.expDataView.model().data = data
          self.expDataView.model().setCurrentPage(page)
          # consider just setting the model here against the data view using [view].setModel(model)
-         self.expDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+         #self.expDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
+         #      QModelIndex(), QModelIndex())
+         self.expDataView.model().dataChanged.emit(QModelIndex(),QModelIndex())
 
          readOut = "%s/%s" % (str(page+1),str(self.expTableView.noPages))
          self.expTableView.pageReadOut.setText(readOut)
@@ -740,18 +724,21 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
             self.expDataView = self.expTableView.createTable(header,editsIndexList=[999],
                                                     controlsIndexList=[3],
                                                     htmlIndexList=[3],toolTips=[5])
-            QObject.connect(self.expDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+            #QObject.connect(self.expDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+            self.expDataView.model().getNext.connect(self.getNextPage)
             if self.expDataView.model().noPages == 1:
                self.expTableView.pageForward.setEnabled(False)
-            #self.expDataView.sortByColumn(2) only want to sort if not paginated, othewise rely on database ORDER BY
-            QObject.connect(self.expDataView, SIGNAL("clicked(const QModelIndex &)"), self.viewExperiment)   
-            QObject.connect(self.expDataView, SIGNAL("doubleClicked(const QModelIndex &)"), self.openOnDoubleClick)  
-            #self.expDataView.setContextMenuPolicy(Qt.CustomContextMenu)
-            #self.expDataView.customContextMenuRequested.connect(self.showInfoPopUp)     
+            
+            #QObject.connect(self.expDataView, SIGNAL("clicked(const QModelIndex &)"), self.viewExperiment)   
+            #QObject.connect(self.expDataView, SIGNAL("doubleClicked(const QModelIndex &)"), self.openOnDoubleClick) 
+            
+            self.expDataView.clicked.connect(self.viewExperiment)
+            self.expDataView.doubleClicked.connect(self.openOnDoubleClick) 
+            
             self.tableGrid.addWidget(self.expTableView,1,1,1,1) 
             
          except Exception, e:
-            print str(e),"THIS IS THE ERROR"
+            print str(e)
             self.showEmptyTable('No Experiments', '')
             message = "There are no experiments for this user"
             msgBox = QMessageBox.warning(self,
@@ -772,7 +759,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('listSDMExperiments')
@@ -784,7 +771,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
              
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='blank', pwd='blank')
+   client =  LMClient(userId='Dermot', pwd='Dermot')
    qApp = QApplication(sys.argv)
    d = ListSDMExpDialog(None,client=client)#,experimentId=596106
    d.show()

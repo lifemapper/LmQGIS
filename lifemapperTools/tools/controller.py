@@ -1,18 +1,11 @@
 # -*- coding: utf-8 -*-
 
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -125,10 +118,17 @@ class _Controller:
       results = output[0]
       model = output[1]
       type = output[2]
+      callOutputonError = output[3]
       self.cancel_close.setText("Close")
-      QObject.disconnect( self.cancel_close, SIGNAL( "clicked()" ), self.cancelThread )
-      QObject.disconnect( self.wpsThread, SIGNAL("wpsFinished(PyQt_PyObject)"), self.wpsThreadFinished)
-      QObject.disconnect( self.wpsThread, SIGNAL("wpsStatus(PyQt_PyObject)"), self.wpsThreadStatus)
+      
+      #QObject.disconnect( self.cancel_close, SIGNAL( "clicked()" ), self.cancelThread )
+      #QObject.disconnect( self.wpsThread, SIGNAL("wpsFinished(PyQt_PyObject)"), self.wpsThreadFinished)
+      #QObject.disconnect( self.wpsThread, SIGNAL("wpsStatus(PyQt_PyObject)"), self.wpsThreadStatus)
+      
+      self.cancel_close.clicked.disconnect(self.cancelThread)
+      self.wpsThread.wpsFinished.disconnect(self.wpsThreadFinished)
+      self.wpsThread.wpsStatus.disconnect(self.wpsThreadStatus)
+      
       if self.wpsThread.error == 0:
          # needs to just use one function here maybe called setDialog,
          # output could include, the type, and given that do WPS types of
@@ -141,7 +141,11 @@ class _Controller:
       else:
          self.statuslabel.setText('Process Failed')
          self.buttonOk.setEnabled(False)
-         QMessageBox.warning(self,"error",str(self.wpsThread.error))
+         if not callOutputonError:
+            QMessageBox.warning(self,"error",str(self.wpsThread.error))
+         else:
+            self.outputfunction(results, model) 
+            
 
 # .............................................................................         
    def wpsThreadStatus(self, progress):
@@ -163,7 +167,7 @@ class _Controller:
 # ..............................................................................
    def startThread(self, type, requestfunc=None, outputfunc=None, model=None,
                    inputs={}, client=None, completedStage=None, 
-                   statusFunctions = None):
+                   statusFunctions = None, callOutputonError=False):
       """
       @summary: builds and starts a thread for a WPS process, the only way
       the model should be sent to the thread is if it starts there 
@@ -184,13 +188,19 @@ class _Controller:
                                  inputs=inputs,
                                  client=client,
                                  completedStage=completedStage,
-                                 statusFunctions=statusFunctions)
+                                 statusFunctions=statusFunctions,
+                                 callOutputonError=callOutputonError)
       
       
-      QObject.connect( self.wpsThread, SIGNAL("wpsFinished(PyQt_PyObject)"), self.wpsThreadFinished)
-      QObject.connect( self.wpsThread, SIGNAL("wpsStatus(PyQt_PyObject)"), self.wpsThreadStatus)
+      #QObject.connect( self.wpsThread, SIGNAL("wpsFinished(PyQt_PyObject)"), self.wpsThreadFinished)
+      #QObject.connect( self.wpsThread, SIGNAL("wpsStatus(PyQt_PyObject)"), self.wpsThreadStatus)
+      
+      self.wpsThread.wpsFinished.connect(self.wpsThreadFinished)
+      self.wpsThread.wpsStatus.connect(self.wpsThreadStatus)
+      
       self.cancel_close.setText("Cancel")
-      self.connect( self.cancel_close, SIGNAL("clicked()"), self.cancelThread )
+      #self.connect( self.cancel_close, SIGNAL("clicked()"), self.cancelThread )
+      self.cancel_close.clicked.connect(self.cancelThread)
       self.wpsThread.start()
 
       
@@ -198,13 +208,15 @@ class WPSThread(QThread):
    """
    WPS Thread class, subclasses QThread
    """
+   wpsFinished = pyqtSignal(tuple)
+   wpsStatus = pyqtSignal(int)
 # .............................................................................
 # Constructor
 # .............................................................................
   
    def __init__(self, parentThread, type, inputchildren, model, baseurl, statusurl,
                ids, requestfunc=None,inputs=None, client=None,completedStage=None,
-               statusFunctions=None):
+               statusFunctions=None,callOutputonError=False):
       
       QThread.__init__(self,parentThread)
       self.client = client        
@@ -219,6 +231,7 @@ class WPSThread(QThread):
       self.clientmethod = requestfunc
       self.completedStage = completedStage
       self.statusFunctions = statusFunctions
+      self.callOutputonError = callOutputonError
 
          
 # .............................................................................     
@@ -234,18 +247,15 @@ class WPSThread(QThread):
          self.error = 0
          self.results, self.model = self.executeProcess()   
       
-      self.emit( SIGNAL( "wpsFinished(PyQt_PyObject)" ), (self.results, self.model,
-                                                          self.requestType) )
+      #self.emit( SIGNAL( "wpsFinished(PyQt_PyObject)" ), (self.results, self.model,
+      #                                                    self.requestType) )
+      self.wpsFinished.emit((self.results,self.model,self.requestType,self.callOutputonError))
 
-# .............................................................................   
-   def documentError(self, *args):
-      
-      messageString = ' '.join(args)             
-      self.error = messageString      
 # .............................................................................         
-   def httpError(self, *args):
+   def httpError(self, msgtype, http):
       
-      messageString = ' '.join(args)
+      #messageString = ' '.join(args)
+      messageString = msgtype+" "+http
       self.error = messageString
       
 # .............................................................................    
@@ -257,8 +267,10 @@ class WPSThread(QThread):
       """
       @summary: builds executeModel and posts against it
       """
-      QObject.connect( self.model, SIGNAL("HTTPError"), self.httpError)
-      QObject.connect( self.model, SIGNAL("DocumentError"), self.documentError)
+      #QObject.connect( self.model, SIGNAL("HTTPError"), self.httpError)
+      #QObject.connect( self.model, SIGNAL("DocumentError"), self.documentError)
+      
+      self.model.HTTPError.connect(self.httpError)
       try:
             # first call just gets the status function
             callBacks = []
@@ -281,7 +293,8 @@ class WPSThread(QThread):
          if not(self.completedStage):
             if not(status >= 1000):
                if status == STATUS_SUCCEEDED:
-                  self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)                                     
+                  #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)  
+                  self.wpsStatus.emit(100)                                   
                   return status, self.model  
                else:
                   callBackCounter = 0
@@ -303,10 +316,12 @@ class WPSThread(QThread):
                            else:
                               break
                         else:
-                           self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                           #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                           self.wpsStatus.emit(100)
                            break
                                                           
-                        self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
+                        #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
+                        self.wpsStatus.emit(self.progress)
                         time.sleep(2)
                      if status >= 1000:
                         # need to get a more informative error code here, like below                  
@@ -315,7 +330,8 @@ class WPSThread(QThread):
                         break
                         #return status, None
                      elif status == STATUS_SUCCEEDED:                
-                        self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                        #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                        self.wpsStatus.emit(100)
                         #return status, self.model
                      elif status != STATUS_SUCCEEDED and status < 1000:
                         model = False
@@ -331,7 +347,8 @@ class WPSThread(QThread):
          else:
             if not(status >= 1000):
                if stage == self.completedStage:
-                  self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)                                     
+                  #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)     
+                  self.wpsStatus.emit(100)                                
                   return stage, self.model
                
                else:
@@ -354,10 +371,12 @@ class WPSThread(QThread):
                            else:
                               break
                         else:
-                           self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                           #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                           self.wpsStatus.emit(100)
                            break
                                                           
-                        self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
+                        #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
+                        self.wpsStatus.emit(self.progress)
                         time.sleep(2)
                      if status >= 1000:       
                         self.error = "error-status "+str(status)
@@ -365,7 +384,8 @@ class WPSThread(QThread):
                         break
                         
                      elif stage == self.completedStage and status == STATUS_SUCCEEDED:                
-                        self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                        #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
+                        self.wpsStatus.emit(100)
                         
                      elif STATUS_SUCCEEDED < status < 1000:
                         self.error = "cluster error or not found"
@@ -391,8 +411,10 @@ class WPSThread(QThread):
       @return: returns results from parsed model data, and describeModel
       """
       
-      QObject.connect( self.model, SIGNAL("HTTPError"), self.httpError)
-      QObject.connect( self.model, SIGNAL("DocumentError"), self.documentError)
+      #QObject.connect( self.model, SIGNAL("HTTPError"), self.httpError)
+      #QObject.connect( self.model, SIGNAL("DocumentError"), self.documentError)
+      
+      self.model.HTTPError.connect(self.httpError)
       
       try: 
          #pyqtRemoveInputHook()
@@ -407,7 +429,8 @@ class WPSThread(QThread):
       else:
         
          self.progress = 100   #maybe                         
-         self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
+         #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
+         self.wpsStatus.emit(self.progress)
          self.results = outputs
       
          

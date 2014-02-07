@@ -1,6 +1,9 @@
 """
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
+
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -23,15 +26,21 @@
 """
 from matplotlib.figure import Figure
 from matplotlib.backend_bases import cursors
-import matplotlib.nxutils as nx
+from matplotlib.path import Path
 from matplotlib.backends.backend_qt4agg import \
  FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QTAgg as NavigationToolbar
-#from  matplotlib.backends.qt4_compat import _getSaveFileName
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import QObject
+from PyQt4.QtCore import QObject, pyqtSignal
+from qgis.core import *
+from qgis.gui import *
 import sys
 import numpy as np
 import lifemapperTools.icons.icons
+from lifemapperTools.common.communicate import Communicate
+try:
+   import matplotlib.nxutils as nx
+except:
+   pass
 
 cursord = {
     cursors.MOVE          : QtCore.Qt.SizeAllCursor,
@@ -42,7 +51,7 @@ cursord = {
    
 class QtMplCanvas(FigureCanvas):
    
-   def __init__(self, xvector,yvector,xlegend,ylegend,title):
+   def __init__(self, xvector,yvector,xlegend,ylegend,title,ids=[]):
       self.fig = Figure(figsize=(10.2, 8)) # possible args figsize=(width, height), dpi=dpi
       self.fig.set_facecolor([.89,.89,.89])
       self.axes = self.fig.add_subplot(111)
@@ -55,7 +64,8 @@ class QtMplCanvas(FigureCanvas):
       self.axes.set_title(title)
       self.selected = {}
       self.ctrl = False
-
+      self.tableids = ids
+      self.allDatabyID = None
       self.searchIn = self.buildSearchIn(xvector, yvector)
       self.axes.scatter(xvector,yvector,marker='o',c='g',s=47,picker=True)
       
@@ -74,35 +84,73 @@ class QtMplCanvas(FigureCanvas):
       if event.key == 'control':
          self.ctrl = False
    
-   def buildSearchIn(self,xvector,yvector):     
-      l = []
-      for x,y in zip(xvector,yvector):
-         p = []
-         p.append(x)
-         p.append(y)
-         l.append(p)      
+   def buildSearchIn(self,xvector,yvector):  
+      l = []  
+      if len(self.tableids) == 0:     
+         for x,y in zip(xvector,yvector):
+            l.append((x,y))  
+      else:
+         allDatabyID = []
+         for id,x,y in zip(self.tableids,xvector,yvector):
+            l.append((x,y)) 
+            allDatabyID.append((id,x,y))
+         self.allDatabyID = np.array(allDatabyID)   
       return np.array(l) 
    
 
       
    def onpick(self, event):
       """
-      @summary pick event for plot canvas, needs to be reworked for scatter canvas
+      @summary pick event for plot canvas
       """
-      
+      selectedPoints = [False for x in range(0, len(self.tableids))]
       ind = event.ind   # position in the data array
-      x,y = self.searchIn[event.ind][0]
-      if (x,y) in self.selected:
-         markers = self.selected[(x,y)]
-         for m in markers:
-            m.set_visible(not m.get_visible())
-          
-      else:
-         t = self.axes.text(x,y,'')
-         m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
-         self.selected[(x,y)] =(t,m)
+      if self.allDatabyID is None:
+         x,y = self.searchIn[event.ind][0]
+         if (x,y) in self.selected:
+            markers = self.selected[(x,y)]
+            for m in markers:
+               m.set_visible(not m.get_visible())
+             
+         else:
+            t = self.axes.text(x,y,'')
+            m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+            self.selected[(x,y)] =(t,m)
+         print (x,y)
+      else:  # all this has to do is loop through the event.ind !
+         for pos in event.ind:
+            id,x,y = self.allDatabyID[pos]
+            if self.ctrl:
+               if id in self.selected:
+                  markers = self.selected[id]
+                  if not markers[0].get_visible():
+                     selectedPoints[pos] = True
+                     for m in markers:
+                        m.set_visible(True)   
+               else:
+                  t = self.axes.text(x,y,'')
+                  m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  self.selected[id] =(t,m)          
+                  selectedPoints[pos] = True 
+            else:
+               for key in self.selected.keys():
+                  markers = self.selected[key]
+                  if markers[0].get_visible():
+                     for m in markers:
+                        m.set_visible(False)
+                  self.selected.pop(key,None)
+                  
+               t = self.axes.text(x,y,'')
+               m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+               self.selected[id] =(t,m)          
+               selectedPoints[pos] = True 
+                  
+               
+               
       self.draw()
-   
+      selectedPoints = np.array(selectedPoints)
+      Communicate.instance().RADSitesSelected.emit(selectedPoints,self.tableids,self.ctrl)
+      Communicate.instance().RADSpeciesSelected.emit(selectedPoints,self.tableids,self.ctrl)
       
 class RadNavigationToolBar(NavigationToolbar):
    
@@ -117,7 +165,7 @@ class RadNavigationToolBar(NavigationToolbar):
       zoomLastIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/zoomlast.png")
       zoomNextIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/zoomnext.png")
       zoomInIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/zoomin.png")
-      
+      self.parentWindow = parentwindow
       self.removeAction(self.actions()[7])
       self.removeAction(self.actions()[7])
       
@@ -143,11 +191,17 @@ class RadNavigationToolBar(NavigationToolbar):
       self.selectAction.setToolTip("Select Data Points by dragging rectangle")
       
       # try this alignToolAct.triggered.connect(self.align) instead of connect below
-      QtCore.QObject.connect(self.selectAction, QtCore.SIGNAL("triggered()"), self.select)
-      QtCore.QObject.connect(self.panAction, QtCore.SIGNAL("triggered()"), self.pan)
-      QtCore.QObject.connect(self.zoomInAction, QtCore.SIGNAL("triggered()"), self.zoom)
-      QtCore.QObject.connect(self.zoomNextAction, QtCore.SIGNAL("triggered()"), self.forward)
-      QtCore.QObject.connect(self.zoomLastAction, QtCore.SIGNAL("triggered()"), self.back)
+      #QtCore.QObject.connect(self.selectAction, QtCore.SIGNAL("triggered()"), self.select)
+      #QtCore.QObject.connect(self.panAction, QtCore.SIGNAL("triggered()"), self.pan)
+      #QtCore.QObject.connect(self.zoomInAction, QtCore.SIGNAL("triggered()"), self.zoom)
+      #QtCore.QObject.connect(self.zoomNextAction, QtCore.SIGNAL("triggered()"), self.forward)
+      #QtCore.QObject.connect(self.zoomLastAction, QtCore.SIGNAL("triggered()"), self.back)
+      
+      self.selectAction.triggered.connect(self.select)
+      self.panAction.triggered.connect(self.pan)
+      self.zoomInAction.triggered.connect(self.zoom)
+      self.zoomNextAction.triggered.connect(self.forward)
+      self.zoomLastAction.triggered.connect(self.back)
       
       self.insertAction(self.actions()[2],self.zoomNextAction)
       self.insertAction(self.actions()[2],self.zoomLastAction)   
@@ -179,11 +233,16 @@ class RadNavigationToolBar(NavigationToolbar):
          filters.append(filter)
       filters = ';;'.join(filters)
    
-      #fname = _getSaveFileName(self, "Choose a filename to save to",
-      #                                start, filters, selectedFilter)
-      fname = QtGui.QFileDialog.getSaveFileName(
-            self, "Choose a filename to save to",
-                                      start, filters, selectedFilter)
+      fileDialog = QgsEncodingFileDialog( self, "Choose a filename to save to", start,selectedFilter)
+      fileDialog.setDefaultSuffix(  "png"  )
+      fileDialog.setFileMode( QtGui.QFileDialog.AnyFile ) 
+      fileDialog.setAcceptMode( QtGui.QFileDialog.AcceptSave )
+      fileDialog.setConfirmOverwrite( True )
+     
+      if not fileDialog.exec_() == QtGui.QFileDialog.Accepted:
+         return
+      filename = fileDialog.selectedFiles()
+      fname = filename[0]
       if fname:
          try:
             self.canvas.print_figure( unicode(fname) )
@@ -260,48 +319,82 @@ class RadNavigationToolBar(NavigationToolbar):
 
 
       self.press(event)
-      
-      
+                
+         
    def drawSelected(self, axes, allData, selectedPoints):
       """
-      Draw the annotation on the plot
+      @summary: Draw the annotation on the plot
+      @param allData:  self.canvas.searchIn
+      @param selectedPoints: list of boolean
       """
-      if self.canvas.ctrl:
-         for xy,selected in zip(allData,selectedPoints):
-            x = xy[0]
-            y = xy[1]
-            if selected:
-               if (x,y) in self.canvas.selected:
-                  markers = self.canvas.selected[(x,y)]
-                  if not markers[0].get_visible():
-                     for m in markers:
-                        m.set_visible(True)               
-               else:   
+      if self.canvas.allDatabyID is None:
+         if self.canvas.ctrl:
+            for xy,selected in zip(allData,selectedPoints):
+               x = xy[0]
+               y = xy[1]
+               if selected:
+                  if (x,y) in self.canvas.selected:
+                     markers = self.canvas.selected[(x,y)]
+                     if not markers[0].get_visible():
+                        for m in markers:
+                           m.set_visible(True)               
+                  else:   
+                     t = axes.text(x,y,'')
+                     m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                     self.canvas.selected[(x,y)] =(t,m)
+         else:
+            for key in self.canvas.selected.keys():
+               markers = self.canvas.selected[key]
+               if markers[0].get_visible():
+                  for m in markers:
+                     m.set_visible(False)
+               self.canvas.selected.pop(key,None)
+                     
+            for xy,selected in zip(allData,selectedPoints):
+               x = xy[0]
+               y = xy[1]
+               if selected:               
                   t = axes.text(x,y,'')
                   m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
                   self.canvas.selected[(x,y)] =(t,m)
       else:
-         for key in self.canvas.selected.keys():
-            markers = self.canvas.selected[key]
-            if markers[0].get_visible():
-               for m in markers:
-                  m.set_visible(False)
-            self.canvas.selected.pop(key,None)
-                  
-         for xy,selected in zip(allData,selectedPoints):
-            x = xy[0]
-            y = xy[1]
-            if selected:               
-               t = axes.text(x,y,'')
-               m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
-               self.canvas.selected[(x,y)] =(t,m)
-               
-                  
-         
+         if self.canvas.ctrl:
+            for idxy,selected in zip(self.canvas.allDatabyID,selectedPoints):
+               id = idxy[0]
+               x = idxy[1]
+               y = idxy[2]
+               if selected:
+                  if id in self.canvas.selected:
+                     markers = self.canvas.selected[id]
+                     if not markers[0].get_visible():
+                        for m in markers:
+                           m.set_visible(True)               
+                  else:   
+                     t = axes.text(x,y,'')
+                     m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                     self.canvas.selected[id] =(t,m)
+         else:
+            for key in self.canvas.selected.keys():
+               markers = self.canvas.selected[key]
+               if markers[0].get_visible():
+                  for m in markers:
+                     m.set_visible(False)
+               self.canvas.selected.pop(key,None)
+                     
+            for idxy,selected in zip(self.canvas.allDatabyID,selectedPoints):
+               id = idxy[0]
+               x = idxy[1]
+               y = idxy[2]
+               if selected:               
+                  t = axes.text(x,y,'')
+                  m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  self.canvas.selected[id] =(t,m)
+        
       self.canvas.axes.figure.canvas.draw()
+      Communicate.instance().RADSitesSelected.emit(selectedPoints,self.canvas.tableids,self.canvas.ctrl)
+      Communicate.instance().RADSpeciesSelected.emit(selectedPoints,self.canvas.tableids,self.canvas.ctrl)
       
    def release_select(self, event):
-      
       'the release mouse button callback in select to rect mode'
       for select_id in self._ids_select:
          self.canvas.mpl_disconnect(select_id)
@@ -366,11 +459,27 @@ class RadNavigationToolBar(NavigationToolbar):
                if y0 > Ymin: y0=Ymin
                if y1 < Ymax: y1=Ymax
                
+         
          searchin = self.canvas.searchIn
          bbox = np.array([ [x0,y0], [x0, y1], [x1, y1], [x1,y0]], float)
-         selectedList = nx.points_inside_poly(searchin,bbox)       
+         
+         try:
+            selectedList = nx.points_inside_poly(searchin,bbox)
+         except:
+            try:
+               selectedList = Path([ [x0,y0], [x0, y1], [x1, y1], [x1,y0], [x0,y0]]).contains_points(searchin)   
+            except Exception, e:
+               print str(e)
+            
          axes = self.canvas.axes
-         self.drawSelected(axes, searchin, selectedList)
+        
+       
+         #self.selectThread = PlotSelectThread(self.canvas,searchin,selectedList,
+         #                                     allDatabyID=self.canvas.allDatabyID,parent=self.parentWindow)
+         #self.selectThread.start()
+         
+         self.drawSelected(axes, searchin, selectedList)  # this slows down the selection
+         # in the map, 
       
       self.draw()
       self._xypress = None
@@ -408,15 +517,108 @@ class RadNavigationToolBar(NavigationToolbar):
    def _switch_off_select_mode(self, event):
       self._select_mode = None
       self.mouse_move(event)
+
+class PlotSelectThread(QtCore.QThread):
+   #selected = pyqtSignal()
+   def __init__(self,canvas,searchin,selectedList,allDatabyID = None,parent=None):
+      QtCore.QThread.__init__(self,parent)
+      self.running = False
+      self.canvas = canvas
+      self.axes = canvas.axes
+      self.searchin = searchin
+      self.selectedList = selectedList
+      self.allDatabyID = allDatabyID
+   def run(self):
+      self.running = True
+      #self.selected.emit()
+      self.drawSelected()
+      
+   def drawSelected(self):
+      """
+      Draw the annotation on the plot
+      """
+      if self.allDatabyID is None:
+         print 'its in drawSelected in thread, no ID'
+         if self.canvas.ctrl:
+            for xy,selected in zip(self.searchin,self.selectedList):
+               x = xy[0]
+               y = xy[1]
+               if selected:
+                  if (x,y) in self.canvas.selected:
+                     markers = self.canvas.selected[(x,y)]
+                     if not markers[0].get_visible():
+                        for m in markers:
+                           m.set_visible(True)               
+                  else:   
+                     t = self.axes.text(x,y,'')
+                     m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                     self.canvas.selected[(x,y)] =(t,m)
+         else:
+            for key in self.canvas.selected.keys():
+               markers = self.canvas.selected[key]
+               if markers[0].get_visible():
+                  for m in markers:
+                     m.set_visible(False)
+               self.canvas.selected.pop(key,None)
+                     
+            for xy,selected in zip(self.searchin,self.selectedList):
+               x = xy[0]
+               y = xy[1]
+               if selected:               
+                  t = self.axes.text(x,y,'')
+                  m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  self.canvas.selected[(x,y)] =(t,m)
+      else:
+         print 'its in drawSelected in thread, yes ID'
+         if self.canvas.ctrl:
+            for idxy,selected in zip(self.allDatabyID,self.selectedList):
+               id = idxy[0]
+               x = idxy[1]
+               y = idxy[2]
+               if selected:
+                  if id in self.canvas.selected:
+                     markers = self.canvas.selected[id]
+                     if not markers[0].get_visible():
+                        for m in markers:
+                           m.set_visible(True)               
+                  else:   
+                     t = self.axes.text(x,y,'')
+                     m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                     self.canvas.selected[id] =(t,m)
+         else:
+            for key in self.canvas.selected.keys():
+               markers = self.canvas.selected[key]
+               if markers[0].get_visible():
+                  for m in markers:
+                     m.set_visible(False)
+               self.canvas.selected.pop(key,None)
+                     
+            for idxy,selected in zip(self.allDatabyID,self.selectedList):
+               id = idxy[0]
+               x = idxy[1]
+               y = idxy[2]
+               if selected:               
+                  t = self.axes.text(x,y,'')
+                  m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  self.canvas.selected[id] =(t,m)         
+                         
+      self.canvas.axes.figure.canvas.draw()
+      
+   def __del__(self):
+      self.wait()
+   
+
+      
+
         
 class PlotWindow(QtGui.QMainWindow):
-   def __init__(self, xvector, yvector,xlegend,ylegend,title,saveDir):
+   def __init__(self, xvector, yvector,xlegend,ylegend,title,saveDir,ids=[]):
       QtGui.QMainWindow.__init__(self)
       self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
       self.setWindowTitle("Range Diversity Plot")
       self.main_widget = QtGui.QWidget(self)
       l = QtGui.QVBoxLayout(self.main_widget)  
-      sc = QtMplCanvas(xvector,yvector,xlegend,ylegend,title) #width=5, height=3, dpi=100
+      sc = QtMplCanvas(xvector,yvector,xlegend,ylegend,title,ids=ids) #width=5, height=3, dpi=100
       l.addWidget(sc)
       bar = RadNavigationToolBar(sc,self,saveDir)
       l.addWidget(bar) 

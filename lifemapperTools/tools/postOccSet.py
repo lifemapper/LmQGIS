@@ -1,17 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -35,8 +28,8 @@
 
 import os
 from PyQt4.QtGui import *
-from PyQt4.QtCore import QSettings, SIGNAL
-from PyQt4.QtCore import Qt, QUrl, QString,SIGNAL,QObject,QVariant
+from PyQt4.QtCore import QSettings
+from PyQt4.QtCore import Qt, QUrl, QObject
 from qgis.core import *
 from qgis.gui import *
 from lifemapperTools.tools.ui_postOccSetDialog import Ui_Dialog
@@ -44,6 +37,7 @@ from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.common.lmClientLib import LMClient
+from lifemapperTools.common.communicate import Communicate
 
 
 
@@ -80,22 +74,23 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
                                                QMessageBox.Ok)
          else:
             occSetId = response.id
-            QgsProject.instance().emit( 
-                               SIGNAL(
-                               "PostedOccurrenceSet(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ),
-                               occSetId,self.displayName,self.epsgCode)
+            #QgsProject.instance().emit( 
+            #                   SIGNAL(
+            #                   "PostedOccurrenceSet(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ),
+            #                   occSetId,self.displayName,self.epsgCode)
+            Communicate.instance().postedOccurrenceSet.emit(occSetId,self.displayName,self.epsgCode)
             self.close()
 # ..............................................................................
    def validate(self):
       
-      self.epsgCode = str(self.epsgCodeEdit.text())
+      epsgCode = str(self.epsgCodeEdit.text())
       self.displayName = str(self.displayNameEdit.text())
       if self.fileName is None:
          self.fileName = str(self.file.text())
       self.fileType = self.getFileType(userData=False)
       self.occMapLayerName = self.canvasLayersCombo.currentText()
       valid = True
-      if len(self.epsgCode) == 0:
+      if len(epsgCode) == 0:
          message = "Please supply an EPSG code"
          valid = False
       elif len(self.displayName) == 0:
@@ -114,7 +109,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
       
       fileName, fileExtension = os.path.splitext(self.fileName)
       fileExt = fileExtension[1:]
-      extIdx = self.fileTypeCombo.findData(QVariant(fileExt), role=Qt.UserRole)  
+      extIdx = self.fileTypeCombo.findData(fileExt, role=Qt.UserRole)  
       self.fileTypeCombo.setCurrentIndex(extIdx)
       self.fileType = self.getFileType(userData=False)
          
@@ -124,6 +119,8 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
                                                "Problem...",
                                                message,
                                                QMessageBox.Ok)
+      else:
+         self.epsgCode = int(epsgCode)
       return valid 
          
 # ..............................................................................
@@ -131,7 +128,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
       currentIndex = self.canvasLayersCombo.currentIndex()
       fileNameVariant = self.canvasLayersCombo.itemData(currentIndex,role=Qt.UserRole)
       
-      tocName = str(self.canvasLayersCombo.itemData(currentIndex,role=Qt.DisplayRole).toString())
+      tocName = str(self.canvasLayersCombo.itemData(currentIndex,role=Qt.DisplayRole))
       layers = self.interface.legendInterface().layers()
       for layer in layers:
          if layer.name() == tocName:
@@ -140,7 +137,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
                self.interface.actionToggleEditing().trigger()
                
                
-      self.fileName = str(fileNameVariant.toString())
+      self.fileName = str(fileNameVariant)
       
 # ..............................................................................
    def selectFromCanvas(self,index):     
@@ -148,7 +145,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
          # clear and disable filename text
          self.file.setText('')
          self.file.setEnabled(False) # maybe
-         shpIdx = self.fileTypeCombo.findData(QVariant('shp'), role=Qt.UserRole)  
+         shpIdx = self.fileTypeCombo.findData('shp', role=Qt.UserRole)  
          self.fileTypeCombo.setCurrentIndex(shpIdx)
          self.setFileNameFromCombo()
       elif index == 0:
@@ -169,8 +166,9 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
                self.canvasLayersCombo.addItem(name,userData=source)
       # we connect the combo here, because adding items triggers the currenIndexChanged signal,
       # maybe we don't connect unless there are point layers         
-      QObject.connect(self.canvasLayersCombo, 
-                             SIGNAL("currentIndexChanged(int)"), self.selectFromCanvas)
+      #QObject.connect(self.canvasLayersCombo, 
+      #                       SIGNAL("currentIndexChanged(int)"), self.selectFromCanvas)
+      self.canvasLayersCombo.currentIndexChanged.connect(self.selectFromCanvas)
 # ..............................................................................
    def openProjSelectorSetEPSG(self):
       """
@@ -179,7 +177,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
       """
       projSelector = QgsGenericProjectionSelector(self)
       dialog = projSelector.exec_()
-      EpsgCode = projSelector.selectedEpsg()
+      EpsgCode = projSelector.selectedAuthId().replace('EPSG:','')
       # some projections don't have epsg's
       if dialog != 0:
          if EpsgCode != 0:  # will be zero if projection doesn't have an epsg
@@ -213,9 +211,9 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
       self.file.setEnabled(True)
       filetype = self.getFileType()
       filetypestr = "%s files (*.%s)" % (filetype, filetype)
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       fileDialog = QgsEncodingFileDialog( self, "Open File", dirName,filetypestr)
-      fileDialog.setDefaultSuffix( QString( "shp" ) )
+      fileDialog.setDefaultSuffix(  "shp"  )
       fileDialog.setFileMode( QFileDialog.AnyFile ) 
       fileDialog.setAcceptMode( QFileDialog.AcceptOpen )
       fileDialog.setConfirmOverwrite( True )
@@ -223,13 +221,13 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
       if not fileDialog.exec_() == QFileDialog.Accepted:
          return
       filename = fileDialog.selectedFiles()
-      self.addFile(filename.first())
+      self.addFile(filename[0])
 # ..................................................................................
    def getFileType(self,userData=True):
       if userData:
          currentIndex = self.fileTypeCombo.currentIndex()
          fileVariant = self.fileTypeCombo.itemData(currentIndex,role=Qt.UserRole)
-         filetype = str(fileVariant.toString())
+         filetype = str(fileVariant)
       else:
          filetype = str(self.fileTypeCombo.currentText())
       return filetype
@@ -249,7 +247,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('signIn')

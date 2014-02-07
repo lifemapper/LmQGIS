@@ -6,12 +6,12 @@
  Macro Ecology tools for presence absence matrices
                              -------------------
         begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
+        copyright            : (C) 2014 by Biodiversity Institute
         email                : jcavner@ku.edu
  ***************************************************************************/
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -35,18 +35,20 @@
 
 import os
 import sys
+from urllib2 import HTTPError
 from PyQt4.QtGui import *
 from PyQt4.QtCore import QSettings,QObject,SIGNAL
-from PyQt4.QtCore import Qt, QUrl, QString, QDir
+from PyQt4.QtCore import Qt, QUrl, QDir
 from qgis.core import *
 from qgis.gui import *
+import lifemapperTools as LM
 from lifemapperTools.tools.ui_signInDialog import Ui_Dialog
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.common.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.workspace import Workspace
-from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject
+from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject, SIGNUPURL
 
 
 
@@ -82,10 +84,14 @@ class Ui_SubDialog(object):
       self.buttonBox.addButton(self.helpBut, QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut, QDialogButtonBox.ActionRole)
-      # self.buttonBox.setStandardButtons(QDialogButtonBox.Close|QDialogButtonBox.Help|QDialogButtonBox.Ok)
-      QObject.connect(self.rejectBut, SIGNAL("clicked()"), self.reject)
-      QObject.connect(self.acceptBut, SIGNAL("clicked()"), self.accept)
-      QObject.connect(self.helpBut, SIGNAL("clicked()"), self.help)
+      
+      #QObject.connect(self.rejectBut, SIGNAL("clicked()"), self.reject)
+      #QObject.connect(self.acceptBut, SIGNAL("clicked()"), self.accept)
+      #QObject.connect(self.helpBut, SIGNAL("clicked()"), self.help)
+      
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
+      self.helpBut.clicked.connect(self.help)
       
       self.gridLayout.addLayout(self.verticalLayout,0,0,1,1)
       self.gridLayout.addWidget(self.buttonBox,     8,0,1,3)
@@ -127,6 +133,7 @@ class SignInDialog(QDialog, Ui_Dialog):
       self.openProjAction = openSlot
       #QObject.connect(QgsProject.instance(),SIGNAL("writeProject(QDomDocument &)"),self.captureSave)
 # ..............................................................................        
+## ..............................................................................        
    def accept(self):
       # somewhere in sigin it needs to check for an existing workspace for that user
       # and then if that path/directory exists
@@ -139,8 +146,11 @@ class SignInDialog(QDialog, Ui_Dialog):
          except OutOfDateException, e:
             message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
             QMessageBox.warning(self,"Problem...",message,QMessageBox.Ok)
-         except:
-            message = "User password combination does not exist"
+         except HTTPError,e:
+            if e.code == 401:
+               message = "User password combination does not exist"
+            else:
+               message = str(e)
             msgBox = QMessageBox.warning(self,
                                                 "Problem...",
                                                 message,
@@ -149,37 +159,54 @@ class SignInDialog(QDialog, Ui_Dialog):
             
             username = str(self.usernameEdit.text())
             self.client = cl
-            self.workspace = Workspace(self.interface,self.client)
-            workspace = self.checkCreateWorkSpace(username)
-            if workspace:
-               self.signInAction.setEnabled(False)
-               self.radMenu.setEnabled(True)
-               self.sdmMenu.setEnabled(True)
-               self.resumeAction.setEnabled(True)
-               self.newExperimentAction.setEnabled(True)
-               self.uploadEnvlayerAction.setEnabled(True)
-               self.changeWSAction.setEnabled(True)
-               self.signOutAction.setEnabled(True)
-               # connect writeProject and readProject to slot in plugin main
-               QObject.connect(QgsProject.instance(),SIGNAL("writeProject(QDomDocument &)"),self.saveProjAction)
-               QObject.connect(self.interface,SIGNAL("projectRead()"),self.openProjAction)
-              
-               #################################
-               # set current user and pwd
-               settings.setValue("currentUser",username)
-               settings.setValue(username+"_pwd", self.keyvalues["passEdit"])              
-               ###################################              
-               
-               self.close()
-               workspace = self.workspace.getWSforUser(user=username)
-               message = "User %s is signed into the Lifemapper system. Using %s's workspace %s " % (username,username,workspace) 
-               msgBox = QMessageBox(QMessageBox.NoIcon,"Signed In",message,
-                                    QMessageBox.Ok) 
-               pixMap = QPixmap(":/plugins/lifemapperTools/icons/owlSmall.png")
-               msgBox.setIconPixmap(pixMap)
-               msgBox.exec_() 
-            else:
+            try:
+               myVersion = LM.version() # test"Version 0.1.2" #
+               myVersion = myVersion.strip("Version")
+               myVersion = myVersion.strip()
+               self.client._cl.checkVersion(clientName="lmQGIS",verStr=myVersion)
+            except OutOfDateException, e:
+               message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
                self.client.logout()
+               msgBox = QMessageBox.warning(self,
+                                                "Problem...",
+                                                message,
+                                                QMessageBox.Ok) 
+            else:
+               self.workspace = Workspace(self.interface,self.client)
+               workspace = self.checkCreateWorkSpace(username)
+               if workspace:
+                  self.signInAction.setEnabled(False)
+                  self.radMenu.setEnabled(True)
+                  self.sdmMenu.setEnabled(True)
+                  self.resumeAction.setEnabled(True)
+                  self.newExperimentAction.setEnabled(True)
+                  self.uploadEnvlayerAction.setEnabled(True)
+                  self.changeWSAction.setEnabled(True)
+                  self.signOutAction.setEnabled(True)
+                  # connect writeProject and readProject to slot in plugin main
+                  #QObject.connect(QgsProject.instance(),SIGNAL("writeProject(QDomDocument &)"),self.saveProjAction)
+                  #QObject.connect(self.interface,SIGNAL("projectRead()"),self.openProjAction)
+                  
+                  QgsProject.instance().writeProject.connect(self.saveProjAction)
+                  self.interface.projectRead.connect(self.openProjAction)
+                 
+                  #################################
+                  # set current user and pwd
+                  settings.setValue("currentUser",username)
+                  settings.setValue(username+"_pwd", self.keyvalues["passEdit"])              
+                  ###################################              
+                  
+                  self.close()
+                  workspace = self.workspace.getWSforUser(user=username)
+                  message = "User %s is signed into the Lifemapper system. Using %s's workspace %s " % (username,username,workspace) 
+                  msgBox = QMessageBox(QMessageBox.NoIcon,"Signed In",message,
+                                       QMessageBox.Ok) 
+                  pixMap = QPixmap(":/plugins/lifemapperTools/icons/owlSmall.png")
+                  msgBox.setIconPixmap(pixMap)
+                  msgBox.exec_() 
+               else:
+                  self.client.logout()
+               
                
 # ...........................................................................   
    def checkCreateWorkSpace(self,username):
@@ -200,7 +227,7 @@ class SignInDialog(QDialog, Ui_Dialog):
    def openDirectoryDialog(self, username, existingWorkSpace=False):
       
       settings = QSettings()
-      dirName = settings.value( "UI/lastProjectDir" ).toString()
+      dirName = settings.value( "UI/lastProjectDir" )
       fileDialog = QgsEncodingFileDialog( self, "Create a directory for %s's workspace" % username, dirName) 
       fileDialog.setFileMode( QFileDialog.DirectoryOnly ) 
       fileDialog.setAcceptMode(QFileDialog.AcceptSave )
@@ -224,10 +251,10 @@ class SignInDialog(QDialog, Ui_Dialog):
       else:
          filename = fileDialog.selectedFiles()
          # if they choose an existing workspace, do not make a new directory
-         existingUser = self.workspace.checkAllWSDirectories(filename.first())
+         existingUser = self.workspace.checkAllWSDirectories(filename[0])
          if existingUser == QGISProject.NOUSER:
-            self.createWorkSpace(filename.first()) 
-            settings.setValue("%s_ws" % (username),filename.first())
+            self.createWorkSpace(filename[0]) 
+            settings.setValue("%s_ws" % (username),filename[0])
             workspace = True   
          else:
             # this means the dir chosen already exists as a workspace for existingUser
@@ -296,6 +323,10 @@ class SignInDialog(QDialog, Ui_Dialog):
       else:
          valid = False
       return valid
+   
+   def signup(self, value):
+       
+      QDesktopServices().openUrl(QUrl(SIGNUPURL))
 # ..............................................................................         
    def help(self):
       self.help = QWidget()
@@ -306,7 +337,7 @@ class SignInDialog(QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('signIn')

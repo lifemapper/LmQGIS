@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -74,7 +74,7 @@ class Ui_Dialog(object):
       self.epsgEdit.setObjectName('epsgEdit')
       
       self.openProjSelectBut = QtGui.QPushButton('Browse',self)
-      QtCore.QObject.connect(self.openProjSelectBut, QtCore.SIGNAL("clicked()"), self.openProjSelectorSetEPSG)
+      self.openProjSelectBut.clicked.connect(self.openProjSelectorSetEPSG)
       self.openProjSelectBut.setMinimumSize(60, 25)
       self.openProjSelectBut.setMaximumSize(60,25)
       self.openProjSelectBut.setGeometry(QtCore.QRect(191, 151, 20, 20))
@@ -147,7 +147,7 @@ class Ui_Dialog(object):
       
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      self.helpBut.clicked.connect(self.help)
       
       self.acceptBut = QtGui.QPushButton("OK",self)
       self.acceptBut.setDefault(True)
@@ -166,8 +166,8 @@ class Ui_Dialog(object):
       
       self.retranslateUi()
       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
        
       
           

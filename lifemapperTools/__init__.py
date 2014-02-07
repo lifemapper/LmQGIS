@@ -5,10 +5,10 @@ def description():
    return "Lifemapper web services-based presence absence matrix tools"
 
 def version():
-   return "Version 1.0.0"
+   return "Version 2.0.0"
 
 def qgisMinimumVersion(): 
-   return "1.7"
+   return "2.0"
 
 def author():
    return "Jeffery A. Cavner"

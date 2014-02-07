@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -39,14 +39,6 @@ class Ui_Dialog(object):
       self.gridLayout.setObjectName("gridLayout")
        
  
-      #self.selectDescribeProcess = QtGui.QComboBox(self)
-      #self.selectDescribeProcess.setObjectName("selectDescribeProcess")
-      #self.selectDescribeProcess.addItem("KU NHM Grid Constructor",
-      #     QtCore.QVariant(KUNHM_GC_DESCRIBE_PROCESS_URL))
-      #self.selectDescribeProcess.addItem("Populate Grid",
-      #     QtCore.QVariant(KUNHM_GC_DESCRIBE_PROCESS_URL))
-      #self.gridLayout.addWidget(self.selectDescribeProcess, 0, 1, 1, 1)
-
        
        
        
@@ -61,20 +53,7 @@ class Ui_Dialog(object):
       self.gridLayout.addWidget(self.inputGroup, 4,0,4,0)
       self.gridLayout.setRowStretch(4,6)
       
-      
-      #self.userid = userid
-      #self.email = email
-      #self.setPassword(password, isEncrypted)
-      #self.firstName = firstName
-      #self.lastName = lastName
-      #self.institution = institution
-      #self.address1 = addr1 
-      #self.address2 = addr2 
-      #self.address3 = addr3 
-      #self.phone = phone
-      #self.modTime = modTime
-       
-      
+ 
       
       
       # self.northEdit.setEnabled(True)                
@@ -201,21 +180,13 @@ class Ui_Dialog(object):
    
       self.retranslateUi()
        
-      #QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("rejected()"), self.reject)
-      #QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("accepted()"), self.accept)
-      
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+  
+      self.rejectBut.clicked.connect(self.reject)
+      self.acceptBut.clicked.connect(self.accept)
      
 
    def retranslateUi(self):
       self.setWindowTitle(QtGui.QApplication.translate("self", 
-         "New Range and Diversity user", None, QtGui.QApplication.UnicodeUTF8))
-      #self.checkBoxExisting.setText(QtGui.QApplication.translate("self", 
-      #   "Choose Existing Process", None, QtGui.QApplication.UnicodeUTF8))
-      #self.checkBoxURL.setText(QtGui.QApplication.translate("self", 
-      #   "Enter Describe Process URL", None, QtGui.QApplication.UnicodeUTF8))
-      #self.btnSubmitDescribe.setText(QtGui.QApplication.translate("self",
-      #   "Submit Request", None, QtGui.QApplication.UnicodeUTF8))
-   
+         "New user", None, QtGui.QApplication.UnicodeUTF8))
+      
    

@@ -1,16 +1,9 @@
 """
-/***************************************************************************
- MacroEcoDialog
-                                 A QGIS plugin
- Macro Ecology tools for presence absence matrices
-                             -------------------
-        begin                : 2011-02-21
-        copyright            : (C) 2011 by Biodiversity Institute
-        email                : jcavner@ku.edu
- ***************************************************************************/
+@author: Jeff Cavner
+@contact: jcavner@ku.edu
 
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -207,8 +200,10 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
          self.tableview1.model().data = data
          self.tableview1.model().setCurrentPage(page)
          # consider just setting the model here against the data view using [view].setModel(model)
-         self.tableview1.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+         #self.tableview1.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
+         #      QModelIndex(), QModelIndex())
+         
+         self.tableview1.model().dataChanged.emit(QModelIndex(),QModelIndex())
    
          readOut = "%s/%s" % (str(page+1),str(self.table1.noPages))
          self.table1.pageReadOut.setText(readOut)
@@ -281,10 +276,10 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
          self._clearReadOutPageButtons()
          currentAlidx = self.AlgCodeCombo.currentIndex()
          currentScenidx = self.scenarioCombo.currentIndex()
-         self.Alg = self.AlgCodeCombo.itemData(currentAlidx, role=Qt.UserRole).toString()
+         self.Alg = self.AlgCodeCombo.itemData(currentAlidx, role=Qt.UserRole)
          if self.Alg == '':
             self.Alg = None         
-         self.Scen = self.scenarioCombo.itemData(currentScenidx, role=Qt.UserRole).toString()
+         self.Scen = self.scenarioCombo.itemData(currentScenidx, role=Qt.UserRole)
          if self.Scen == '':
             self.Scen = None
          self.displayname = self.searchText.text()
@@ -479,12 +474,12 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
             for layer in names:
                namesString = namesString + layer + '\n'
             namesString = ''
-            message =  QString("Some layers already exist by name for this user,\n"
-                       "if you wish to upload again click No on this dialog, rename\n" 
-                       "the remaining layers and submit again, or click Yes to skip\n"
-                       "uploading the actual data and just add the existing data for\n"
-                       "these layers to the current experiment with the new parameters.\n\n" + namesString)
-            
+            message =  """Some layers already exist by name for this user,
+                       if you wish to upload again click No on this dialog, rename
+                       the remaining layers and submit again, or click Yes to skip
+                       uploading the actual data and just add the existing data for
+                       these layers to the current experiment with the new parameters.""" + namesString
+            #
             reply = QMessageBox.question(self, 'Layers exist',
                                                   message, QMessageBox.Yes | 
                                                   QMessageBox.No, QMessageBox.No)
@@ -522,7 +517,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
             for proj in ['proj1','proj2','proj3']:
                # this will really next to list projection for each scenario
                preview = "<a href='nothing'>view</a>"
-               proj = QTreeWidgetItem(scenario, [proj, QString(preview)])
+               proj = QTreeWidgetItem(scenario, [proj, preview])
                
          
   
@@ -541,22 +536,22 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
       if index.column() in self.table1.tableModel.controlIndexes and \
       not(index.model().data[index.row()][index.column()] == ''):        
          projid = index.model().data[index.row()][1] 
-         print "print projid ",projid
          guid = self.getGuid(projid)
-         print guid
          if guid is not None:
-            layer = 'prj_'+str(projid)
-            layername = index.model().data[index.row()][0]       
-            requestserviceversion = "&request=GetMap&service=WMS&version=1.1.0&"
+            basename = index.model().data[index.row()][0]       
+            requestserviceversion = "&request=GetMap&service=WMS&version=1.1.0&TRANSPARENT=true&"
             url = guid+requestserviceversion        
-            layers = [layer]
-            styles = [ '' ]
-            format = 'image/png'
-            crs = 'EPSG:%s' % self.expEPSG
-            rlayer = QgsRasterLayer(0, url, layername, 'wms', layers, styles, format, crs)
-            if not rlayer.isValid():
-               pass
-            QgsMapLayerRegistry.instance().addMapLayer(rlayer)
+            imgformat = 'format=image/png&'
+            crs = 'srs=EPSG:%s&' % self.expEPSG
+            styles = 'styles=default&'
+            url = url+imgformat+crs+styles
+            try:
+               rlayer = QgsRasterLayer(url, basename)
+               if not rlayer.isValid():
+                  pass
+               QgsMapLayerRegistry.instance().addMapLayer(rlayer)
+            except Exception,e:
+               print str(e)
 # ..............................................................................         
           
    def help(self):
@@ -568,7 +563,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
       layout = QVBoxLayout()
       helpDialog = QTextBrowser()
       helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(QStringList('documents'))
+      #helpDialog.setSearchPaths(['documents'])
       helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
       helpDialog.setSource(QUrl.fromLocalFile(helppath))
       helpDialog.scrollToAnchor('addSDMLayer')

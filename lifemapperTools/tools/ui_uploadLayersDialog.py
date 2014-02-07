@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -82,14 +82,14 @@ class Ui_Dialog(object):
       self.fileButton.setFocusPolicy(QtCore.Qt.NoFocus)
       self.fileButton.setMaximumSize(69, 32)
       self.fileButton.setMinimumSize(69, 32)
-      self.connect(self.fileButton, QtCore.SIGNAL("clicked()"), self.showFileDialog)
+      self.fileButton.clicked.connect(self.showFileDialog)
       
       
       self.removeRecordsBut = QtGui.QPushButton("Remove")
       self.removeRecordsBut.setMaximumSize(69, 32)
       self.removeRecordsBut.setMinimumSize(69, 32)
       self.removeRecordsDirectionsLabel = QtGui.QLabel("Remove selected layers")
-      self.connect(self.removeRecordsBut, QtCore.SIGNAL("clicked()"), self.removeRecords)
+      self.removeRecordsBut.clicked.connect(self.removeRecords)
       
       self.inputLayout.addWidget(self.fileButton,                  0,0,1,1)
       self.inputLayout.addWidget(self.iFileLabel,                  0,1,1,1)
@@ -108,8 +108,7 @@ class Ui_Dialog(object):
       self.acceptBut.setDefault(True)
       self.acceptBut.setMaximumSize(buttonLen, 30)
       self.acceptBut.setMinimumSize(buttonLen, 30)
-      self.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), 
-                                                         self.accept)
+      self.acceptBut.clicked.connect(self.accept)
       
       self.acceptLayout =  QtGui.QHBoxLayout() 
       self.acceptLayout.setAlignment(Qt.AlignCenter) 
@@ -150,7 +149,8 @@ class Ui_Dialog(object):
       
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+      self.helpBut.clicked.connect(self.help)
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.RejectRole)
       
@@ -158,8 +158,8 @@ class Ui_Dialog(object):
          
       self.retranslateUi()
       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      #QtCore.QObject.connect(self.acceptBut, QtCore.SIGNAL("clicked()"), self.accept)
+      self.rejectBut.clicked.connect(self.reject)
+      
        
      
    
@@ -320,7 +320,7 @@ class Ui_Dialog(object):
       @summary: Shows a file selection dialog
       """
       settings = QtCore.QSettings()
-      dirName = settings.value( "/UI/lastShapefileDir" ).toString()
+      dirName = settings.value( "/UI/lastShapefileDir" )
       filenames = QtGui.QFileDialog.getOpenFileNames(self, 
                                                      "Select GeoTIFFs or Shapefiles",
                                                      dirName,

@@ -1,6 +1,6 @@
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -208,12 +208,12 @@ class RADDelegate(QStyledItemDelegate):
    
    def setEditorData(self, editor, index):
       if index.column() in self.spinBoxIndices:
-         value = index.data(QtCore.Qt.DisplayRole).toInt()[0]
+         value = index.data(QtCore.Qt.DisplayRole)
          editor.setValue(value)
       elif (index.column() in self.comboIndices) \
       and (index.row() not in index.model().skipComboinRow):
          
-         value = str(index.data(QtCore.Qt.DisplayRole).toPyObject())
+         value = str(index.data(QtCore.Qt.DisplayRole))
          i = editor.findText(value)
          if i == -1:
             i = 0
@@ -221,7 +221,7 @@ class RADDelegate(QStyledItemDelegate):
       else:
          # this is for QlineEdits, i.e. QLineText
          #value = index.model().data[index.column()][index.row()]
-         value = str(index.data(QtCore.Qt.DisplayRole).toPyObject())
+         value = str(index.data(QtCore.Qt.DisplayRole))
          editor.setText(value)
 
    
@@ -238,7 +238,7 @@ class RADDelegate(QStyledItemDelegate):
          value = editor.text()
       except:
          pass
-      model.setData(index, QtCore.QVariant(value))
+      model.setData(index, value)
    
    def updateEditorGeometry(self, editor, option, index):
       editor.setGeometry(option.rect)
@@ -254,6 +254,8 @@ class RADDelegate(QStyledItemDelegate):
 #         self.setItemDelegateForColumn(2,RADDelegate(self, self.checkValues)) 
 #...............................................................................   
 class RADTableModel(QAbstractTableModel): 
+   
+   getNext = pyqtSignal(int, bool)
    
    def __init__(self, datain, headerdata, edits, controls, fields=[], parent=None,
                 noPages=None,toolTips=[], *args):
@@ -286,7 +288,8 @@ class RADTableModel(QAbstractTableModel):
             
 # ..............................................................................   
    def getMore(self,forward):
-      self.emit( SIGNAL( "getMore(PyQt_PyObject,PyQt_PyObject)" ), self.currentPage, forward)
+      #self.emit( SIGNAL( "getMore(PyQt_PyObject,PyQt_PyObject)" ), self.currentPage, forward)
+      self.getNext.emit(self.currentPage,forward)
 
 #...............................................................................      
    def rowCount(self, parent):
@@ -299,22 +302,22 @@ class RADTableModel(QAbstractTableModel):
       
       if not index.isValid() or \
          not(0 <= index.row() < len(self.data)): 
-         return QVariant() 
+         return  
       elif role != Qt.DisplayRole and index.column() not in self.controlIndexes:
          if role == Qt.BackgroundRole:
             if index.column() in self.editIndexes:
                return QColor(204,255,255)
          elif role == Qt.ToolTipRole and index.column() in self.toolTips:
-            return QVariant(self.data[index.row()][index.column()])  
+            return self.data[index.row()][index.column()] 
          else:
-            return QVariant()
+            return 
       elif role == Qt.CheckStateRole:
          
-         return QVariant(self.data[index.row()][index.column()]) 
+         return self.data[index.row()][index.column()]
        
       
          
-      return QVariant(self.data[index.row()][index.column()]) 
+      return self.data[index.row()][index.column()]
 #...............................................................................
 
    
@@ -323,8 +326,7 @@ class RADTableModel(QAbstractTableModel):
       self.beginRemoveRows(QModelIndex(),index,index)
       self.data.remove(record)
       self.endRemoveRows()
-      self.emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+      self.dataChanged.emit(QModelIndex(), QModelIndex())
       return True
       
    def insertRow(self, index, record):
@@ -333,13 +335,9 @@ class RADTableModel(QAbstractTableModel):
       """
       startidx = len(self.data)
       if startidx == 1 and self.data[0][0] == '':
-         #self.beginInsertRows(QModelIndex(),0,0)
          self.data[0] = record
-         #self.endInsertRows()
-         self.emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex())
+         self.dataChanged.emit(QModelIndex(), QModelIndex())
       else:        
-         #self.beginInsertRows(QModelIndex(),index,index)
          self.beginInsertRows(QModelIndex(),startidx,startidx)
          self.data.append(record)
          self.endInsertRows()
@@ -348,8 +346,7 @@ class RADTableModel(QAbstractTableModel):
          
    def setColumn(self,row,column, value): 
       self.data[row][column] = value 
-      self.emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               QModelIndex(), QModelIndex()) 
+      self.dataChanged.emit(QModelIndex(), QModelIndex()) 
         
    def insertRows(self,records):
       self.data[0] = records.pop(0)
@@ -369,11 +366,10 @@ class RADTableModel(QAbstractTableModel):
       @summary: sets an individual item (cell) in the table data
       """
       try:
-         self.data[index.row()][index.column()] = str(value.toPyObject())
+         self.data[index.row()][index.column()] = str(value)
       except:
          self.data[index.row()][index.column()] = str(value)
-      self.emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-               index, index)
+      self.dataChanged.emit(index,index)
       return True
 #...............................................................................      
    def flags(self, index):   
@@ -386,18 +382,18 @@ class RADTableModel(QAbstractTableModel):
 #...............................................................................   
    def headerData(self, col, orientation, role):
       if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-         return QVariant(self.headerdata[col])
-      return QVariant()
+         return self.headerdata[col]
+      return 
 #...............................................................................   
    def sort(self, Ncol, order):
       """Sort table by given column number. This had to be reimplemented
       to allow setSortingEnabled on the view
       """
       try:
-         self.emit(SIGNAL("layoutAboutToBeChanged()"))
+         self.layoutAboutToBeChanged.emit()
          self.data = sorted(self.data, key=operator.itemgetter(Ncol))        
          if order == Qt.DescendingOrder:
             self.data.reverse()
-         self.emit(SIGNAL("layoutChanged()")) 
+         self.layoutChanged.emit()
       except:
          pass

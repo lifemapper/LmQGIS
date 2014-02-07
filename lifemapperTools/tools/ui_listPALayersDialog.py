@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 @license: gpl2
-@copyright: Copyright (C) 2013, University of Kansas Center for Research
+@copyright: Copyright (C) 2014, University of Kansas Center for Research
 
           Lifemapper Project, lifemapper [at] ku [dot] edu, 
           Biodiversity Institute,
@@ -82,9 +82,9 @@ class Ui_Dialog(object):
       self.setAllColumnButton.setGeometry(QtCore.QRect(99, 110, 80, 25))
       self.setAllColumnButton.setEnabled(False)
       self.currentsection = None
-      self.connect(self.setAllColumnButton, QtCore.SIGNAL("clicked()"), 
-                                                         lambda : self.setColumn(self.currentsection))
-      
+      #self.connect(self.setAllColumnButton, QtCore.SIGNAL("clicked()"), 
+      #                                                   lambda : self.setColumn(self.currentsection))
+      self.setAllColumnButton.clicked.connect(lambda : self.setColumn(self.currentsection))
       
       
       
@@ -125,7 +125,11 @@ class Ui_Dialog(object):
       self.buttonBox = QtGui.QDialogButtonBox(self)
       self.helpBut = QtGui.QPushButton("?",self)
       self.helpBut.setMaximumSize(30, 30)
-      QtCore.QObject.connect(self.helpBut, QtCore.SIGNAL("clicked()"), self.help)
+      
+      
+      self.helpBut.clicked.connect(self.help)
+      
+      
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.setParamsBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.intersectBut, QtGui.QDialogButtonBox.ActionRole)
@@ -143,10 +147,10 @@ class Ui_Dialog(object):
       
       
       self.retranslateUi()
-       
-      QtCore.QObject.connect(self.rejectBut, QtCore.SIGNAL("clicked()"), self.reject)
-      QtCore.QObject.connect(self.intersectBut, QtCore.SIGNAL("clicked()"), self.intersectPAM)
-      QtCore.QObject.connect(self.setParamsBut, QtCore.SIGNAL("clicked()"), self.setParams) 
+          
+      self.rejectBut.clicked.connect(self.reject)
+      self.intersectBut.clicked.connect(self.intersectPAM)
+      self.setParamsBut.clicked.connect(self.setParams)
       
    def setColumn(self, section):
       """
