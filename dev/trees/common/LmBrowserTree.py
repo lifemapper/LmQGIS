@@ -2,15 +2,13 @@ import sys, os
 import random
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from trees.common.lmHint import Hint, SpeciesSearchResult
+from dev.trees.common.lmHint import Hint, SpeciesSearchResult
 
 
 class BrowserTreeModel(QAbstractItemModel):
 
    def __init__(self):
       QAbstractItemModel.__init__(self)
-      
-      
       
       self.headers = ['sps','AlgOcc','proj']
       self.columns = 3
@@ -91,7 +89,8 @@ class BrowserTreeModel(QAbstractItemModel):
       if parent is None:
          return QModelIndex()
       
-      grandparent = parent.parent
+      
+      grandparent = parent.parent  # attribute on item instance
       if grandparent is None:
          return QModelIndex()
       row = grandparent.rowOfChild(parent)
@@ -175,14 +174,14 @@ class TreeItem(object):
       return len(self.childItems)
    
    def data(self, column):
-      print "does data get called on item?"
-      # doesn't get called 
+      # not using this, doesn't need it for single data
+      # attached to instance of item
       try:
-         return self.itemData[column]
+         return self.itemData[column]  # not a list, but could be
       except IndexError:
          return None
    
-   def parent(self):
+   def getParent(self):  # changed this because "parent" was both a method and attribute
       return self.parentItem
    
    def row(self):
@@ -221,37 +220,30 @@ class LMTreeView(QTreeView):
       self.setDragDropMode(QAbstractItemView.DragOnly)
       self.header().setResizeMode(QHeaderView.ResizeToContents)
       
-      
-   #def mousePressEvent(self, event):
-   #   print "mousePressEvent called"
-   #   self.startDrag(event)  
-   #
-   #def startDrag(self, event):
-   def startDrag(self, *args, **kwargs):
-      #print "do some other stuff in here "
    
+   def startDrag(self, *args, **kwargs):
+     
       # can a I start a thread? and have it continue to drag?
-      #return QTreeView.startDrag(self, *args, **kwargs)
-   #   
-      drag = QDrag(self)
-   #   
+       
+      drag = QDrag(self)  
       mimeData = QMimeData()
       sis = self.selectionModel().selectedIndexes()
       itemIdx = sis[0]
-      print "row of child ",itemIdx.row()
+      #print "row of child ",itemIdx.row()
       childRowIdx = itemIdx.row()
-      print "row of parent ",itemIdx.parent().row() #row of parent
-      print "parent node ",self.model().nodeFromIndex(itemIdx.parent()) # actual parent node
-      print "data of child at 0 idx of parent ", self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).name # 
-       
+      #print "row of parent ",itemIdx.parent().row() #row of parent
+      #print "parent node ",self.model().nodeFromIndex(itemIdx.parent()) # actual parent node
+      #print "data of child at 0 idx of parent ", self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData # 
+      occSetId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
       
-      mimeData.setData("text/plain", "/homejcavner/dfasdfa.shp")
-      drag.setMimeData(mimeData)
-   #   
-   #   #pixmap = QPixmap()
-   #   #pixmap = pixmap.grabWidget(self, self.visualRect(index))
-   #   #drag.setPixmap(pixmap)
+      # will use "text/uri-list" for dragging onto canvas
+      mimeData.setData("text/uri-list", "/home/jcavner/%s.shp" % (occSetId))
+      drag.setMimeData(mimeData)   
+      pixmap = QPixmap()
+      pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
+      drag.setPixmap(pixmap)
       result = drag.start(Qt.MoveAction)
+      #return QTreeView.startDrag(self, *args, **kwargs)
       
 class LmEdit(QLineEdit):
    def __init__(self):
@@ -260,13 +252,14 @@ class LmEdit(QLineEdit):
         
    def dropEvent(self, event):
       #print "dropped ",event.mimeData().text()
-      self.setText(event.mimeData().text())
+      print dir(event.mimeData())
+      self.setText(str(event.mimeData().urls()))  #urls() retiurns list, uri-list 
       #print "dropEvent called"
         
    def dragEnterEvent(self, event):
       #print "in enter ",event.mimeData()
       #if event.mimeData().hasFormat("text/uri-list"):
-      if event.mimeData().hasFormat("text/plain"):
+      if event.mimeData().hasFormat("text/uri-list"):
          event.accept()      
      
 class Ui_MainWindow(object):
@@ -320,7 +313,7 @@ class Ui_MainWindow(object):
          for sps in items:
             #print "making an item"
             nameFolder = TreeItem(sps.displayName,sps.displayName,self.treeModel.provider)
-            occSet     = TreeItem(sps.occurrenceSetId,sps.occurrenceSetId,nameFolder)
+            occSet     = TreeItem(sps.occurrenceSetId,"occurrence set",nameFolder)
             maxentFolder = TreeItem('MaxEnt','MaxEnt',nameFolder)
             rs = str(random.randint(1000, 123545))
             rs2 = str(random.randint(1000, 123545))
@@ -347,7 +340,7 @@ class Ui_MainWindow(object):
 if __name__ == "__main__":
    
    # -----  client
-   import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
+   import_path = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/"
    sys.path.append(os.path.join(import_path, 'LmShared'))
    configPath = os.path.join(import_path, 'config', 'config.ini') 
    os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
