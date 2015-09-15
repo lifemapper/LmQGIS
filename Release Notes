@@ -1,0 +1,8 @@
+version 2.2.0
+
+SDM algorithm description and tool tips on parameters
+Complete suite of MaxEnt parameters available
+Bug fixes for hint service in Tree Window
+PAM now available for larger PAMs from Grid dialog
+Bug fixes for signout
+Bug fixes for Mac
