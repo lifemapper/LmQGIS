@@ -32,7 +32,7 @@ import zipfile
 from PyQt4.QtGui import *
 from PyQt4.QtCore import Qt, QUrl, QDir
 from qgis.core import *
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.tools.ui_constructGridDialog import Ui_Dialog
 from lifemapperTools.tools.controller import _Controller
@@ -50,7 +50,7 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
 # Constructor
 # .............................................................................
    def __init__(self, iface, RADids=None, inputs=None, client=None, epsg=None,parent=None,
-                mapunits=None):
+                mapunits=None,resume=False):
       """
       @param iface: QGIS interface object
       @param mode: describe process or execute mode
@@ -62,7 +62,9 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
       #self.setWindowFlags(self.windowFlags() & Qt.WindowMinimizeButtonHint)
       self.setupUi()
       self.client = client
-      self.iface = iface 
+      self.iface = iface       
+      if resume:
+         self.iface.addProject(resume)      
       self.workspace = Workspace(self.iface,self.client)
       cc = self.rejectBut
       bok = self.acceptBut
@@ -308,9 +310,9 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
             expFolder = self.workspace.createProjectFolder(self.expId)
          gridZipName = "%s_%s" % (str(self.expId),str(bucketId))
          pathname = os.path.join(expFolder,gridZipName)
-         success = self.client.rad.getShapegridData(pathname, str(self.expId),
+         success = self.client.rad.getBucketShapegridData(pathname, str(self.expId),
                                                     str(bucketId))  
-         #success = self.client.rad.getShapegridData(str(self.outEdit.text()), str(self.expId),
+         #success = self.client.rad.getBucketShapegridData(str(self.outEdit.text()), str(self.expId),
          #                                          str(bucketId))   
          if success:
             #pathname = self.outEdit.text()

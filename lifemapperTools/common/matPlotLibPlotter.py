@@ -26,6 +26,7 @@
 """
 from matplotlib.figure import Figure
 from matplotlib.backend_bases import cursors
+from matplotlib.widgets import Lasso
 from matplotlib.path import Path
 from matplotlib.backends.backend_qt4agg import \
  FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QTAgg as NavigationToolbar
@@ -51,7 +52,7 @@ cursord = {
    
 class QtMplCanvas(FigureCanvas):
    
-   def __init__(self, xvector,yvector,xlegend,ylegend,title,ids=[]):
+   def __init__(self, xvector,yvector,xlegend,ylegend,title,ids=[],window=None):
       self.fig = Figure(figsize=(10.2, 8)) # possible args figsize=(width, height), dpi=dpi
       self.fig.set_facecolor([.89,.89,.89])
       self.axes = self.fig.add_subplot(111)
@@ -59,13 +60,17 @@ class QtMplCanvas(FigureCanvas):
       self.axes.set_ylabel(ylegend)
       xmax = max(xvector)
       ymax = max(yvector)
-      self.axes.set_xlim(left=0,right=xmax)
-      self.axes.set_ylim(bottom=0,top=ymax)
+      xmin = min(xvector)
+      ymin = min(yvector)
+      self.axes.set_xlim(left=xmin,right=xmax)
+      self.axes.set_ylim(bottom=ymin,top=ymax)
       self.axes.set_title(title)
       self.selected = {}
       self.ctrl = False
       self.tableids = ids
+      self.speciesIds = None
       self.allDatabyID = None
+      self.parentWindow = window
       self.searchIn = self.buildSearchIn(xvector, yvector)
       self.axes.scatter(xvector,yvector,marker='o',c='g',s=47,picker=True)
       
@@ -74,8 +79,12 @@ class QtMplCanvas(FigureCanvas):
       self.mpl_connect('pick_event',self.onpick) 
       self.mpl_connect('key_press_event',self.keyPress)
       self.mpl_connect('key_release_event',self.keyRelease)
+      
+      
+      
       self.setFocusPolicy( QtCore.Qt.ClickFocus )
       self.setFocus()
+      
 
    def keyPress(self,event):
       if event.key == 'control':
@@ -90,6 +99,7 @@ class QtMplCanvas(FigureCanvas):
          for x,y in zip(xvector,yvector):
             l.append((x,y))  
       else:
+         
          allDatabyID = []
          for id,x,y in zip(self.tableids,xvector,yvector):
             l.append((x,y)) 
@@ -103,6 +113,7 @@ class QtMplCanvas(FigureCanvas):
       """
       @summary pick event for plot canvas
       """
+      
       selectedPoints = [False for x in range(0, len(self.tableids))]
       ind = event.ind   # position in the data array
       if self.allDatabyID is None:
@@ -114,9 +125,9 @@ class QtMplCanvas(FigureCanvas):
              
          else:
             t = self.axes.text(x,y,'')
-            m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+            m = self.axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
             self.selected[(x,y)] =(t,m)
-         print (x,y)
+         
       else:  # all this has to do is loop through the event.ind !
          for pos in event.ind:
             id,x,y = self.allDatabyID[pos]
@@ -129,7 +140,7 @@ class QtMplCanvas(FigureCanvas):
                         m.set_visible(True)   
                else:
                   t = self.axes.text(x,y,'')
-                  m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  m = self.axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
                   self.selected[id] =(t,m)          
                   selectedPoints[pos] = True 
             else:
@@ -141,7 +152,7 @@ class QtMplCanvas(FigureCanvas):
                   self.selected.pop(key,None)
                   
                t = self.axes.text(x,y,'')
-               m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+               m = self.axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
                self.selected[id] =(t,m)          
                selectedPoints[pos] = True 
                   
@@ -149,22 +160,35 @@ class QtMplCanvas(FigureCanvas):
                
       self.draw()
       selectedPoints = np.array(selectedPoints)
-      Communicate.instance().RADSitesSelected.emit(selectedPoints,self.tableids,self.ctrl)
-      Communicate.instance().RADSpeciesSelected.emit(selectedPoints,self.tableids,self.ctrl)
+      
+      
+      Communicate.instance().RADSpsSelectFromPlot.emit(self.tableids,list(selectedPoints),[], self.ctrl)     
+      self.parentWindow.selectSitesinMap(selectedPoints,self.tableids,self.ctrl)
+      self.parentWindow.bar.fromPlot = False
+      
+      #Communicate.instance().RADSitesSelected.emit(selectedPoints,self.tableids,self.ctrl)
+      #Communicate.instance().RADSpeciesSelected.emit(selectedPoints,self.tableids,self.ctrl)
+      
+
       
 class RadNavigationToolBar(NavigationToolbar):
    
-   def __init__(self, plotCanvas,parentwindow,saveDir):
+   def __init__(self, plotCanvas, parentwindow, saveDir, lman = None):
       
       NavigationToolbar.__init__(self, plotCanvas, parentwindow) 
       self.canvas = plotCanvas
+      self.lman = lman
+      self.lman.tool = self
       self._ids_select = []
+      self.cid = None # lasso
       self.saveDir = saveDir
+      lassoIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/lasso.png")
       selectIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/selectbyrect.png")
       panIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/pan.png")
       zoomLastIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/zoomlast.png")
       zoomNextIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/zoomnext.png")
       zoomInIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/zoomin.png")
+      
       self.parentWindow = parentwindow
       self.removeAction(self.actions()[7])
       self.removeAction(self.actions()[7])
@@ -190,12 +214,19 @@ class RadNavigationToolBar(NavigationToolbar):
       self.selectAction = QtGui.QAction(selectIcon,'',self)
       self.selectAction.setToolTip("Select Data Points by dragging rectangle")
       
+      self.lassoAction = QtGui.QAction(lassoIcon,'',self)
+      self.lassoAction.setToolTip("Select Data Points with lasso")
+      
       # try this alignToolAct.triggered.connect(self.align) instead of connect below
       #QtCore.QObject.connect(self.selectAction, QtCore.SIGNAL("triggered()"), self.select)
       #QtCore.QObject.connect(self.panAction, QtCore.SIGNAL("triggered()"), self.pan)
       #QtCore.QObject.connect(self.zoomInAction, QtCore.SIGNAL("triggered()"), self.zoom)
       #QtCore.QObject.connect(self.zoomNextAction, QtCore.SIGNAL("triggered()"), self.forward)
       #QtCore.QObject.connect(self.zoomLastAction, QtCore.SIGNAL("triggered()"), self.back)
+      
+      Communicate.instance().RADSpsSelectedFromTree.connect(self.selectSpsInPlot)
+      
+      self.lassoAction.triggered.connect(self.lass)
       
       self.selectAction.triggered.connect(self.select)
       self.panAction.triggered.connect(self.pan)
@@ -208,8 +239,68 @@ class RadNavigationToolBar(NavigationToolbar):
       self.insertAction(self.actions()[2],self.zoomInAction)
       self.insertAction(self.actions()[2],self.panAction)
       self.insertAction(self.actions()[-1],self.selectAction)
+      self.insertAction(self.actions()[-2],self.lassoAction)
       
+      ##############
+      self.fromPlot = False
+      ##############
+   
+   def lass(self, *args):
+      #"called when lasso button is clicked"
+      #print "_active in lass ", self._active
+      #if self._active == 'LASSOSELECT':
+      #   self._active = None
+      #   #self._select_mode = None  # not sure about this
+      #   #self.canvas.widgetlock.release(self.lman.lasso)
+      #   self.canvas.mpl_disconnect(self.cid)
+      #   self.set_cursor(cursors.POINTER)
+      #else:
+      #   self._active = 'LASSOSELECT'
+      #   self.set_cursor(cursors.SELECT_REGION)
+      #
+      #   self.cid = self.canvas.mpl_connect('button_press_event',self.lman.onpress)
+      
+      'activate select to rect mode'
+      if self._active == 'LASSOSELECT':
+         self._active = None
+         self.set_cursor(cursors.POINTER)
+      else:
+         self._active = 'LASSOSELECT'
+         self.set_cursor(cursors.SELECT_REGION)
 
+      if self._idPress is not None:
+         self._idPress=self.canvas.mpl_disconnect(self._idPress)
+         self.mode = ''
+
+      if self._idRelease is not None:
+         self._idRelease=self.canvas.mpl_disconnect(self._idRelease)
+         self.mode = ''
+      
+      if self.cid is not None:
+            self.canvas.mpl_disconnect(self.cid)
+      
+      if  self._active:
+         self._idPress = self.canvas.mpl_connect('button_press_event', self.lman.onpress)
+         #self._idRelease = self.canvas.mpl_connect('button_release_event', self.release_select)
+         self.mode = 'select lasso'
+         self.canvas.widgetlock(self)
+      else:
+         self.canvas.widgetlock.release(self)
+
+      for a in self.canvas.figure.get_axes():
+         a.set_navigate_mode(self._active)
+
+      self.set_message('select w/ lasso')
+      
+   def selectSpsInPlot(self, selectedIds ):
+      """
+      @summary: connected to signal emitted from tree
+      """
+      
+      selectedMaskList = [True if mtrxId in selectedIds else False for mtrxId in self.canvas.tableids]
+      selectedMaskArray = np.array(selectedMaskList)
+      self.drawSelected(self.canvas.axes, self.canvas.searchIn, selectedMaskArray,fromTree = True)
+      
    def save_figure(self, *args):
       """
       @summary: over ride this in our tool bar so that we can set the start 
@@ -254,7 +345,6 @@ class RadNavigationToolBar(NavigationToolbar):
       
    def select(self, *args):
       'activate select to rect mode'
-      
       if self._active == 'SELECT':
          self._active = None
          self.set_cursor(cursors.POINTER)
@@ -269,7 +359,10 @@ class RadNavigationToolBar(NavigationToolbar):
       if self._idRelease is not None:
          self._idRelease=self.canvas.mpl_disconnect(self._idRelease)
          self.mode = ''
-
+      
+      if self.cid is not None:
+            self.canvas.mpl_disconnect(self.cid)
+      
       if  self._active:
          self._idPress = self.canvas.mpl_connect('button_press_event', self.press_select)
          self._idRelease = self.canvas.mpl_connect('button_release_event', self.release_select)
@@ -285,6 +378,7 @@ class RadNavigationToolBar(NavigationToolbar):
       
 
    def press_select(self, event):
+      'this fires when cursor is in canvas and is pressed'
       'the press mouse button in zoom to rect mode callback'
       if event.button == 1:
          self._button_pressed=1
@@ -321,14 +415,27 @@ class RadNavigationToolBar(NavigationToolbar):
       self.press(event)
                 
          
-   def drawSelected(self, axes, allData, selectedPoints):
+   def drawSelected(self, axes, allData, selectedPoints,fromTree = False, deselected = [], event=None):
       """
       @summary: Draw the annotation on the plot
       @param allData:  self.canvas.searchIn
       @param selectedPoints: list of boolean
       """
+      
       if self.canvas.allDatabyID is None:
-         if self.canvas.ctrl:
+         
+         try:
+            if event is not None:
+               if event.key == "control":
+                  control = True
+               else:
+                  control = False
+            else:
+               control = False
+         except:
+            control = False
+         if control or self.canvas.ctrl:
+            control = True
             for xy,selected in zip(allData,selectedPoints):
                x = xy[0]
                y = xy[1]
@@ -340,7 +447,7 @@ class RadNavigationToolBar(NavigationToolbar):
                            m.set_visible(True)               
                   else:   
                      t = axes.text(x,y,'')
-                     m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                     m = axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
                      self.canvas.selected[(x,y)] =(t,m)
          else:
             for key in self.canvas.selected.keys():
@@ -355,24 +462,44 @@ class RadNavigationToolBar(NavigationToolbar):
                y = xy[1]
                if selected:               
                   t = axes.text(x,y,'')
-                  m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  m = axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
                   self.canvas.selected[(x,y)] =(t,m)
       else:
-         if self.canvas.ctrl:
+         try:
+            if event is not None:
+               if event.key == "control":
+                  control = True
+               else:
+                  control = False
+            else:
+               control = False
+         except:
+            control = False
+         if control or self.canvas.ctrl:
+            control = True
+            #print "is it in ctrl?"
             for idxy,selected in zip(self.canvas.allDatabyID,selectedPoints):
                id = idxy[0]
                x = idxy[1]
                y = idxy[2]
                if selected:
-                  if id in self.canvas.selected:
+                  if id in self.canvas.selected:                    
                      markers = self.canvas.selected[id]
                      if not markers[0].get_visible():
                         for m in markers:
-                           m.set_visible(True)               
+                           m.set_visible(True)                         
+                                 
                   else:   
                      t = axes.text(x,y,'')
-                     m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                     m = axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
                      self.canvas.selected[id] =(t,m)
+               else:
+                  if id in self.canvas.selected and id in deselected:
+                     marker = self.canvas.selected[id]
+                     if marker[0].get_visible():
+                        for m in marker:
+                           m.set_visible(False)
+                     
          else:
             for key in self.canvas.selected.keys():
                markers = self.canvas.selected[key]
@@ -387,14 +514,33 @@ class RadNavigationToolBar(NavigationToolbar):
                y = idxy[2]
                if selected:               
                   t = axes.text(x,y,'')
-                  m = axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
+                  m = axes.scatter([x],[y], s=47, marker='o', c='#EEEE00', zorder=100)
                   self.canvas.selected[id] =(t,m)
-        
-      self.canvas.axes.figure.canvas.draw()
-      Communicate.instance().RADSitesSelected.emit(selectedPoints,self.canvas.tableids,self.canvas.ctrl)
-      Communicate.instance().RADSpeciesSelected.emit(selectedPoints,self.canvas.tableids,self.canvas.ctrl)
+      
+      try: 
+         self.canvas.axes.figure.canvas.draw()
+      except:
+         pass
+      #Communicate.instance().RADSitesSelected.emit(selectedPoints,self.canvas.tableids,self.canvas.ctrl)
+      #Communicate.instance().RADSpeciesSelected.emit(selectedPoints,self.canvas.tableids,self.canvas.ctrl)
+      # if  this, i.e. draw selected is getting called from treeWindow, then skip they call to selectSitesinMap????
+      
+      try:
+         if not fromTree:    
+            if self.parentWindow.typePlot == 'Sites':        
+               self.parentWindow.selectSitesinMap(selectedPoints,self.canvas.tableids,control)
+            if self.parentWindow.typePlot == 'Species': ## this goes to the tree, fromTree = True, keeps it from cycling
+               Communicate.instance().RADSpsSelectFromPlot.emit(self.canvas.tableids,list(selectedPoints),[],control)
+      except Exception, e:
+         pass
+      
+      self.fromPlot = False
+      #if fromTree:
+         #print "from Tree" # maybe do nothing and therefore get rid of this condition, still is this going to circle round
+
       
    def release_select(self, event):
+      
       'the release mouse button callback in select to rect mode'
       for select_id in self._ids_select:
          self.canvas.mpl_disconnect(select_id)
@@ -478,7 +624,7 @@ class RadNavigationToolBar(NavigationToolbar):
          #                                     allDatabyID=self.canvas.allDatabyID,parent=self.parentWindow)
          #self.selectThread.start()
          
-         self.drawSelected(axes, searchin, selectedList)  # this slows down the selection
+         self.drawSelected(axes, searchin, selectedList,event=event)  # this slows down the selection
          # in the map, 
       
       self.draw()
@@ -515,120 +661,121 @@ class RadNavigationToolBar(NavigationToolbar):
       self.mouse_move(event)
 
    def _switch_off_select_mode(self, event):
+      
       self._select_mode = None
       self.mouse_move(event)
 
-class PlotSelectThread(QtCore.QThread):
-   #selected = pyqtSignal()
-   def __init__(self,canvas,searchin,selectedList,allDatabyID = None,parent=None):
-      QtCore.QThread.__init__(self,parent)
-      self.running = False
-      self.canvas = canvas
-      self.axes = canvas.axes
-      self.searchin = searchin
-      self.selectedList = selectedList
-      self.allDatabyID = allDatabyID
-   def run(self):
-      self.running = True
-      #self.selected.emit()
-      self.drawSelected()
-      
-   def drawSelected(self):
-      """
-      Draw the annotation on the plot
-      """
-      if self.allDatabyID is None:
-         print 'its in drawSelected in thread, no ID'
-         if self.canvas.ctrl:
-            for xy,selected in zip(self.searchin,self.selectedList):
-               x = xy[0]
-               y = xy[1]
-               if selected:
-                  if (x,y) in self.canvas.selected:
-                     markers = self.canvas.selected[(x,y)]
-                     if not markers[0].get_visible():
-                        for m in markers:
-                           m.set_visible(True)               
-                  else:   
-                     t = self.axes.text(x,y,'')
-                     m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
-                     self.canvas.selected[(x,y)] =(t,m)
-         else:
-            for key in self.canvas.selected.keys():
-               markers = self.canvas.selected[key]
-               if markers[0].get_visible():
-                  for m in markers:
-                     m.set_visible(False)
-               self.canvas.selected.pop(key,None)
-                     
-            for xy,selected in zip(self.searchin,self.selectedList):
-               x = xy[0]
-               y = xy[1]
-               if selected:               
-                  t = self.axes.text(x,y,'')
-                  m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
-                  self.canvas.selected[(x,y)] =(t,m)
-      else:
-         print 'its in drawSelected in thread, yes ID'
-         if self.canvas.ctrl:
-            for idxy,selected in zip(self.allDatabyID,self.selectedList):
-               id = idxy[0]
-               x = idxy[1]
-               y = idxy[2]
-               if selected:
-                  if id in self.canvas.selected:
-                     markers = self.canvas.selected[id]
-                     if not markers[0].get_visible():
-                        for m in markers:
-                           m.set_visible(True)               
-                  else:   
-                     t = self.axes.text(x,y,'')
-                     m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
-                     self.canvas.selected[id] =(t,m)
-         else:
-            for key in self.canvas.selected.keys():
-               markers = self.canvas.selected[key]
-               if markers[0].get_visible():
-                  for m in markers:
-                     m.set_visible(False)
-               self.canvas.selected.pop(key,None)
-                     
-            for idxy,selected in zip(self.allDatabyID,self.selectedList):
-               id = idxy[0]
-               x = idxy[1]
-               y = idxy[2]
-               if selected:               
-                  t = self.axes.text(x,y,'')
-                  m = self.axes.scatter([x],[y], s=47, marker='o', c='r', zorder=100)
-                  self.canvas.selected[id] =(t,m)         
-                         
-      self.canvas.axes.figure.canvas.draw()
-      
-   def __del__(self):
-      self.wait()
+class LassoManager(object):
    
-
+   def __init__(self, ax, data):
+      self.canvas= ax.figure.canvas
+      self.axes = ax
+      self.data = data
+      self.tool = None # toolbar, big question here
       
-
+      
+   def callback(self, verts):
+      if self.tool._active == 'LASSOSELECT':
+         
+         searchin = self.canvas.searchIn
+         try:
+            selectedList =nx.points_inside_poly(searchin, verts)
+         except:
+            try:
+               selectedList = Path(verts).contains_points(searchin)   
+            except Exception, e:
+               print str(e)
+         self.tool.drawSelected(self.axes, searchin, selectedList, event=self.lassoEvent) 
+         
+         self.canvas.draw_idle()
+         self.canvas.widgetlock.release(self.tool)
+         
+      else:
+         pass
+      
+   def onpress(self, event):
+      self.lassoEvent = event
+      
+      if self.tool._active == 'LASSOSELECT':
+         self.lasso = Lasso(event.inaxes, (event.xdata, event.ydata), self.callback)
+         #try:
+         self.canvas.widgetlock(self.tool)
+         #except:
+         #   pass
+      else:
+         #self.canvas.widgetlock.release(self.lasso)
+         self._select_mode = None  # need to really check if this is necesarry
+         #del self.lasso
+      
+      
         
-class PlotWindow(QtGui.QMainWindow):
-   def __init__(self, xvector, yvector,xlegend,ylegend,title,saveDir,ids=[]):
-      QtGui.QMainWindow.__init__(self)
+class PlotWindow(QtGui.QDialog):
+   def __init__(self, xvector, yvector, xlegend, ylegend, title, saveDir, ids=[], activeLyr=None, typePlot=None):
+      QtGui.QDialog.__init__(self)
       self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
       self.setWindowTitle("Range Diversity Plot")
-      self.main_widget = QtGui.QWidget(self)
-      l = QtGui.QVBoxLayout(self.main_widget)  
-      sc = QtMplCanvas(xvector,yvector,xlegend,ylegend,title,ids=ids) #width=5, height=3, dpi=100
+      #self.main_widget = QtGui.QWidget(self)
+      self.typePlot = typePlot
+      self.activeLyr = activeLyr
+      if self.activeLyr is not None:
+         self.activeLyr.selectionChanged.connect(self.featuresSelectedInMap)
+      self.selectedFIDs = []
+      l = QtGui.QVBoxLayout(self)  
+      sc = QtMplCanvas(xvector,yvector,xlegend,ylegend,title,ids=ids,window=self) #width=5, height=3, dpi=100
+      self.canvas = sc
+      lman = LassoManager(sc.axes, (xvector,yvector))
       l.addWidget(sc)
-      bar = RadNavigationToolBar(sc,self,saveDir)
+      bar = RadNavigationToolBar(sc,self,saveDir,lman)
+      self.bar = bar
       l.addWidget(bar) 
-      self.main_widget.setFocus()
-      self.setCentralWidget(self.main_widget)
+      
+      
+   def featuresSelectedInMap(self,selected,deselected,clearAndSelect):
+      #print 'selected ',selected," delselected ",deselected," CS ",clearAndSelect
+      if not clearAndSelect:      
+         self.canvas.ctrl = True
+      else:
+         "is it getting in here from just plot select?"
+         self.canvas.ctrl = False
+      # features select in map, so select them in plot if not from plot (self.fromPlot = True)
+      if not self.bar.fromPlot:
+         selectedMaskList = [True if FID in selected else False for FID in self.canvas.tableids]
+         selectedMaskArray = np.array(selectedMaskList)
+         # not really from tree but keeps it from cycling on just from map select
+         self.bar.drawSelected(self.canvas.axes, self.canvas.searchIn, selectedMaskArray ,fromTree = True, deselected = deselected)
+     
+   def selectSitesinMap(self,sitesSelected,fids,ctrl):
+      """
+      @summary: connected to signal emitted in matplotlib
+      @param sitesSelected: a one dimensional numpy array of booleans indicating if sites
+      were selected, e.g. [True, True, False,...], returned in the order matching the order
+      of the values in the table.
+      @param fids: list of fids originally from the table
+      """
+      #if self.activeLyr is not None:
+      self.bar.fromPlot = True
+      if self.activeLyr is not None:
+         sitesSelectedList = list(sitesSelected)
+         #selectLyr = self.interface.mapCanvas().currentLayer()
+         selectLyr = self.activeLyr
+         if not ctrl:
+            self.selectedFIDs = [fid for fid,selected in zip(fids,sitesSelectedList) if selected]   
+            selectLyr.setSelectedFeatures(self.selectedFIDs) # using just select, gives the option of 
+            # not emiting selectionChanged signal, in 2.0, setSelectedFeatures sends args to slot for
+            # selectionChanged
+         else:
+            if len(self.selectedFIDs) > 0:
+               added = [fid for fid,selected in zip(fids,sitesSelectedList) if selected]
+               self.selectedFIDs = list(set(added + self.selectedFIDs))
+               selectLyr.setSelectedFeatures(self.selectedFIDs)
+            else:
+               self.selectedFIDs = [fid for fid,selected in zip(fids,sitesSelectedList) if selected]   
+               selectLyr.setSelectedFeatures(self.selectedFIDs) 
            
 class EnterPlot(QObject):
    
    def eventFilter(self,object,event):
-      print event
+      
       return QtGui.QWidget.eventFilter(self, object, event)      
 #      
 if __name__ == "__main__":

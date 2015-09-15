@@ -31,19 +31,24 @@ import os
 
 #..............................................................................
 
-
 class Ui_Dialog(object):
+   
+   def showMaskCombos(self,checked):
+      if checked:
+         self.hideyWidget.show()
+      else:
+         self.hideyWidget.hide()
    
    def setupUi(self, experimentname=''):
       self.setObjectName("Dialog")
-      self.resize(915, 620)
+      self.resize(915, 676)
       #x,y
       
       #############style############
       self.style = QtGui.QStyleFactory.create("motif") # try plastique too!
       ##############################
       
-      self.setMinimumSize(600,500)
+      self.setMinimumSize(700,600)
       self.setMaximumSize(1988,1600)
       self.setSizeGripEnabled(True)
        
@@ -64,8 +69,9 @@ class Ui_Dialog(object):
       # this layout goes inside of new inputGroup
       self.points_envLayout = QtGui.QGridLayout()
       self.points_envLayout.setRowMinimumHeight(0,40)
-      self.points_envLayout.setRowMinimumHeight(0,53)
-      self.points_envLayout.setRowMinimumHeight(1,290)
+      self.points_envLayout.setRowMinimumHeight(1,100)
+      self.points_envLayout.setRowMinimumHeight(2,10)
+      self.points_envLayout.setRowMinimumHeight(3,290)
       
       self.inputGroup = QtGui.QGroupBox()
       self.inputGroup.setStyle(self.style)
@@ -149,6 +155,7 @@ class Ui_Dialog(object):
       self.occSetCombo.setEditable(True)
       self.occSetCombo.setAutoCompletion(True)
       self.occSetCombo.textChanged.connect(self.onTextChange)
+      #self.occSetCombo.currentIndexChanged.connect(self.testIdx)
       
 
       pointIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/addPointLayer.png")
@@ -173,7 +180,7 @@ class Ui_Dialog(object):
       self.getScenBut.setMaximumSize(26, 26)
       self.getScenBut.setAutoDefault(False)
       
-      self.getScenBut.clicked.connect(self.getScenarios)
+      self.getScenBut.clicked.connect(self.getScenariosMasks)
       
       
       self.orLabel = QtGui.QLabel("or")
@@ -202,14 +209,65 @@ class Ui_Dialog(object):
       self.occGroup.setLayout(self.occSetLayout)
       
       self.points_envLayout.addWidget(self.occGroup,1,0,1,1)
-           
+      
+      ############ Mask optional group ##############     
+      
+      self.maskGroup = QGroupBox()
+      self.maskGroup.setStyle(self.style)
+      self.maskGroup.setTitle('Mask (optional)')
+      self.maskGroup.setCheckable(True)
+      self.maskGroup.setChecked(False)
+      self.maskGroup.setFocusPolicy(Qt.NoFocus)
+      self.maskGroup.setFlat(True)
+      self.maskGroup.setEnabled(False)
+      self.maskGroup.toggled.connect(self.showMaskCombos)
+      
+      ly = QtGui.QGridLayout()
+      ly.setMargin(0)
+      
+      self.hideyWidget = QWidget()
+      self.hideyWidget.setMinimumHeight(100)
+      self.hideyWidget.hide()
+      ly.addWidget(self.hideyWidget)
+      
+      self.maskLayout = QtGui.QVBoxLayout(self.hideyWidget)
+      
+      
+      
+      horiz1 = QtGui.QHBoxLayout()
+      horiz1.addWidget(QLabel("Use Existing Model Mask"))
+      horiz1.addWidget(QLabel("Use Exiiting Projection Mask"))
+      self.maskLayout.addLayout(horiz1)
+      
+      
+            
+      horiz2 = QtGui.QHBoxLayout()
+      
+      self.modelMaskCombo = QComboBox()
+      self.projectionMaskCombo = QComboBox()
+      horiz2.addWidget(self.modelMaskCombo)
+      horiz2.addWidget(self.projectionMaskCombo)
+      self.maskLayout.addLayout(horiz2)
+      
+      horiz3 = QtGui.QHBoxLayout()
+      self.newMaskButton = QtGui.QPushButton("Upload New Mask")
+      self.newMaskButton.clicked.connect(self.uploadNewMask)
+      self.newMaskButton.setFocusPolicy(Qt.NoFocus)
+      self.newMaskButton.setMaximumHeight(30)
+      self.newMaskButton.setMaximumWidth(136)
+      
+      horiz3.addWidget(self.newMaskButton,alignment=Qt.AlignLeft)
+      self.maskLayout.addLayout(horiz3)
+      
+      self.maskGroup.setLayout(ly)
+      self.points_envLayout.addWidget(self.maskGroup,2,0,1,1)
       
       ############ 3rd input group SCENARIOS #######################################
       
       self.scenarioGroup = QtGui.QGroupBox()
       self.scenarioGroup.setStyle(self.style)
       self.scenarioGroup.setTitle("Environmental Layer Set")
-      #self.scenarioGroup.setMinimumHeight(214)
+      self.scenarioGroup.setMaximumHeight(187)
       
       
       self.scenLayout = QtGui.QGridLayout()
@@ -237,6 +295,7 @@ class Ui_Dialog(object):
       self.projectionScenListView.setSelectionBehavior(QAbstractItemView.SelectRows)
       self.projectionScenListView.clicked.connect(self.matchNew)
       self.projectionScenListView.setEnabled(False)
+      
       self.scenLayout.addWidget(self.modelScenLabel,        1,1,1,1)
       self.scenLayout.addWidget(self.modelScenCombo,        2,1,1,1,Qt.AlignTop)
       self.scenLayout.addWidget(self.projScenLabel,         1,3,1,1)
@@ -244,17 +303,19 @@ class Ui_Dialog(object):
       
       self.scenarioGroup.setLayout(self.scenLayout)
       
-      self.points_envLayout.addWidget(self.scenarioGroup,2,0,1,1)
+      self.points_envLayout.addWidget(self.scenarioGroup,3,0,1,1)
       
       # second input group ALGORITHMS ##########################################
       self.algoGroup = QtGui.QGroupBox() 
+      #self.algoGroup.setMinimumHeight(178)
       self.algoGroup.setStyle(self.style)
       self.algoGroup.setTitle("Algorithm")
       
       
       self.algoGrid = QtGui.QGridLayout()
-      self.algoGrid.setColumnMinimumWidth(0,400)
-      self.algoGrid.setColumnMinimumWidth(1,100)
+      self.algoGrid.setColumnMinimumWidth(0,372)
+      self.algoGrid.setColumnMinimumWidth(1,76)
+      self.algoGrid.setColumnMinimumWidth(2,374)
       #self.algoGrid.setColumnMinimumWidth(2,90)
       self.algoGrid.setRowMinimumHeight(0,24)
       self.algoGrid.setRowMinimumHeight(1,20)
@@ -263,6 +324,7 @@ class Ui_Dialog(object):
       
       self.algorithmLabel = QtGui.QLabel("Choose Algorithm")
       self.algCodeCombo = QComboBox()
+      self.algCodeCombo.currentIndexChanged.connect(self.populateAlgoDesc)
       self.algCodeCombo.setMaximumWidth(400) 
       
       self.advancedBut = QtGui.QPushButton("Advanced")
@@ -270,10 +332,18 @@ class Ui_Dialog(object):
       self.advancedBut.setAutoDefault(False)
       self.advancedBut.setEnabled(False)
       
+      self.algoDesc = QtGui.QTextEdit()
+      p = self.algoDesc.palette()
+      color = self.palette().color(QPalette.Background)
+      p.setColor(QPalette.Base, QColor(color.red(), color.green(), color.blue()))
+      self.algoDesc.setPalette(p);
+      self.algoDesc.setReadOnly(True)
+      
       self.algoGrid.addWidget(self.algorithmLabel,0,0,1,1,Qt.AlignLeft)
       self.algoGrid.addWidget(self.algCodeCombo,  1,0,1,1,Qt.AlignLeft)
       
       self.algoGrid.addWidget(self.advancedBut,   1,1,1,1,Qt.AlignLeft)
+      self.algoGrid.addWidget(self.algoDesc,      0,2,3,1)
       
       self.algoGroup.setLayout(self.algoGrid)
       ###########################################################

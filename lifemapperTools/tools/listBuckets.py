@@ -40,8 +40,9 @@ from lifemapperTools.tools.pamSumsStats import PamSumsStatsDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.communicate import Communicate
 from lifemapperTools.common.pluginconstants import ListExperiments, GENERIC_REQUEST, EXECUTE_REQUEST,\
-                                         JobStage, JobStatus,STAGELOOKUP,\
-                                         STAGEREVLOOKUP, STATUSLOOKUP, STATUSREVLOOKUP, PER_PAGE
+                                         STAGELOOKUP, STAGEREVLOOKUP, STATUSLOOKUP, \
+                                         STATUSREVLOOKUP, PER_PAGE, Messages 
+from LmCommon.common.lmconstants import JobStage, JobStatus
 from lifemapperTools.tools.radTable import  RADTable, RADTableModel                                       
 
 
@@ -67,6 +68,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       self.client = client
       self.workspace = Workspace(self.interface,self.client)
       self.inputs = inputs
+      self.origPamSumId = None
       if resume:
          self.interface.addProject(resume)
       self.epsg = epsg
@@ -86,6 +88,14 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                            requestfunc=self.client.rad.listBuckets, inputs=inputs,
                            client=client)
       
+      if self.expId is not None:
+         expFolder = self.workspace.getExpFolder(self.expId)
+         if not expFolder:
+            expFolder = self.workspace.createProjectFolder(self.expId)
+         self.expDir = expFolder
+      else:
+         self.expDir = None
+      
       try:
          firstTableInputs = {}
          firstTableInputs.update(inputs) 
@@ -93,13 +103,15 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          items = self.client.rad.listBuckets(**firstTableInputs) 
       except Exception, e:
          self.close()
-         message = "There is a problem with the grids listing service"
+         message = "There is a problem with the grids listing service. "+str(e)
          msgBox = QMessageBox.information(self,
                                           "Problem...",
                                           message,
                                           QMessageBox.Ok)
       else: 
          self.showTable(items)
+         
+
 # ..............................................................................         
    def setMapUnits(self): 
       """
@@ -160,7 +172,9 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
 # ..............................................................................    
    def listPamSums(self):
       selectedrowindex = self.bucketTableView.tableView.selectionModel().currentIndex().row()
-      if selectedrowindex == -1:
+      selModel = self.bucketTableView.tableView.selectionModel()
+      if selectedrowindex == -1 or not(selModel.hasSelection()):
+         # or not (selectionModel().hasSelection())
          QMessageBox.warning(self,"status: ",
                          "Please select one Grid")
          return 
@@ -172,12 +186,16 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       origPSCheck = self.checkforOrignalPAM(listPSinputs)     
       if origPSCheck:
          PSstagestatus = self.getPamSumStatus(self.expId,bucketId)
+         origPamSumId = self.origPamSumId
+         shpGrd = selectedrow[6]
          if PSstagestatus:
             PSstage = PSstagestatus[0]
             PSstatus = PSstagestatus[1]
-            if PSstage == JobStage.CALCULATE and PSstatus == JobStatus.RETRIEVE_COMPLETE:
+            if PSstage == JobStage.CALCULATE and PSstatus == JobStatus.COMPLETE:
                pamsumstats = PamSumsStatsDialog(self.interface, inputs=listPSinputs,
-                               client=self.client, parent=self) 
+                               client=self.client, parent=self, expEPSG=self.epsg,
+                               gridName=self.gridName, origPamSumId = origPamSumId,
+                               shpGrd=shpGrd) 
                self.close()
                pamsumstats.exec_()
             else:
@@ -220,8 +238,10 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       """
       @summary: intersects a PAM
       """
+      
       selectedrowindex = self.bucketTableView.tableView.selectionModel().currentIndex().row()
-      if selectedrowindex == -1:
+      selModel = self.bucketTableView.tableView.selectionModel()
+      if selectedrowindex == -1 or not(selModel.hasSelection()):
          QMessageBox.warning(self,"status: ",
                          "Please select one experiment")
          return 
@@ -241,21 +261,45 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             self.refreshBut.setEnabled(False)
          except:
             pass
-         # here we make sure there are layers for the experiment         
-         layers = self.client.rad.getPALayers(self.expId)
-         if layers is not None:         
-            self.inputGroup.hide()      
-            self.statuslabel.setText('Running Process')
-            self.progressbar.reset()
-            self.outputGroup.setTitle('Outputs')
-            self.outputGroup.show()
+         try:
+            # here we make sure there are layers for the experiment         
+            layers = self.client.rad.getPALayers(self.expId)
+         except Exception, e:
+            canGetLyrs = False
+         else:
+            canGetLyrs = True
+         if (layers is not None) and (len(layers) != 0) and (canGetLyrs):         
+            
+            self.hideButtonsWidget.hide()
+            self.progressbar.show()
             if self.expId is not None:
                inputs = {'expId': self.expId}
             inputs.update({'bucketId':selectedrow[1]})
             self.bucketId = selectedrow[1]
-            self.startThread(EXECUTE_REQUEST,outputfunc = self.getShapeFile, 
-                             requestfunc=self.client.rad.intersect, client=self.client,
-                             inputs=inputs)
+            #self.startThread(EXECUTE_REQUEST,outputfunc = self.getShapeFile, 
+            #                 requestfunc=self.client.rad.intersect, client=self.client,
+            #                 inputs=inputs)
+            try:
+               statusStageFunc = self.client.rad.intersectBucket(**inputs)
+               status, stage = statusStageFunc()
+               status = int(status)
+               stage = int(stage)
+            except Exception,e:
+               message = "Error in Intersect request %s" % (str(e))
+               msgBox = QMessageBox.information(self,
+                                                "Problem...",
+                                                message,
+                                                QMessageBox.Ok)
+               self.progressbar.hide()
+               self.hideButtonsWidget.show()
+               
+            else:  # in preparation to replace with csv
+               #self.getShapeFile(status, fromIntersect = True)
+               statusMsg = self.getStatusString(status)
+               message = "Intersect will be available later: status "
+               self.showMessage(message, type=Messages.INFO, status = statusMsg)
+               self.readyView()
+            
          else:
             reply = QMessageBox.question(self, 'No layers to intersect',
                                                "Do you want to Add Layers?", QMessageBox.Yes | 
@@ -268,7 +312,6 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             try:
                self.helpBut.setEnabled(True)
                self.getStatsBut.setEnabled(True)
-               #self.calcBut.setEnabled(True)
                self.intersectBut.setEnabled(True)
                self.addBucketBut.setEnabled(True)
                self.randomizeBut.setEnabled(True)
@@ -289,7 +332,8 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       @summary: randomized bucket
       """
       selectedrowindex = self.bucketTableView.tableView.selectionModel().currentIndex().row()
-      if selectedrowindex == -1:
+      selModel = self.bucketTableView.tableView.selectionModel()
+      if selectedrowindex == -1 or not(selModel.hasSelection()):
          QMessageBox.warning(self,"status: ",
                          "Please select one experiment")
          return 
@@ -304,10 +348,12 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          pass
       selectedrow = self.bucketTableView.tableView.model().data[selectedrowindex]
       bucketId = selectedrow[1]
-      status, stage = self.client.rad.getBucketStatus(self.expId, bucketId)
+      bucket = self.client.rad.getBucket(self.expId, bucketId)
+      status, stage = self.client.rad.getStatusStage(bucket)
+      #status, stage = self.client.rad.getBucketStatus(self.expId, bucketId)
       status = int(status)
       stage = int(stage)
-      if stage >= JobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
+      if stage >= JobStage.INTERSECT and status == JobStatus.COMPLETE:
          randominputs = {}
          randominputs.update(self.inputs)
          randominputs.update({'bucketId':bucketId})
@@ -327,7 +373,28 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          self.refreshBut.setEnabled(True)
       except:
          pass
-            
+
+# ..............................................................................
+   def readyView(self):
+      """
+      @summary: sets the dialog to normal, ready presentation
+      """
+      if self.progressbar.isVisible():
+         self.progressbar.hide()
+         self.hideButtonsWidget.show()
+         self.refresh()
+      
+      if self.outputGroup.isVisible():
+         self.outputGroup.hide()
+         self.inputGroup.show()
+         self.refresh()
+         
+      self.helpBut.setEnabled(True)
+      self.getStatsBut.setEnabled(True)
+      self.intersectBut.setEnabled(True)
+      self.addBucketBut.setEnabled(True)
+      self.randomizeBut.setEnabled(True)
+      self.refreshBut.setEnabled(True)            
 
 # ..............................................................................         
    def refresh(self):
@@ -348,24 +415,48 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          currentPage = 0
       refreshinputs = {'expId':self.expId} 
       refreshinputs.update({'perPage':PER_PAGE,'fullObjects':True,'page':currentPage})
-      items = self.client.rad.listBuckets(**refreshinputs) 
-      self.addtoTable(items,None,currentPage)   
+      try:
+         items = self.client.rad.listBuckets(**refreshinputs) 
+      except:
+         pass
+      else:
+         self.addtoTable(items,None,currentPage)   
 # ..............................................................................
    def getLayerCount(self):
       try:
          ps = self.client.rad.getPamSum(self.expId,self.bucketId,'original')
-         print "PS ",ps
+         
          layerCount = int(ps.pam.columnCount)
       except:
-         print 'expId ',self.expId," BucketID ",self.bucketId
+         
          layerCount = None
       return layerCount
-           
 # ..............................................................................
-   def getShapeFile(self, status, model, fromIntersect=True): 
-      
-      if status == JobStatus.RETRIEVE_COMPLETE:
-         
+
+
+   def getPamCSV(self):
+      # need filename and path
+      error = None
+      success = False
+      if self.expDir is not None:
+         self.pamFilePath = os.path.join(self.expDir,'pam_csv_%s.csv' % (str(self.bucketId)))
+         if self.bucketId is not None and self.expId is not None:
+            try:
+               self.client.rad.getOriginalPamCsv(self.expId,self.bucketId,headers=True,filePath=self.pamFilePath) 
+            except Exception, e:
+               error = str(e)
+            else:
+               #print resp
+               if os.path.exists(self.pamFilePath):
+                  success = True              
+      return success, error
+   
+# ..............................................................................
+   def getShapeFile(self, status, fromIntersect=True): 
+      """
+      @deprecated: used to be called from download link in table, and on intersect
+      """
+      if status == JobStatus.COMPLETE:         
          if fromIntersect:
             columnCount = self.getLayerCount()
             if columnCount is not None:
@@ -375,42 +466,60 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                   self.addtoCanvas(True)
             else:
                QMessageBox.warning(self.outputGroup,"warning: ",
-                               "Can't get layer count, calculations might not be done")
-               
-               if self.outputGroup.isVisible():
-                  self.outputGroup.hide()
-                  self.inputGroup.show()
-                  self.refresh()
-               self.helpBut.setEnabled(True)
-               self.getStatsBut.setEnabled(True)
-               self.intersectBut.setEnabled(True)
-               self.addBucketBut.setEnabled(True)
-               self.randomizeBut.setEnabled(True)
-               self.refreshBut.setEnabled(True)
+                               "Can't get layer count, calculations might not be done")                              
+               self.readyView()
          else:
             self.addtoCanvas(False)
       else:
-         #print status
-         if status < JobStatus.RETRIEVE_COMPLETE:
+         # it only got in here from intersectPAM
+         if status < JobStatus.COMPLETE:
             statusMsg = self.getStatusString(status)
             QMessageBox.warning(self.outputGroup,"status: ",
                                 "Intersect will be available later: status "+statusMsg)
             
-         if status > JobStatus.RETRIEVE_COMPLETE:
+         if status > JobStatus.COMPLETE:
             statusMsg = self.getStatusString(status)
             QMessageBox.warning(self.outputGroup,"status: ",
                                 "Unable to Intersect: status "+statusMsg)
-         if self.outputGroup.isVisible():
-         
-            self.outputGroup.hide()
-            self.inputGroup.show()   
-            self.refresh()
-         self.helpBut.setEnabled(True)
-         self.getStatsBut.setEnabled(True)  
-         self.intersectBut.setEnabled(True)
-         self.addBucketBut.setEnabled(True)
-         self.randomizeBut.setEnabled(True)
-         self.refreshBut.setEnabled(True)
+         self.readyView()
+
+# ..............................................................................
+   def showMessage(self,message, type = Messages.INFO, status = ""):  
+        
+      if type == Messages.WARNING:         
+         QMessageBox.warning(self,"status: ",
+                                "%s %s" % (message,status))  
+      if type == Messages.INFO:
+         msgBox = QMessageBox.information(self,
+                                              "Problem...",
+                                               message,
+                                               QMessageBox.Ok)      
+# ..............................................................................
+
+   def buildCSVLayer(self):
+      # turn self.pamFilePath into URI, for all platforms
+      url = QUrl.fromLocalFile(self.pamFilePath)
+      url.addQueryItem('delimiter',',')
+      url.addQueryItem('xField','centerX')  # probably use a constant here
+      url.addQueryItem('yField','centerY')  # probably use a constant here
+      
+      pLayer = QgsVectorLayer(url.toString(),"pam_csv_%s" % (str(self.bucketId)),"delimitedtext")
+      if not(pLayer.isValid()):
+         pLayer = False
+      return pLayer
+
+# ..............................................................................
+
+   def addJoin(self, pLayer, grdLyr):
+      
+      joinLyrId = pLayer.id()
+      joinInfo = QgsVectorJoinInfo()
+      joinInfo.memoryCache = True
+      joinInfo.joinLayerId = joinLyrId
+      joinInfo.joinFieldName = 'siteid'
+      joinInfo.targetFieldName = 'siteid'
+      grdLyr.addJoin(joinInfo)
+
 # ..............................................................................
    def addGridtoMap(self, index):
       """
@@ -429,14 +538,35 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             pass
          else:
             self.bucketId = index.model().data[index.row()][1]
+            #gridLyr = self.addtoCanvas()  # not sure why this was in there
+            #self.bucketId = index.model().data[index.row()][1]
             stagestring = index.model().data[index.row()][2]
             stage = self.getStageCode(stagestring)
             status = int(index.model().data[index.row()][5])
-            if stage >= JobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
-               self.getShapeFile(JobStatus.RETRIEVE_COMPLETE,None,fromIntersect=True)
+            if stage >= JobStage.INTERSECT and status == JobStatus.COMPLETE:
+               gridLyr,error = self.addtoCanvas()
+               if gridLyr:
+                  pamCSV, error = self.getPamCSV()
+                  if pamCSV:
+                     pLayer = self.buildCSVLayer() #self.pamFilePath, will be good
+                     if pLayer:
+                        try:
+                           QgsMapLayerRegistry.instance().addMapLayer(pLayer,False)
+                           self.addJoin(pLayer,gridLyr)
+                        except Exception, e:
+                           error = str(e)
+                     if not pLayer or error is not None:
+                        self.showMessage('could not join PAM',type=Messages.WARNING, status = error)                       
+                  else:
+                     message = "could not retrieve the PAM"
+                     self.showMessage(message,type=Messages.WARNING, status = error)
+               else:
+                  message = "Could not retrieve the shapefile or layer is invalid"
+                  self.showMessage(message,type=Messages.WARNING, status = error)
             elif (stage == JobStage.GENERAL and status == JobStatus.GENERAL) or \
-            (stage == JobStage.GENERAL and status == JobStatus.INITIALIZE):
-               self.getShapeFile(JobStatus.RETRIEVE_COMPLETE,None,fromIntersect=False) 
+                 (stage == JobStage.GENERAL and status == JobStatus.INITIALIZE):                 
+                  
+               gridLyr = self.addtoCanvas()
             else:
                QMessageBox.warning(self.outputGroup,"status: ",
                                 "Grid must be successfully intersected or not in the middle of a process for download")
@@ -450,66 +580,48 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                   self.refreshBut.setEnabled(True)
                except:
                   pass
+
 # ..............................................................................   
-   def addtoCanvas(self, intersected):
+   def addtoCanvas(self):
       """
-      @summary: connected to addtomap button, getsShapegridData and adds shapefile
+      @summary: connected to addtomap button, gets empty shapegrid and adds shapefile
       to map canvas
       @param intersected: bool 
+      @return: returns vector layer added
       """
-      expFolder = self.workspace.getExpFolder(self.expId)
-      if not expFolder:
-         expFolder = self.workspace.createProjectFolder(self.expId)
+      #expFolder = self.workspace.getExpFolder(self.expId)
+      #if not expFolder:
+      #   expFolder = self.workspace.createProjectFolder(self.expId)
+      error = None
+      expFolder = self.expDir
       gridZipName = "%s_%s" % (str(self.expId),str(self.bucketId))
       pathname = os.path.join(expFolder,gridZipName)
-      try:
-         
-         success = self.client.rad.getShapegridData(pathname, str(self.expId), 
-                                          str(self.bucketId),intersected=intersected)    
-      except:
-         success = False
-      if success:
-         #print "add to canvas from path"
-         self.progressbar.setValue(100)
-         #pathname = self.outEdit.text()
-         zippath = os.path.dirname(str(pathname))                         
-         z = zipfile.ZipFile(str(pathname),'r')
-         for name in z.namelist():
-            f,e = os.path.splitext(name)
-            if e == '.shp':
-               shapename = name
-            z.extract(name,str(zippath))
-         vectorpath = os.path.join(zippath,shapename)
-         vectorLayer = QgsVectorLayer(vectorpath,self.gridName,'ogr')
-         warningname = shapename
-         
+      try:        
+         self.client.rad.getBucketShapegridData(pathname, str(self.expId), str(self.bucketId))    
+      except Exception, e:
+         vectorLayer = False
+         error = str(e)
+      else:
+         try:
+            zippath = os.path.dirname(str(pathname))                         
+            z = zipfile.ZipFile(str(pathname),'r')
+            for name in z.namelist():
+               f,e = os.path.splitext(name)
+               if e == '.shp':
+                  shapename = name
+               z.extract(name,str(zippath))
+            vectorpath = os.path.join(zippath,shapename)
+            vectorLayer = QgsVectorLayer(vectorpath,self.gridName,'ogr')
+         except Exception,e:
+            vectorLayer = False
+            error = str(e)           
          if not vectorLayer.isValid():
-            QMessageBox.warning(self.outputGroup,"status: ",
-              warningname)                
+            vectorLayer = False               
          else:
             QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
-         #self.close()
-      else:
-         message = "Could not retrieve the shapefile"
-         msgBox = QMessageBox.information(self,
-                                                "Problem...",
-                                                message,
-                                                QMessageBox.Ok)
-      if self.outputGroup.isVisible():
-            self.outputGroup.hide()
-            #self.buttonBox.removeButton(self.AddBut) 
-            self.inputGroup.show()
-            self.refresh()
-      try:
-         self.helpBut.setEnabled(True)
-         self.getStatsBut.setEnabled(True)
-         self.intersectBut.setEnabled(True)
-         self.randomizeBut.setEnabled(True)
-         self.addBucketBut.setEnabled(True)
-         self.refreshBut.setEnabled(True)
-      except:
-         pass 
-                    
+      
+      self.readyView()
+      return vectorLayer, error              
         
 # ..............................................................................  
    def cleanInputGridLayout(self):
@@ -523,10 +635,52 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
                item.widget().deleteLater()
               
          self.gridLayout_input.update()  
+         
+   def appendData(self, items):
+      
+      data = []
+      for o in items:
+         calculate = False
+         calculateDone = False
+         status = int(o.status)
+         stage = int(o.stage)
+         if stage >= JobStage.INTERSECT:
+            try:
+               #print o.id," ",o.pamSum.stage
+               if int(o.pamSum.stage) == JobStage.CALCULATE:
+                  calculate = True
+                  stage = JobStage.CALCULATE
+                  status = int(o.pamSum.status)
+            except:
+               stage = JobStage.INTERSECT
+         if status >= JobStatus.GENERAL_ERROR:
+            statusstring = 'error'
+         elif status == JobStatus.COMPLETE:
+            calculateDone = True
+            statusstring = STATUSLOOKUP[status]
+         elif status == JobStatus.GENERAL: 
+            statusstring = 'not started'
+         elif status == JobStatus.INITIALIZE:
+            statusstring = 'started'
+         else:
+            statusstring = "running" 
+         try:
+            shapegrid = o.shapegrid
+         except:
+            shapegrid = None 
+         if calculate and calculateDone:
+            gridOrPam = "PAM"
+         else:      
+            gridOrPam = "Grid"
+         stagestring = self.getStageString(stage)
+         data.append([o.name,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get %s</a>" % (gridOrPam),o.status,shapegrid])
+         
+      return data
+
 # ..............................................................................        
    def addtoTable(self,items,model,currentPage):
       """
-      @summary: adds new grids (buckets) to the table
+      @summary: adds new grids (buckets) to the table upon refresh
       @param items: list of bucket objects
       """
       
@@ -536,46 +690,18 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          pass 
       try: 
          # branch for if the table exists     
-         header = ['  Grid title  ', '  Grid id  ', '  Stage  ', '  Status  ','  Retrieve Grid  ','']
-         data = []
-         for o in items:
-            status = int(o.status)
-            stage = int(o.stage)
-            if stage >= JobStage.INTERSECT:
-               try:
-                  if int(o.pamSum.stage) == JobStage.CALCULATE:
-                     stage = JobStage.CALCULATE
-                     status = int(o.pamSum.status)
-               except:
-                  stage = JobStage.INTERSECT
-            if status >= JobStatus.GENERAL_ERROR:
-               statusstring = 'error'
-            elif status == JobStatus.RETRIEVE_COMPLETE:
-               statusstring = STATUSLOOKUP[status]
-            elif status == JobStatus.GENERAL: 
-               statusstring = 'not started'
-            elif status == JobStatus.INITIALIZE:
-               statusstring = 'started'
-            else:
-               statusstring = "running"        
-            stagestring = self.getStageString(stage)
-            data.append([o.name,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get Grid</a>",o.status])
+         header = ['  Grid title  ', '  Grid id  ', '  Stage  ', '  Status  ','  Retrieve Grid/PAM  ','','']
+         data = self.appendData(items)
          self.bucketTableView.setNoPages(totalCount=len(items))
          self.bucketDataView.model().data = data
          self.bucketDataView.model().setNoPages(self.bucketTableView.noPages)
          self.bucketDataView.model().setCurrentPage(currentPage)
          
          
-         #self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-         #      QModelIndex(), QModelIndex())
-         
          self.bucketDataView.model().dataChanged.emit(QModelIndex(),QModelIndex())
          
          self.bucketTableView.viewport().update()
-         
-         
-         
-         
+                  
       except Exception,e:
          # branch if the table doesn't exist
          self.showTable(items)
@@ -596,11 +722,17 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       @param bucketId: Lm bucketId
       """
       try:
-         status, stage = self.client.rad.getPamSumStatus(expId,bucketId,'original')
+         pamsum = self.client.rad.getPamSum(expId,bucketId,'original')
+         status, stage = self.client.rad.getStatusStage(pamsum)
+         #status, stage = self.client.rad.getPamSumStatus(expId,bucketId,'original')
       except Exception, e:
-         print "Exception in getPamSumStatus ",str(e)
+         #print "Exception in getPamSumStatus ",str(e)
          return False
       else:
+         try:
+            self.origPamSumId = pamsum.id
+         except:
+            pass
          return int(stage),int(status)
          
       
@@ -615,14 +747,16 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       """
       # getStageCode, getStatusCode
       self.gridName = str(itemselectionSelected.indexes()[0].data())
+      shpGrd = itemselectionSelected.indexes()[6].data()
+      origPamSumId = self.origPamSumId
       bucketId = itemselectionSelected.indexes()[1].data()
       bucketstage = str(itemselectionSelected.indexes()[2].data())
       stage =  self.getStageCode(bucketstage)
       status = int(itemselectionSelected.indexes()[5].data())
       self.activateButtons(stage,status,bucketId)
-      if stage >= JobStage.INTERSECT and status == JobStatus.RETRIEVE_COMPLETE:
+      if stage >= JobStage.INTERSECT and status == JobStatus.COMPLETE:
          #QgsProject.instance().emit( SIGNAL( "ActivateGrid(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)" ), self.expId, bucketId,stage,status)
-         Communicate.instance().activateGrid.emit(self.expId, bucketId, stage, status)
+         Communicate.instance().activateGrid.emit(self.expId, bucketId, stage, status, self.epsg, self.gridName, shpGrd)
                
    def activateButtons(self,bucketstage,bucketstatus,bucketId): 
       """
@@ -706,34 +840,10 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          page = currentPage - 1  
       nextPage = self.listBuckets(page=page)
       if nextPage is not None:
-         data = []
-         for o in nextPage:   
-            status = int(o.status)
-            stage = int(o.stage)
-            if stage >= JobStage.INTERSECT:
-               try:
-                  if int(o.pamSum.stage) == JobStage.CALCULATE:
-                     stage = JobStage.CALCULATE
-                     status = int(o.pamSum.status)
-               except:
-                  stage = JobStage.INTERSECT
-            if status >= JobStatus.GENERAL_ERROR:
-               statusstring = 'error'
-            elif status == JobStatus.RETRIEVE_COMPLETE:
-               statusstring = STATUSLOOKUP[status]
-            elif status == JobStatus.GENERAL: # or status == JobStatus.INITIALIZE:
-               statusstring = 'not started'
-            elif status == JobStatus.INITIALIZE:
-               statusstring = 'started'
-            else:
-               statusstring = "running"        
-            stagestring = self.getStageString(stage)
-            data.append([o.name,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get Grid</a>",o.status])
+         data = self.appendData(nextPage)
+         
          self.bucketDataView.model().data = data
          self.bucketDataView.model().setCurrentPage(page)
-         
-         #self.bucketDataView.model().emit(SIGNAL('dataChanged(const QModelIndex &,const QModelIndex &)'),
-         #      QModelIndex(), QModelIndex())
          
          self.bucketDataView.model().dataChanged.emit(QModelIndex(),QModelIndex())
 
@@ -758,45 +868,21 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
    def showTable(self, items):
       bucketCount = self.getBucketCount()
       try:
-         #for each bucket object in list, go out and get status
-         data = []
+         #data = []
          if len(items) == 0:
             raise Exception, "No Buckets"
-         for o in items:
-            status = int(o.status)
-            stage = int(o.stage) 
-            if stage >= JobStage.INTERSECT:
-               try:
-                  if int(o.pamSum.stage) == JobStage.CALCULATE:
-                     stage = JobStage.CALCULATE
-                     status = int(o.pamSum.status)
-               except:
-                  stage = JobStage.INTERSECT
-            if status >= JobStatus.GENERAL_ERROR:
-               statusstring = 'error'
-            elif status == JobStatus.RETRIEVE_COMPLETE:
-               statusstring = STATUSLOOKUP[status]
-            elif status == JobStatus.GENERAL: # or status == JobStatus.INITIALIZE:
-               statusstring = 'not started'
-            elif status == JobStatus.INITIALIZE:
-               statusstring = 'started'
-            else:
-               statusstring = "running"        
-            stagestring = self.getStageString(stage)
-            data.append([o.name,int(o.id),stagestring,statusstring,"<a href='"+str(o.id)+"'>Get Grid</a>",o.status])
+         data = self.appendData(items)
+         
          self.bucketTableView =  RADTable(data,totalCount=bucketCount)
-         header = ['  Grid title  ', '  Grid id  ', '  Stage  ', '  Status  ','  Retrieve Grid  ','']
+         header = ['  Grid title  ', '  Grid id  ', '  Stage  ', '  Status  ','  Retrieve Grid/PAM  ','','']
          self.bucketDataView = self.bucketTableView.createTable(header,htmlIndexList=[4],
                                                                 editsIndexList=[999],
-                                                                controlsIndexList=[4],hiddencolumns=[5])
+                                                                controlsIndexList=[4],hiddencolumns=[5,6])
          #QObject.connect(self.bucketDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
          self.bucketDataView.model().getNext.connect(self.getNextPage)
          if self.bucketDataView.model().noPages == 1:
             self.bucketTableView.pageForward.setEnabled(False)
-            
-         #QObject.connect(self.bucketDataView.selectionModel(), SIGNAL("selectionChanged(const QItemSelection&, const QItemSelection&)"),self.tablerowselected)
-         #QObject.connect(self.bucketDataView, SIGNAL("clicked(const QModelIndex &)"), self.addGridtoMap)
-         print self.bucketDataView.selectionModel()
+                   
          self.bucketDataView.selectionModel().selectionChanged.connect(self.tablerowselected)
          self.bucketDataView.clicked.connect(self.addGridtoMap)
          
@@ -804,7 +890,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          self.bucketDataView.setSelectionMode(QAbstractItemView.SingleSelection)
       
          self.gridLayout_input.addWidget(self.bucketTableView,1,2,3,1)
-         
+         # from row, from Column, rowSpan, columnSpan
          try:
             self.helpBut.setEnabled(True)
             self.getStatsBut.setEnabled(True)
@@ -855,7 +941,7 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
          self.setModal(False)
       self.help.show()
 
-      
+ 
         
  
 

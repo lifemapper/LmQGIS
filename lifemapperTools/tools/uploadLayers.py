@@ -33,14 +33,15 @@
           02110-1301, USA.
 """
 import os
+import sys
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from qgis.core import *
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.tools.ui_uploadLayersDialog import Ui_Dialog
 from lifemapperTools.tools.controller import _Controller
-from lifemapperTools.common.pluginconstants import GridConstructor,\
-                                         RASTER_EXTENSION,\
-                                         SHAPEFILE_EXTENSION
+from lifemapperTools.common.pluginconstants import GridConstructor
+from LmCommon.common.lmconstants import OutputFormat #OutputFormat.GTIFF, OutputFormat.SHAPE
 
 # .............................................................................
 
@@ -110,10 +111,10 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
       match = True
       path = record[1][1]
       f, extension = os.path.splitext(record[1][1])
-      if extension == SHAPEFILE_EXTENSION:
+      if extension == OutputFormat.SHAPE:
          QgsLayer = QgsVectorLayer(path,'testCRS','ogr')
          epsg = str(QgsLayer.crs().authid()).strip('EPSG:')
-      if extension == RASTER_EXTENSION:
+      if extension == OutputFormat.GTIFF:
          QgsLayer = QgsRasterLayer(path,'testCRS')
          epsg = str(QgsLayer.crs().authid()).strip('EPSG:')
       if str(epsg) != str(self.expEPSG):
@@ -143,12 +144,12 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
          upload = False  
          try:
             f, extension = os.path.splitext(record[1][1])
-            if extension == SHAPEFILE_EXTENSION: 
+            if extension == OutputFormat.SHAPE: 
                postresponse = self.client.rad.postVector(**{'filename':record[1][1],
                                                         'name':record[1][0],
                                                         'epsgCode':self.expEPSG,
                                                         'mapUnits':self.mapunits})
-            if extension == RASTER_EXTENSION:
+            if extension == OutputFormat.GTIFF:
                postresponse = self.client.rad.postRaster(**{'filename':record[1][1],
                                                         'name':record[1][0],
                                                         'epsgCode':self.expEPSG,
@@ -300,7 +301,14 @@ class UploadDialog( _Controller, QDialog, Ui_Dialog):
       
  
 
-      
+if __name__ == "__main__":
+#  
+   client =  LMClient(userId='blank', pwd='blank')
+   qApp = QApplication(sys.argv)
+   d = UploadDialog(None,client=client)
+   #d = AdvancedAlgo()
+   d.show()
+   sys.exit(qApp.exec_())               
       
       
       

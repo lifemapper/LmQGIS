@@ -1,27 +1,27 @@
 <!DOCTYPE html SYSTEM "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-   <style>
-   h2 a
-   {
-       font-family:sans-serif; 
-       font-size:100%; 
-       font-weight:bold; 
-       font-style:normal; 
-       text-decoration:none; 
-       text-transform:none; 
-       margin:0px; 
-       padding:0px;
-       color:#2C6598;
-   }
-   
-   p   {
-       font-size: 13pt;
-       margin-left: .1in;
+	<style>
+	h2 a
+	{
+	    font-family:sans-serif; 
+	    font-size:100%; 
+	    font-weight:bold; 
+	    font-style:normal; 
+	    text-decoration:none; 
+	    text-transform:none; 
+	    margin:0px; 
+	    padding:0px;
+	    color:#2C6598;
+	}
+	
+	p   {
+	    font-size: 13pt;
+	    margin-left: .1in;
        margin-right: .1in;
-       
-       }
-       
+	    
+	    }
+	    
    ul  {
        font-size: 13pt;
        }
@@ -30,7 +30,7 @@
        font-size: 13pt;
        }
         
-   </style>
+	</style>
 
 
 </head>
@@ -60,84 +60,86 @@
         demonstrating how to use this tool with the sample data is available here: <a href="http://Lifemapper.org/help/qgisTutorial.html">Tutorial</a>      
         </p>
         <p>
-         <b> Note: A great way to view distribution models or spatial views of Range and Diversity statistics next to
-         one another is to use a plugin called Dockable MirrorMap by Giuseppe Sucaameli, available from the python plugin repository.</b>
-         </p>
+       	<b> Note: A great way to view distribution models or spatial views of Range and Diversity statistics next to
+       	one another is to use a plugin called Dockable MirrorMap by Giuseppe Sucaameli, available from the python plugin repository.</b>
+       	</p>
         
-          
-                  
+	       
+	               
        <h2><a name="signIn">Sign In</a></h2>
        <p>
-         <a id="signUp"><h3>Sign up for a new Lifemapper account</h3></a>
-        
-         <ol>
-            <li>
-               Visit the <a href="http://Lifemapper.org/signup">Lifemapper</a> sign up page.
-            </li>
-            <li>
-               A web form will appear, fill out your details.  Make sure to include
-               user id, email address, first name, and your desired password as these
-               parameters are required.
-            </li>
-            <li>
-               Make sure to read the Lifemapper terms of service
-            </li>
-            <li>
-               Click the "Sign up!" button.  You will be directed to a new page with
-               your account details.
-            </li>
-            <li>
-               <a href="#signIn">Log in</a> to the Lifemapper system using your new credentials.
-            </li>
-         </ol>
-        
-         <a id="signIn"><h3>Sign in</h3></a>
-         <ol>
-            <li>From the "Lifemapper" menu, select "Sign In".</li>
-            <li>A log in dialog will appear, enter your Lifemapper credentials</li>
-            <li>Enter an email if you wish to be notified when computations are complete for your experiment.</li>
-            <li>If your user name and password are correct, you will be asked to create a workspace. Use the tool to
-                create a directory that your user experiments will be automatically placed in. After creating
-                a workspace, a log-in message will appear.</li>
-         </ol>
-      </p>
+		   <a id="signUp"><h3>Sign up for a new Lifemapper account</h3></a>
+		  
+		   <ol>
+		      <li>
+		         Visit the <a href="http://Lifemapper.org/signup">Lifemapper</a> sign up page.
+		      </li>
+		      <li>
+		         A web form will appear, fill out your details.  Make sure to include
+		         user id, email address, first name, and your desired password as these
+		         parameters are required.
+		      </li>
+		      <li>
+		         Make sure to read the Lifemapper terms of service
+		      </li>
+		      <li>
+		         Click the "Sign up!" button.  You will be directed to a new page with
+		         your account details.
+		      </li>
+		      <li>
+		         <a href="#signIn">Log in</a> to the Lifemapper system using your new credentials.
+		      </li>
+		   </ol>
+		  
+		   <a id="signIn"><h3>Sign in</h3></a>
+		   <ol>
+		      <li>From the "Lifemapper" menu, select "Sign In".</li>
+		      <li>A log in dialog will appear, enter your Lifemapper credentials</li>
+		      <li>Enter an email if you wish to be notified when computations are complete for your experiment.</li>
+		      <li>If your user name and password are correct, you will be asked to create a workspace. Use the tool to
+		          create a directory that your user experiments will be automatically placed in. After creating
+		          a workspace, a log-in message will appear.</li>
+		   </ol>
+ 		</p>
        
        
        <h2><a name="newRADExperiment">New Range and Diversity Experiment</a></h2>
             <p>
-            To start a new range and diversity experiment go to the 'Range and Diversity' menu item from the Lifemapper plugin menu
-            and click 'New Experiment'. If you are currently working on an experiment 
-            and start a new one, your current experiment will be saved as a QGIS project, and 
-            new QGIS project started.
-            </p>
-            <p>  
-            1.) Enter a name for your experiment.This name will help you find your experiment in
-            the experiment listing dialog. Each of your experiments will also be given a unique id by
-            the system.
-            </p>
-            <p>
-            2.) Define a geographic projection for your experiment.
-            The system uses the EPSG code for the required projection information.  You can choose
-            this easily by clicking the small button next to the projection field which opens a
-            Coordinate Reference System Selector.  By choosing a projection and clicking okay, the
-            EPSG code is automatically set. If you know your EPSG you can also enter it manually.
-            </p>
-            <p>
-            <b> Note: All the species layers that you add to an experiment
-            must be in the same projection as your experiment.</b>
-            </p>
-            <p> There is an optional field for an email address, where you will be emailed upon
-            the completion of jobs on your experiments.
-            </p>
-            <p>
-            3.) There are four options that can be chosen before clicking 'OK'.  Choosing one of these
-            options determines the next step that you will be taken to after your experiment is initialized.
-            </p>
-            <ul>
+       		To start a new range and diversity experiment go to the 'Range and Diversity' menu item from the Lifemapper plugin menu
+       		and click 'New Experiment'. If you are currently working on an experiment 
+       		and start a new one, your current experiment will be saved as a QGIS project, and 
+       		new QGIS project started.
+       		</p>
+       		<p>  
+       		1.) Enter a name for your experiment.This name will help you find your experiment in
+       		the experiment listing dialog. Each of your experiments will also be given a unique id by
+       		the system.
+       		</p>
+       		<p>
+       		2.) Define a geographic projection for your experiment.
+       		The system uses the EPSG code for the required projection information.  You can choose
+       		this easily by clicking the small button next to the projection field which opens a
+       		Coordinate Reference System Selector.  By choosing a projection and clicking okay, the
+       		EPSG code is automatically set. If you know your EPSG you can also enter it manually.
+       		</p>
+       		<p>
+       		<b> Note: All the species layers that you add to an experiment
+       		must be in the same projection as your experiment.</b>
+       		</p>
+       		<p> There is an optional field for an email address, where you will be emailed upon
+       		the completion of jobs on your experiments.
+       		</p>
+       		<p>
+       		3.) There are four options that can be chosen before clicking 'OK'.  Choosing one of these
+       		options determines the next step that you will be taken to after your experiment is initialized.
+       		</p>
+       		<ul>
                <li>Define Input Grid</li>
                <p><a href="#constructGrid">Construct Grid</a></p>
                <li>Add Local Species Layers</li>
-               <p><a href="#uploadLayers">Add Layers</a></p>
+               <p><a href="#uploadLayers">Add Layers</a></p>       
+               <li>Drive an experiment with a tree and layers for species in the tree.<li>
+               <p><a href="#uploadLayersTrees">Upload Tree/Lyrs</a></p>
                <li>Add LM species distribution model</li>
                <p><a href="#addSDMLayer">Add SDM Layers</a></p>
                <li>Empty Experiment</li>
@@ -152,211 +154,242 @@
      
        <h2><a name="listRADExperiments">List Experiments</a></h2>
            <p>
-           You can list and access your experiments by clicking 'List Experiments' from the Lifemapper plugin menu.
-           </p>
-           <p>
-           The List Experiments dialog will show a listing of your experiments. You can access every aspect
-           of an experiment from this dialog by choosing a radio button option and cliking 'OK'. You 
-           add elements and perform functions on your experiments through these options. By selecting an experiment 
-           in the listing, selecting any option from the radio buttons and clicking 'OK', that experiment becomes the
-           'current' experiment and gives you access to the dialog for that option.
-           All of these functions are also available for your current experiment from the Lifemapper/Range and Diversity 
-           plugin menu.  Opening an experiment other than the currently visible experiment closes the current experiment
-           and may ask you to save that experiment as a QGIS project and opens the layers for the experiment you wish to resume.
-           </p>
-           <ul>
-               <li>Get Grids</li>
-                  <p>
-                     Get Grids opens the <a href="#listgrids">Get Grids</a> dialog and lists the grids for your experiment and allows the major operations per grid on the experiment.
-                  </p>
-               <li>Get PA layers</li> 
-                  <p>
-                     Get PA layers opens the <a href="#listlayers">List Layers</a> dialog and lists the presence absence species layers and allows you to view parameters that you have set on the layers.
-                  </p>
-               <li>Add PA layers</li>
-                  <p>
-                     Add PA layers opens the <a href="#uploadLayers">Add Local PA Layers</a> Dialog and allows
-                     you to add presence absence layers from your file system to an experiment.
-                  </p>
-               <li>Add LM species distribution model</li>
-                  <p>
-                     Add SDM layers opens the <a href="#addSDMLayer">Add SDM Layers</a> Dialog and allows
-                     you to add remote layers from the <a href="http://Lifemapper.org/signup">Lifemapper</a>
-                     Spatial Distribution archive to your experiment.
-                  </p>
-           </ul>
-          
+	        You can list and access your experiments by clicking 'List Experiments' from the Lifemapper plugin menu.
+	        </p>
+	        <p>
+	        The List Experiments dialog will show a listing of your experiments. You can access every aspect
+	        of an experiment from this dialog by choosing a radio button option and cliking 'OK'. You 
+	        add elements and perform functions on your experiments through these options. By selecting an experiment 
+	        in the listing, selecting any option from the radio buttons and clicking 'OK', that experiment becomes the
+	        'current' experiment and gives you access to the dialog for that option.
+	        All of these functions are also available for your current experiment from the Lifemapper/Range and Diversity 
+	        plugin menu.  Opening an experiment other than the currently visible experiment closes the current experiment
+	        and may ask you to save that experiment as a QGIS project and opens the layers for the experiment you wish to resume.
+	        </p>
+	        <ul>
+	            <li>Get Grids</li>
+	            	<p>
+	            		Get Grids opens the <a href="#listgrids">Get Grids</a> dialog and lists the grids for your experiment and allows the major operations per grid on the experiment.
+	            	</p>
+	            <li>Get PA layers</li> 
+	            	<p>
+	            		Get PA layers opens the <a href="#listlayers">List Layers</a> dialog and lists the presence absence species layers and allows you to view parameters that you have set on the layers.
+	            	</p>
+	            <li>Add PA layers</li>
+	            	<p>
+	            		Add PA layers opens the <a href="#uploadLayers">Add Local PA Layers</a> Dialog and allows
+	            		you to add presence absence layers from your file system to an experiment.
+	            	</p>
+	            <li>Add LM species distribution model</li>
+	            	<p>
+	            		Add SDM layers opens the <a href="#addSDMLayer">Add SDM Layers</a> Dialog and allows
+	            		you to add remote layers from the <a href="http://Lifemapper.org/signup">Lifemapper</a>
+	            		Spatial Distribution archive to your experiment.
+	            	</p>
+	        </ul>
+	       
 
        <h2><a name="listgrids">Get Grids</a></h2>
-          <p>
-          The Get Grids Dialog lists the grids for an experiment and provides information about your grids.
-          Most of the work in a LmRAD experiment is done against the grid. Selecting a grid here will activate a
-          'Current Grid' menu item in the Lifemapper plugin menu allowing direct access to statitics if you have
-          done a calculate, see below. For each grid in the grid table there is a field called 'Retrieve Grid',
-          clicking on a link in that field will download your grid and if there is a PAM  will attached the presence
-          absence information to your shapefile.  There are five operations available for each grid from this dialog.
-          You must select a grid in the table before performing an operation on it.
-          </p>
-          <ul>
-            <li>Intersect</li>
-            <p>
-               Intersects a grid against all of the layers uploaded using the <a href="#uploadLayers">Add Layers</a> or Add SDM Layers
-               dialogs.  Intersecting the grid produces a presence absence matrix (PAM) and set of statistics on the grid. To use: Click 'Intersect', the dialog
-               will change to an output view with a progress bar.  This is asynchronous service call, if the job takes too long, a status
-               message will pop up indicating that your job will be available later. If the job completes within a few seconds 
-               the output dialog will that will automatically add the map to your QGIS canvas.
-            <p>
-               The Grid can show several different stages and statuses as work is done on it.  Mainly, though a complete status means just that.
-               The "calculated" status is the final stage, and shows that your PAM is ready.
-            </p>
-            <p>  
-              The following statistics are automatically calculated on the PAM and can be accessed from the
-              <a href="#statistics">Statistics Panel</a> .
-            </p>
-             <ul>
-               <li>species richness</li>
-               <li>Legendre beta</li>
-               <li>species range size</li>
-               <li>mean proportional range size</li>
-               <li>proportional species diversity</li>
-               <li>mean proportional species diversity</li>
-               <li>Whittaker's beta</li>
-               <li>ladditive beta</li>
-               <li>locality range size</li>
-               <li>range richness</li>
-               <li>proportional range size</li>
-            </ul>  
-            </p>
-            <li>Randomize</li>
-            <p>
-               By Clicking the Randomize button the <a href="#randomizePAM">Randomize</a> Dialog appears and allows you to generate Null
-               models by randomizing the PAM.  This can only be used once a PAM is generated and therefore
-               intersected. Randomization is optional, statistics and operations can be performed on just 
-               the original non-randomized PAM. Randomization will allow you to compare stats across null models
-               once you are ready to generate the statistics. 
-            </p>
-            <li>Add Grid</li>
-            <p>
-             Adding a grid allows you to continue to add new grids to the same experiment. Clicking this 
-             button will take you to the <a href="#constructGrid">Construct Grid</a> dialog.
-            </p>
-            
-            <li>Get Statistics</li>
-            <p>
-               Use Get Statistics to retrieve your statistics once you have done a calculate on the PAM. Clicking
-               'Get Statistics' opens the <a href="#statistics">Statistics</a> dialog and allows you to generate
-               plots and tables, and spatially view the site-based statistics. 
-            </p>
-            
-          </ul>
-          
-          
-       <h2><a name="listlayers">Get PA layers</a></h2>
-          
-          <p>
-          The Get PA layers dialog lists the presence absence species layers and allows
-          you to view parameters that you have set on the layers.
-          </p>
+	       <p>
+	       The Get Grids Dialog lists the grids for an experiment and provides information about your grids.
+	       Most of the work in a LmRAD experiment is done against the grid. Selecting a grid here will activate a
+	       'Current Grid' menu item in the Lifemapper plugin menu allowing direct access to statitics if you have
+	       done a calculate, see below. For each grid in the grid table there is a field called 'Retrieve Grid',
+	       clicking on a link in that field will download your grid and if there is a PAM  will attached the presence
+	       absence information to your shapefile.  There are five operations available for each grid from this dialog.
+	       You must select a grid in the table before performing an operation on it.
+	       </p>
+	       <ul>
+	         <li>Intersect</li>
+	       	<p>
+	       	   Intersects a grid against all of the layers uploaded using the <a href="#uploadLayers">Add Layers</a> or Add SDM Layers
+	       	   dialogs.  Intersecting the grid produces a presence absence matrix (PAM) and set of statistics on the grid. To use: Click 'Intersect', the dialog
+	       	   will change to an output view with a progress bar.  This is asynchronous service call, if the job takes too long, a status
+	       	   message will pop up indicating that your job will be available later. If the job completes within a few seconds 
+	       	   the output dialog will that will automatically add the map to your QGIS canvas.
+	       	<p>
+	       	   The Grid can show several different stages and statuses as work is done on it.  Mainly, though a complete status means just that.
+	       	   The "calculated" status is the final stage, and shows that your PAM is ready.
+	       	</p>
+	       	<p>  
+	       	  The following statistics are automatically calculated on the PAM and can be accessed from the
+	       	  <a href="#statistics">Statistics Panel</a> .
+	       	</p>
+	       	 <ul>
+	       	   <li>species richness</li>
+	       	   <li>Legendre beta</li>
+	       	   <li>species range size</li>
+	       	   <li>mean proportional range size</li>
+	       	   <li>proportional species diversity</li>
+	       	   <li>mean proportional species diversity</li>
+	       	   <li>Whittaker's beta</li>
+	       	   <li>ladditive beta</li>
+	       	   <li>locality range size</li>
+	       	   <li>range richness</li>
+	       	   <li>proportional range size</li>
+	       	</ul>  
+	       	</p>
+	       	<li>Randomize</li>
+	       	<p>
+	       	   By Clicking the Randomize button the <a href="#randomizePAM">Randomize</a> Dialog appears and allows you to generate Null
+	       	   models by randomizing the PAM.  This can only be used once a PAM is generated and therefore
+	       	   intersected. Randomization is optional, statistics and operations can be performed on just 
+	       	   the original non-randomized PAM. Randomization will allow you to compare stats across null models
+	       	   once you are ready to generate the statistics. 
+	       	</p>
+	       	<li>Add Grid</li>
+	       	<p>
+	       	 Adding a grid allows you to continue to add new grids to the same experiment. Clicking this 
+	       	 button will take you to the <a href="#constructGrid">Construct Grid</a> dialog.
+	       	</p>
+	       	
+	       	<li>Get Statistics</li>
+	       	<p>
+	       	   Use Get Statistics to retrieve your statistics once you have done a calculate on the PAM. Clicking
+	       	   'Get Statistics' opens the <a href="#statistics">Statistics</a> dialog and allows you to generate
+	       	   plots and tables, and spatially view the site-based statistics. 
+	       	</p>
+	       	
+	       </ul>
+	       
+	       
+	    <h2><a name="listlayers">Get PA layers</a></h2>
+	       
+	       <p>
+	       The Get PA layers dialog lists the presence absence species layers and allows
+	       you to view parameters that you have set on the layers.
+	       </p>
        
        <h2><a name="uploadLayers">Add Local Layers</a></h2>
-          <p>
-              The Add Layers or Upload presence/absence layers dialog is an upload dialog for
-              adding presence absence vector (shapefiles only) or raster (GeoTIFF only) layers to your experiment.
-              Each layer should represent the range or distribution for <b>one</b> species. 
-              You can upload hundreds or more layers at a time, and the dialog allows you to
-              easily set parameter on all of the them at the same time.
-          </p>   
-          <p><b>Adding new layers to an experiment 
-              that already as a PAM, i.e. has already been intersected, removes the old PAM from the Lifemapper 
-              system and reinitializes your experiment, so that you will have to do a new intersect to 
-              build a new set of PAM's.</b> 
-          </p>
-          <p>
-          1.) First use the 'Browse' button to browse your file system for your layers, the file dialog will automatically filter
-          on .tif or .shp extensions.  Select as many files as you want in the file dialog.  If all of your 
-          files are not in one directory you can add files from one directory, add those layers and then click 'Browse' again to 
-          add more layers from other directories.  You can also remove layers if you mistakenly add layers that you don't like.
-          Your selected layers will be added to the upload table.
-          </p>
-          <p>
-          2.)  Notice that there are fields that you must fill out for each layer to upload presence absence species layers. 
-          All cells that have been populated with a value have a right click context menu that allows you set values in column
-          mode for all the records. One approach is to populate the cells in the first record, and then right click on the set
-          values and set the column across hundreds of records. The context menu for the column mode allows you to set all cells
-          in a column, just selected rows, or just records that are empty.  The fields that you must set are as follows:
-          </p>
-           <ul>
-               <li>Layer Name</li>
-                  <p>
-                  Layer names are editable in the table, these are the names as they will appear in your experiment. By default the filename
-                  is used. 
-                  </p>
-               <li>Presence Attribute</li>
-                  <p>
-                   The Presence Attribute is the field in the shapefile that denotes presence, it has to be a numerical field.
-                   Double clicking on a cell in the Presence Attribute column populates a drop down list with the names of all
-                   the fields in the shapefile, choose the field that holds the presence information.  In the case of GeoTIFF's this field
-                   will be automatically populated with 'pixel', you will not be able to edit it. 
-                  </p>
-               <li>Minimum Presence</li>
-                  <p>
-                   Minimum Presence is the minimum vale of the data in the Presence Absence Attribute field that denotes presence.
-                   If your layers is a GeoTIFF, this value is the pixel value for presence.
-                  </p>
-               <li>Maximum Presence</li>
-                  <p>
-                   Maximum Presence is the maximum value of the data in the Presence Absence Attribute that denotes presence.
-                  </p>
-          
-               <li>Percent Presence</li>
-                  <p>
-                  Percent Presence is the percentage of a cell in your grid that must intersect with a feature or pixels from the 
-                  vector or raster species layer (presence/absence layer) to constitute presence, e.g. 12 in the Percent Presence, 
-                  and 1 in min presence, and 2 max presence means that a cell in the grid must have 12 percent of its area overlapped
-                  with polygons that have 1 >= and <= 2 in its Presence Attribute.
-                  </p>
-            </ul> 
-            <p>
-            3.) After you are finished adding layers and setting their parameters, Click the "Add to Experiment" button underneath 
-            the upload table. A progress bar will indicate the progress of your upload. 
-          
+	       <p>
+	           The Add Layers or Upload presence/absence layers dialog is an upload dialog for
+	           adding presence absence vector (shapefiles only) or raster (GeoTIFF only) layers to your experiment.
+	           Each layer should represent the range or distribution for <b>one</b> species. 
+	           You can upload hundreds or more layers at a time, and the dialog allows you to
+	           easily set parameter on all of the them at the same time.
+	       </p>   
+	       <p><b>Adding new layers to an experiment 
+	           that already as a PAM, i.e. has already been intersected, removes the old PAM from the Lifemapper 
+	           system and reinitializes your experiment, so that you will have to do a new intersect to 
+	           build a new set of PAM's.</b> 
+	       </p>
+	       <p>
+	       1.) First use the 'Browse' button to browse your file system for your layers, the file dialog will automatically filter
+	       on .tif or .shp extensions.  Select as many files as you want in the file dialog.  If all of your 
+	       files are not in one directory you can add files from one directory, add those layers and then click 'Browse' again to 
+	       add more layers from other directories.  You can also remove layers if you mistakenly add layers that you don't like.
+	       Your selected layers will be added to the upload table.
+	       </p>
+	       <p>
+	       2.)  Notice that there are fields that you must fill out for each layer to upload presence absence species layers. 
+	       All cells that have been populated with a value have a right click context menu that allows you set values in column
+	       mode for all the records. One approach is to populate the cells in the first record, and then right click on the set
+	       values and set the column across hundreds of records. The context menu for the column mode allows you to set all cells
+	       in a column, just selected rows, or just records that are empty.  The fields that you must set are as follows:
+	       </p>
+	        <ul>
+	       	   <li>Layer Name</li>
+		       	   <p>
+		       	   Layer names are editable in the table, these are the names as they will appear in your experiment. By default the filename
+	               is used. 
+		       	   </p>
+	       	   <li>Presence Attribute</li>
+	       	      <p>
+	       	       The Presence Attribute is the field in the shapefile that denotes presence, it has to be a numerical field.
+	       	       Double clicking on a cell in the Presence Attribute column populates a drop down list with the names of all
+	       	       the fields in the shapefile, choose the field that holds the presence information.  In the case of GeoTIFF's this field
+	       	       will be automatically populated with 'pixel', you will not be able to edit it. 
+	       	      </p>
+	       	   <li>Minimum Presence</li>
+	       	   	<p>
+	       	       Minimum Presence is the minimum vale of the data in the Presence Absence Attribute field that denotes presence.
+	       	       If your layers is a GeoTIFF, this value is the pixel value for presence.
+	       	      </p>
+	       	   <li>Maximum Presence</li>
+	       	      <p>
+	       	       Maximum Presence is the maximum value of the data in the Presence Absence Attribute that denotes presence.
+	       	      </p>
+	       
+	       	   <li>Percent Presence</li>
+	       	      <p>
+	       	      Percent Presence is the percentage of a cell in your grid that must intersect with a feature or pixels from the 
+	       	      vector or raster species layer (presence/absence layer) to constitute presence, e.g. 12 in the Percent Presence, 
+	       	      and 1 in min presence, and 2 max presence means that a cell in the grid must have 12 percent of its area overlapped
+	       	      with polygons that have 1 >= and <= 2 in its Presence Attribute.
+	       	      </p>
+	       	</ul> 
+	       	<p>
+	       	3.) After you are finished adding layers and setting their parameters, Click the "Add to Experiment" button underneath 
+	       	the upload table. A progress bar will indicate the progress of your upload. 
+	       	
+	    <h2><a name="uploadLayersTrees">Start Experiment with a Phylogenetic Tree and Layers</a></h2>   
+	    	<p>
+	    	 	The Tree/Layers upload dialog allows you to drive a RAD experiment with a phylogenetic tree and species layers for the 
+	    	 	species in the leaves of the tree. 
+	    	<p>
+	      <p>
+	      1.) You will need a Newick tree file, with the '.nhx' file extension. We do not support Nexus currently. Convert Nexus files to Newick. 
+	      </p>
+	      <p>
+	      2.) Make a directory and put species layer files in it and name each file with the exact name of the species name in the leaves of the 
+	      Newick file.
+	      </p>
+	      <p>
+	      3.) Use the browse button to select the Newick file that matches your species layers from your file system. 
+	      </p>
+	      <p>
+	      4.) Once the file path has loaded in the text window, Click the convert button.  This will populate the first column in the layers
+	      table with the species names. 
+         </p>
+         <p>
+         5.) Use the Browse Add Layers button to select the directory where you put your species layers, just choose the directory, not a file.
+         </p>
+         6.) Populate the rest of the data using the same methods described in <a href="#uploadLayers">Add Local Layers</a>
+         </p>
+         <p>
+         7.) Click the Add to Experiment button to finish. Wait for the completion pop up that reports that the layers and tree were uploaded.
+         </p>
+         <p>
+         8.) Once an intersect and calculation are done on the experiment you can link the tree in the tree viewer to a Range Diversity Plot.
+         </p>
+         	    
        <h2><a name="addSDMLayer">Add Lifemapper SDM Layers</a></h2>
    
-          <p>
-              The  Add Lifemapper SDM Layers dialog allows you to browse the <a href="http://Lifemapper.org/signup">Lifemapper</a> Spatial Distribution Models
-              archive an add species distribution layers based on future and present climate scenarios to your LmRAD
-              experiment.  <b>Adding new layers to an experiment that already has a PAM, i.e. has already been intersected, removes
-              the old PAM from the Lifemapper system and reinitializes your experiment, so that you will have to do a new intersect to 
-              build a new set of PAM's.</b>
-          </p>
-          <p>
-          1.) First search for modeled distribution layers using the controls in the "Search for Species" box.  Pick
-          an algorithm code, a climate scenario and then enter a species name (Case Sensitive) in the text box. Next
-          click "Search"  if there are distribution layers in our archive or for your user that match your criterion then the "Search Results"
-          table will be populated with those layers.  Each match will have a record, notice that you can preview
-          the layers by clicking the link in the preview column.  This adds a WMS layer of that layer to your map canvas.
-          </p>
-          <p>
-          2.) When you have a found a layer or layers that you would like to add to your experiment, add them to the 
-          "Layers to add to experiment" table by using the "+" button.  You can remove layers from the "Layers to add
-          to experiment" table by selecting a layer and using the "-" button.  You can continue to search for others layers
-          as many times as you want in the search dialog and continue to add layers to the table.
-          </p>
-          <p>
-          3.) The same parameters must be filled out for each layer in the same way as the <a href="#uploadLayers">Add Local Layers</a> Dialog.
-          These are raster layers in the <a href="http://Lifemapper.org/signup">Lifemapper</a> system, so the "Presence
-          Attribute" field will be set automatically for you.
-          </p>
-          <p>
-          4.) Be sure to set the "Min Presence", "Max Presence" and "% Presence" columns for each layer. You can do 
-          this easily by setting an entire column by right clicking a value and using the right click menu to set
-          all the values in a column, for all layers, all selected layers or empty cells.
-          </p>
-          <p>
-          5.) Click the "Add to Experiment" button to add the layers to your experiment.
-          </p>
-          
-          
+	       <p>
+	           The  Add Lifemapper SDM Layers dialog allows you to browse the <a href="http://Lifemapper.org/signup">Lifemapper</a> Spatial Distribution Models
+	           archive an add species distribution layers based on future and present climate scenarios to your LmRAD
+	           experiment.  <b>Adding new layers to an experiment that already has a PAM, i.e. has already been intersected, removes
+	           the old PAM from the Lifemapper system and reinitializes your experiment, so that you will have to do a new intersect to 
+	           build a new set of PAM's.</b>
+	       </p>
+	       <p>
+	       1.) First search for modeled distribution layers using the controls in the "Search for Species" box.  Pick
+	       an algorithm code, a climate scenario and then enter a species name (Case Sensitive) in the text box. Next
+	       click "Search"  if there are distribution layers in our archive or for your user that match your criterion then the "Search Results"
+	       table will be populated with those layers.  Each match will have a record, notice that you can preview
+	       the layers by clicking the link in the preview column.  This adds a WMS layer of that layer to your map canvas.
+	       </p>
+	       <p>
+	       2.) When you have a found a layer or layers that you would like to add to your experiment, add them to the 
+	       "Layers to add to experiment" table by using the "+" button.  You can remove layers from the "Layers to add
+	       to experiment" table by selecting a layer and using the "-" button.  You can continue to search for others layers
+	       as many times as you want in the search dialog and continue to add layers to the table.
+	       </p>
+	       <p>
+	       3.) The same parameters must be filled out for each layer in the same way as the <a href="#uploadLayers">Add Local Layers</a> Dialog.
+	       These are raster layers in the <a href="http://Lifemapper.org/signup">Lifemapper</a> system, so the "Presence
+	       Attribute" field will be set automatically for you.
+	       </p>
+	       <p>
+	       4.) Be sure to set the "Min Presence", "Max Presence" and "% Presence" columns for each layer. You can do 
+	       this easily by setting an entire column by right clicking a value and using the right click menu to set
+	       all the values in a column, for all layers, all selected layers or empty cells.
+	       </p>
+	       <p>
+	       5.) Click the "Add to Experiment" button to add the layers to your experiment.
+	       </p>
+	       
+	       
        
        <h2><a name="constructGrid">Construct Grid</a></h2>
           <p>
@@ -368,20 +401,20 @@
           from the New Experiment dialog when beginning an experiment or from the <a href="#listgrids">Get Grids</a>
           dialog.
           </p>
-          <p>
-          1.) Start by defining an extent.  The extent can be entered manually using the 'Enter Coords' radio button
-          and filling out the Min X, Min Y, Max X, Max Y coordinate fields in the map units of the projection choosen
-          when you initialized the experiment. A mask can be used to provide the coordinates and will cookie cutter
-          the resulting grid.  To do this choose the 'Use selected feature' radio button, a polygon shapefile must be 
-          present and active in your table of contents, also a single feature must be selected that you wish to use
-          to build your grid. When using a mask the coordinate fields will be automatically populated.
-          </p>
-          <p>
-          2.) Choose a cell shape from the available options.
-          </p>
-          <p>
-          3.) The EPSG Code and Map Units will already be filled out with the projection information provided when 
-          the experiment was initialized. 
+	       <p>
+	       1.) Start by defining an extent.  The extent can be entered manually using the 'Enter Coords' radio button
+	       and filling out the Min X, Min Y, Max X, Max Y coordinate fields in the map units of the projection choosen
+	       when you initialized the experiment. A mask can be used to provide the coordinates and will cookie cutter
+	       the resulting grid.  To do this choose the 'Use selected feature' radio button, a polygon shapefile must be 
+	       present and active in your table of contents, also a single feature must be selected that you wish to use
+	       to build your grid. When using a mask the coordinate fields will be automatically populated.
+	       </p>
+	       <p>
+	       2.) Choose a cell shape from the available options.
+	       </p>
+	       <p>
+	       3.) The EPSG Code and Map Units will already be filled out with the projection information provided when 
+	       the experiment was initialized. 
           </p>
           <p>
           4.) Define a cell size <b>in the map units for your projection</b>.  For hexagons
@@ -398,7 +431,71 @@
           7.) Click 'OK'.  Clicking 'OK' sends a request to the <a href="http://Lifemapper.org">Lifemapper</a> web services to build a grid and enter its
           data into the data base for your user.  A progress bar will indicate the progress of the construction. When it 
           is done the grid will be added to your map as a layer.
-          
+          </p>
+     <h2><a name="tree">Tree Viewer (Phylo View)</a></h2>
+     		<p>
+         Activate this viewer from the "Tree View" button in the <a href="#statistics">Statistics Panel (Dialog)</a>
+     		This viewer allows you to visualize a phylogenetic tree that is attached the PAM based statistics in a 
+     		Range-Diversity Plot for species in the PAM. Each species has several statistics associated with it that
+     		appear as data points in a Range-Diversity Plot. By plotting those statistics against one another, species
+     		communities and their characteristics come into view.
+     		</p>
+     		<p>
+     		1.) A series of controls across the bottom of the tree viewer allow you to do various things with the tree. Start
+     		by loading the tree which is automatically detected for your current experiment, by clicking the "Load Tree" button. 
+     		A partial view of your tree will populate the viewer. Blue nodes denote a collapsed node that has descendent nodes
+     		underneath it. Hollow nodes denote nodes that have been opened. Opening a blude node by clicking on it will select all of its leaf nodes
+     		Leaf nodes where your species in the PAM live will line up to the right of the tree.  Yellow leaf nodes denote that
+     		those species have been selected.  Selected yellow nodes will also appear in a collapsible and dockable navigation
+     		pane on the right of the viewer.  To activate this pane, click the left arrow button on the right hand side of the 
+     		button controls on the bottom of the viewer.  All nodes can be deselected by using the clear selection button.
+     		</p>     
+     		<p>
+     		2.) The navigation pane shows which species you have selected. By clicking and dragging on its title "Selected" you
+     		can undock the navigation pane.  It will also easily redock by dragging it back to its spot on the right hand side of the 
+     		tree viewer.  You can scroll down through the selected species.  Double clicking on a species will navigate the tree to
+     		that species and enlarge the text for the species name in the tree.  The navigation pane can be collapsed by clicking on the right arrow key on 
+     		the far right had side of the control buttons.
+     		</p>
+     		<p>
+     		3.) A drop down hint service is available for searching for species or Genera in the tree.  Just start typing a species
+     		name and auto-complete will populate the drop down with species names.  When you have found a clade you want to select,
+     		click the the "Find Speces" button and that species will be selected in the tree. When selecting species, the tree
+     		will automatically unfold to show the selected species. This is the easiest way to find species and navigate the tree.
+     		</p>
+     		<p>
+     		4.) With a species based Range Diversity plot open, you can brush data points in the plot and those species will be selected
+     		in the phylogenetic tree.  Like-wise you can select species in the tree viewer and they will be selected in the Range-Diversity
+     		plot.  To select species in the tree and have them shown in the plot.  Select species in the tree either through the search drop
+     		down, or by hand, and then click the button "See Leaves in Plot"
+     		</p>
+     		<p>
+     		5.) The stats button on the tree viewer will bring back the statistics panel.
+     		</p>
+     		<p>
+     		6.) When you have a species community selected the Mean Nearest Taxon Distance for all of the species selected is automatically
+     		calculated and that statistics appears in a text box on the left hand side beneath the tree. This calculation requires that you have branch
+     		lengths in the original Newick file that you used to build your experiment. Phylogenetic relatedness of species 
+     		in a community are metrics that compare the phylogenetic distance between species an arbitary set of species in the tree, and
+     		is interesting when those species occur together geographically in a community and tell us about dispersion, competition, and 
+     		community assembly. MNTD, the mean distance separating each species in the community from its closest relative is a common statistic
+     		to measure this relatedness. 
+     		</p>
+     		<p>
+     		7.) The PAM button will download the raw PAM, of presence absences.  Click this button and wait until the progress bar
+     		finishes.  A new layer will appear as the first layer in your Qgis layer list. The layer will be activated.  If you have downloaded
+     		it previously using this button, clicking the button will find it in your layer list and activate it.  The PAM used in this way
+     		can show individual species ranges by using the tree as a selector.  With the PAM downloaded and activated, select species in the 
+     		tree using the methods described above and then go to the "Selected" dockable navigation panel.  Double clicking on a species now
+     		will both pan the tree to that species and show that individual species range in the map.  You may need to give each
+     		species a second or tow to render in the map.  Use this tool to show individual species ranges in the PAM. 
+     		</p>
+     		<p>
+     		8.) A combo box called "choose statistics field to map into ranges" appears to the right of the PAM button.
+     		This functionality will be enabled in version 3.0.0 of the plugin.
+     		</p>
+     		
+      
      <h2><a name="randomizePAM">Randomize PAM</a></h2>  
          <p>
          This dialog helps you to create null models by producing randomized versions of you presence absence matrix. There
@@ -417,56 +514,61 @@
          
        
      <h2><a name="statistics">Statistics</a></h2>
-          
-          <p>
-          1.) The Statistics dialog has a drop down list that is populated when you choose a set of PAMs to view from the radio
-          buttons labeled 'original and randomized PAMs'.  Choose a set of PAMs from the radion buttons, 'All PAMs', 
-          'Swapped PAMs', 'Dye-dispersion PAMs' and then choose 'All' or an individual PAM from the drop down list
-          the radio buttons. This will activate the 'Statistics' radio buttons and drop down list on the right side of the dialog.
-          </p>
-          <p>
-          2.) Choose a type of statistic from the 'Statistics' radio button, 'Site based', 'Species based', or 'Diversity Beta's'.
-          This will populate the drop down list with individual statistics and a choice for all statistics of the type chosen
-          with the radio button.
-          </p>
-          <p> 
-          3.) Once PAMs and statistics are chosen, you can then view them in a table.  If your stats are site-based, the 
-          'Link Plot to Active Lyr' check box becomes enabled. Activate a layer that represents the grid and check this button before generating the table. Then view the table
-          by clicking the 'View in table' button.  Your table will appear 
-          below the controls. If you checked the 'Link Plot' checkbox the table is ready to generate a plot that is connected to a 
-          map.   Choosing a new combination of PAMs or stats will regenerate the table,
-          but to view it you will need to reload the table by clicking 'View in table button'.
-          Once a table is generated, the 'Scatter Plot' button becomes enabled, and if your stats are site-based, the 
-          'Spatially View' button will become enabled. 
-          </p>
-          <p>
-          4.) If you want to view a scatter plot, select two vectors of data, by selecting two columns by clicking once
-          anywhere on the data in the column, hold down the Ctrl key and select another column.  These will be the two
-          data vectors plotted in the scatter plot.  Click the 'Scatter Plot' button and a scatter plot will be generated
-          and shown in a seperate plot dialog. 
+	       
+	       <p>
+	       1.) The Statistics dialog has a drop down list that is populated when you choose a set of PAMs to view from the radio
+	       buttons labeled 'original and randomized PAMs'.  Choose a set of PAMs from the radion buttons, 'All PAMs', 
+	       'Swapped PAMs', 'Dye-dispersion PAMs' and then choose 'All' or an individual PAM from the drop down list
+	       the radio buttons. This will activate the 'Statistics' radio buttons and drop down list on the right side of the dialog.
+	       You will notice that when you use the statistics dialog, a transparent layer is automatically retrieved called 'linked layer'.  If that layer 
+	       already exists in your Qgis project, it will be activated and moved the top of the layer stack.  This is for the linkages described below.
+	       </p>
+	       <p>
+	       2.) Choose a type of statistic from the 'Statistics' radio button, 'Site based', 'Species based', or 'Diversity Beta's'.
+	       This will populate the drop down list with individual statistics and a choice for all statistics of the type chosen
+	       with the radio button.
+	       </p>
+	       <p> 
+	       3.) Once PAMs and statistics are chosen, you can then view them in a table.  View the table by clicking the 'View in table' button.
+	       Your table will appear below the controls. If your statistics are 'Site based' they are automatically connected to map by the 'linked layer'
+	       that is automatically downloaded or selected when you open the statistics dialog (see below on 'Brushing'). Choosing a new combination of PAMs or stats will regenerate the table,
+	       but to view it you will need to reload the table by clicking 'View in table button'. Once a table is generated, the 'Scatter Plot' button becomes 
+	       enabled, and if your stats are site-based, the 'Spatially View' button will become enabled. 
+	       </p>
+	       <p>
+	       4.) If you want to view a scatter plot, select two vectors of data, by selecting two columns by clicking once
+	       anywhere on the data in the column, hold down the Ctrl key and select another column.  These will be the two
+	       data vectors plotted in the scatter plot.  Click the 'Scatter Plot' button and a scatter plot will be generated
+	       and shown in a seperate plot dialog. 
           </p>
           <p>
           5.) Clicking the 'Spatially View' button opens up the <a href="#spatialview">Spatial View</a> Download dialog.
           </p>
           <p>
-          <h3>Brushing Data Points in a Scatter Plot</h3>
-          Data points in a site-based scatter plot can be selected and the corresponding sites shown in a map layer.  You must have a layer
-          that has the sites for the original grid, this layer can be downloaded using the <a href="#spatialview">Spatial View</a> tool,
-          or by going to the <a href="#listgrids">Grids List</a> and retrieving the original grid. To enable data brushing, 1.) Make the sites 
-          grid layer active by selecting it in the QGIS table of contents. 2.) Check the 'Link Plot to Active Lyr' checkbox. 3.) Generate a table.
-          4.) Generate a plot from the table. 5.) Use the select rectangle tool from the plot tool bar, to draw a rectangle around points on the plot,
-          or singly select points, holding down the ctrl button allows you to add to selections.
+          <h3>Brushing Data Points in a Sites Based Scatter Plot</h3>
+          Data points in a site-based scatter plot can be selected and the corresponding sites shown in a map layer called 'linked layer' that is automatically
+          added to your Qgis project when the statistics dialog is opened.
+          Brushing is automatically enabled, use the lasso tool or other select tools to select sites on this layer and they will be highlited
+          in the sites based plot.  Conversly, selecting points in the plot will automatically select them in the 'linked layer'
+          
+          <h3>Brushing Data Points in a Species Based Scatter Plot</h3>
+          Data points in a species-based scatter plot can be selected and corresponding species shown in a phylogenetic tree in the 
+          Tree Viewer.  If you have a tree driven experiment, the "Tree View" button will be enabled.  Click on it to open the viewer.
+          Create a range-diversity plot using the directions above but use species based statistics. After you have loaded the tree
+          in the viewer (see directions for tree viewer <a href="#tree">here</a>), you can brush data points in the plot and see where
+          those species are located phylogenetically.  Other functionality exists in the tree viewer for selecting species and then
+          seeing those species in the plot, and calculating Mean Nearest Taxon Distance of selected species. <a href="#tree">Tree Viewer</a>
           
     <h2><a name="spatialview">Spatially View</a></h2>
-         <p>
-         The Spatially View dialog is essentially a download dialog. This dialog will allow you to download
-         your grid with the site-based statistics attached as attributes in the shapefile. The statistics that
-         will be attached, are listed on the right side of the dialog.  A set of radio buttons allows you
-         to do an auto-classify on a particular statistic on download, but note that you will get all of the
-         statistics as different fields in the shapefile and can reclassify on those data.
-         </p>
-         <p>
-         1.) Select a PAM grid to download.
+    		<p>
+    		The Spatially View dialog is essentially a download dialog. This dialog will allow you to download
+    		your grid with the site-based statistics attached as attributes in the shapefile. The statistics that
+    		will be attached, are listed on the right side of the dialog.  A set of radio buttons allows you
+    		to do an auto-classify on a particular statistic on download, but note that you will get all of the
+    		statistics as different fields in the shapefile and can reclassify on those data.
+    		</p>
+    		<p>
+    		1.) Select a PAM grid to download.
          </p>
          <p>
          2.) Choose a statistic to auto-classify on.
@@ -478,61 +580,61 @@
          
          
     <h2><a name="newSDMExperiment">New Species Distribution Model (SDM) Experiment</a></h2>
-      <p>
-      To start a new SDM experiment, go to the 'Species Distribution Modeling' menu item from the Lifemapper plugin menu
-      and click 'New Experiment'.  If you are currently working on an experiment and start a new one, your current
-      experiment will be saved as a QGIS project, and new QGIS project started.
-      </p>
-      <p>
-      1.) Start by choosing a species point layer set.  These can be uploaded or loaded from your map canvas.  You can also
-      choose a species point layer set from the Lifmapper GBIF archive or use an id for an occurrence set that you have
-      already uploaded to the <a href="http://Lifemapper.org">Lifemapper</a> system.
-      </p>
-      <p>
-      2.) If you choose to upload your own species points or use a layer from your map canvas, click the Upload button.
-      </p>
-      <p>
-      3.) You can also search the Lifemapper GBIF archive for species points and view those points before using.  
-      Start typing a search term (species name) in the "Search Lifemapper species points" text box.
-      </p>
-      <p>
-      4.) Completing a serach or uploading a species point layer will automatically populate the "Lifemapper species point
-      set id" text box with an id. Once it is populated with an id, click the "Get environmental layer sets for this id" button
-      to the right of the id text box.  This will populate the Environmental Layer Set's controls.
-      </p>
-      <p>
-      5.) Choose an environmental layer to build a model with and one or more layer sets to map on.  Or build new ones, using the same
-      process descrbed in the <a href="#buildEnvlayerSet">Build Environmental Layer Set</a> dialog.
-      </p>
-      <p>
-      6.) Choose an algorithm from the algorithm drop down.  Use the advanced tab to set the parameters for the algorithm, this 
-      is optional, default parameters will automatically be used if you do not choose the advanced option.
-      </p>
-    <h2><a name="uploadEnvLayer">Upload Layer</a></h2>   
-      <p>
-      Use this dialog to upload environmental layers (GeoTIFFs) to the <a href="http://Lifemapper.org">Lifemapper</a> system.
-      </p>
-      <p>
-      1.) Fill out the required metadata and point to GEOTIFF on your filesystem.
-      </p>
-      <p>
-      2.) You must provide a type code, this code identifies the layer type, this is user provided.  The drop down
-      will provide you with a list of your typecodes or give you the ability to build a new type code.
-      </p>
+    	<p>
+    	To start a new SDM experiment, go to the 'Species Distribution Modeling' menu item from the Lifemapper plugin menu
+    	and click 'New Experiment'.  If you are currently working on an experiment and start a new one, your current
+    	experiment will be saved as a QGIS project, and new QGIS project started.
+    	</p>
+    	<p>
+    	1.) Start by choosing a species point layer set.  These can be uploaded or loaded from your map canvas.  You can also
+    	choose a species point layer set from the Lifmapper GBIF archive or use an id for an occurrence set that you have
+    	already uploaded to the <a href="http://Lifemapper.org">Lifemapper</a> system.
+    	</p>
+    	<p>
+    	2.) If you choose to upload your own species points or use a layer from your map canvas, click the Upload button.
+    	</p>
+    	<p>
+    	3.) You can also search the Lifemapper GBIF archive for species points and view those points before using.  
+    	Start typing a search term (species name) in the "Search Lifemapper species points" text box.
+    	</p>
+    	<p>
+    	4.) Completing a serach or uploading a species point layer will automatically populate the "Lifemapper species point
+    	set id" text box with an id. Once it is populated with an id, click the "Get environmental layer sets for this id" button
+    	to the right of the id text box.  This will populate the Environmental Layer Set's controls.
+    	</p>
+    	<p>
+    	5.) Choose an environmental layer to build a model with and one or more layer sets to map on.  Or build new ones, using the same
+    	process descrbed in the <a href="#buildEnvlayerSet">Build Environmental Layer Set</a> dialog.
+    	</p>
+    	<p>
+    	6.) Choose an algorithm from the algorithm drop down.  Use the advanced tab to set the parameters for the algorithm, this 
+    	is optional, default parameters will automatically be used if you do not choose the advanced option.
+    	</p>
+    <h2><a name="uploadEnvLayer">Upload Layer</a></h2>	
+    	<p>
+    	Use this dialog to upload environmental layers (GeoTIFFs) to the <a href="http://Lifemapper.org">Lifemapper</a> system.
+    	</p>
+    	<p>
+    	1.) Fill out the required metadata and point to GEOTIFF on your filesystem.
+    	</p>
+    	<p>
+    	2.) You must provide a type code, this code identifies the layer type, this is user provided.  The drop down
+    	will provide you with a list of your typecodes or give you the ability to build a new type code.
+    	</p>
     <h2><a name="listSDMExperiments">List SDM Experiments</a></h2>
-      <p>
-         You can list and access your experiments by clicking 'List Experiments' from the Lifemapper/SDM plugin menu.
-      </p>
-      <p>
-         The listing dialog show details about each of your experiments, like id, EPSG and date modified.  By clicking on Details
-         for an experiment, you can list more detailed metadata about that experiment and access the outputs for that 
-         experiment.
-      </p>
-      <p>
-      1.) Details.  Selecting 'Details' for an experiment, takes you to the experiment metadata dialog from where
-      you can access the data for your species points or the projections from your model run. Selected to view an experiment
-      loads any data layers you may have saved to this experiment, and sets the current experiment which you can directly access from 
-      the activated "Current Experiment" menu item.
+    	<p>
+	      You can list and access your experiments by clicking 'List Experiments' from the Lifemapper/SDM plugin menu.
+	   </p>
+	   <p>
+	   	The listing dialog show details about each of your experiments, like id, EPSG and date modified.  By clicking on Details
+	   	for an experiment, you can list more detailed metadata about that experiment and access the outputs for that 
+	   	experiment.
+	   </p>
+	   <p>
+	   1.) Details.  Selecting 'Details' for an experiment, takes you to the experiment metadata dialog from where
+	   you can access the data for your species points or the projections from your model run. Selected to view an experiment
+	   loads any data layers you may have saved to this experiment, and sets the current experiment which you can directly access from 
+	   the activated "Current Experiment" menu item.
       </p>
       <p>
       2.) Experiment Species Points. From here you can download your species points used in your experiment and view their metadata.
@@ -541,22 +643,22 @@
       3.) Projections.  From here you can download the results of your model as GeoTIFFs.
       </p>
     <h2><a name="buildEnvlayerSet">Build Environmental Layer Set</a></h2>
-      <p>
-         You can use this dialog to build new enviornmental layer sets.  Two types of layer sets can be built, observed or a 'model'
-         layer set that provides the model, and a matching layer set to project or map on.
-      </p>
-      <p>
-      1.) Use the drop down for models to list your existing layer sets, from the drop down you can build a new layer set build the model, or choose a layer set that 
-      already exists which will populate the listing to the right with matching layer sets and the ability to match that layer set with a new one.  
-      </p>
-      <p>
-      2.) From the layer set listing for mapping or projecting you can choose to match the current layer set chosen in the drop down.
-      </p>
-      <p>
-      3.) You can only build layer sets from environmental layers that you have uploaded to the <a href="http://Lifemapper.org">Lifemapper</a> system through the <a href="#uploadEnvLayer">Upload Environmental
-      Layer</a> menu item from the Lifemapper plugin.
-      </p>
-   <h2><a name="newTypeCode">Create New Type Code</a></h2>
+	   <p>
+	   	You can use this dialog to build new enviornmental layer sets.  Two types of layer sets can be built, observed or a 'model'
+	   	layer set that provides the model, and a matching layer set to project or map on.
+	   </p>
+	   <p>
+	   1.) Use the drop down for models to list your existing layer sets, from the drop down you can build a new layer set build the model, or choose a layer set that 
+	   already exists which will populate the listing to the right with matching layer sets and the ability to match that layer set with a new one.  
+	   </p>
+	   <p>
+		2.) From the layer set listing for mapping or projecting you can choose to match the current layer set chosen in the drop down.
+	   </p>
+	   <p>
+	   3.) You can only build layer sets from environmental layers that you have uploaded to the <a href="http://Lifemapper.org">Lifemapper</a> system through the <a href="#uploadEnvLayer">Upload Environmental
+	   Layer</a> menu item from the Lifemapper plugin.
+	   </p>
+	<h2><a name="newTypeCode">Create New Type Code</a></h2>
       <p>
       Use this dialog to create a new type code.  A type code is an indentifier for an environmental layer
       that helps you to match it with layer sets to map a model onto.
@@ -577,7 +679,7 @@
     3.) You can add or subtract layers for your layer set, using the "+" and "-" buttons to the right of the layer.
     </p>
     <h2><a name="postProjScen">Upload New Matching Scenario to map on</a></h2>  
-    <p>
+	 <p>
       Use this dialog to build a new matching environmental layer set to map the model onto. This dialog
       matches the layers in the layer set chosen in the drop down for model layer sets.
     </p>

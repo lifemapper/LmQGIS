@@ -33,7 +33,7 @@ from qgis.core import *
 from lifemapperTools.tools.ui_newUserDialog import Ui_Dialog
 from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.common.pluginconstants import NewUser
-#from lifemapperTools.common.lmClientLib import LMClient
+#from LmClient.lmClientLib import LMClient
 
 # .............................................................................
 

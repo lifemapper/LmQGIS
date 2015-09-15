@@ -24,10 +24,13 @@
           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
           02110-1301, USA.
 """
+# 
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
-import os.path, sys
+import os, sys
+from urllib2 import HTTPError
+from lifemapperTools.tools.browseOccProviders import BrowseOccProviderDock
 from lifemapperTools.tools.signIn import SignInDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
@@ -41,13 +44,15 @@ from lifemapperTools.tools.spatialStats import SpatialStatsDialog
 from lifemapperTools.tools.listSDMExperiments import  ListSDMExpDialog
 from lifemapperTools.tools.ui_listBuildScenariosDialog import ListBuildScenariosDialog
 from lifemapperTools.tools.ui_postEnvLayer import PostEnvLayerDialog
-from lifemapperTools.common.lmClientLib import LMClient
+from lifemapperTools.tools.uploadTreeOTL import UploadTreeDialog
+from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.communicate import Communicate
-from lifemapperTools.common.pluginconstants import QGISProject, JobStage,\
-                                         JobStatus, STAGELOOKUP,STAGEREVLOOKUP, \
+from lifemapperTools.common.pluginconstants import QGISProject,\
+                                          STAGELOOKUP,STAGEREVLOOKUP, \
                                          STATUSLOOKUP, STATUSREVLOOKUP, PER_PAGE
-
+from LmCommon.common.lmconstants import JobStage, JobStatus
+from LmClient.lmClientLib import LMClient
 
 
 class MetoolsPlugin:
@@ -59,7 +64,10 @@ class MetoolsPlugin:
       #QObject.__init__(self)
       #self.communicate = Communicate()    
       self.iface = iface
-      
+      self.expRADEPSG = None
+      self.expRADmapUnits = None
+      self.expRADexpId = None
+      self.pamSumDialog = None
       
    def initGui(self):
       self.signInDialog = None
@@ -79,7 +87,7 @@ class MetoolsPlugin:
       self.radMenu.setEnabled(False)
       self.sdmMenu.setEnabled(False)
       self.radMenu.addActions([self.newExperimentItem, self.ResumeItem])
-      self.sdmMenu.addActions([self.postSDMExpItem,self.postEnvLayerSetItem,self.listSDMExpsItem])
+      self.sdmMenu.addActions([self.postSDMExpItem,self.postEnvLayerSetItem,self.listSDMExpsItem]) #,probably not here, #self.browseOccSetItem
       
       
       self.menu.addActions([self.signInItem, self.signOutItem,self.changeWSAction])
@@ -88,6 +96,16 @@ class MetoolsPlugin:
       self.menu.insertAction(self.signOutItem,self.uploadEnvlayerAction)
       self.menu.insertAction(self.signOutItem,self.changeWSAction)
       
+      
+      ###########   Browse Occ Sets #################
+      self.iface.addToolBarIcon(self.browseIconAction)
+      #self.occSetBrowseDock = QDockWidget("Lifemapper Occurrence Sets")
+      self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)
+      #self.occSetBrowseDock.setObjectName("occDock")
+      
+      self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.occSetBrowseDock)
+      self.occSetBrowseDock.hide()
+      ###############################################
     
       menu_bar = self.iface.mainWindow().menuBar()
       actions = menu_bar.actions()
@@ -95,17 +113,16 @@ class MetoolsPlugin:
       menu_bar.insertMenu( lastAction, self.menu )
       
       
-      #Communicate.activateSDMExp.connect(self.currentSDMExperiment)
+      self.activeLayer = None
+      
       
       Communicate.instance().activateSDMExp.connect(self.currentSDMExperiment)
       Communicate.instance().activateRADExp.connect(self.currentExperiment)
       Communicate.instance().activateGrid.connect(self.currentGrid)
-      #QObject.connect(QgsProject.instance(),SIGNAL("ActivateSDMExp(PyQt_PyObject)"),self.currentSDMExperiment)
-      #QObject.connect(QgsProject.instance(),SIGNAL("ActivateExp(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.currentExperiment)
-      #QObject.connect(QgsProject.instance(),SIGNAL("ActivateGrid(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),self.currentGrid)
+      Communicate.instance().setPamSumExist.connect(self.setPamSumDialog)
       
-# ..............................................................................
 
+      
    def _initChangeWSAction(self):
       self.changeWSAction = QAction( QCoreApplication.translate("lifemapperTools", "Change Workspace"),self.iface.mainWindow())
       #QObject.connect(self.changeWSAction, SIGNAL("triggered()"), self.changeWS)
@@ -117,13 +134,21 @@ class MetoolsPlugin:
       self.postSDMExpItem = QAction( QCoreApplication.translate("lifemapperTools", "New Experiment"),self.iface.mainWindow())
       self.postEnvLayerSetItem = QAction( QCoreApplication.translate("lifemapperTools", "Build Environmental Layer Set"),self.iface.mainWindow())
       self.listSDMExpsItem = QAction( QCoreApplication.translate("lifemapperTools", "List Experiments"),self.iface.mainWindow())
-      # connect SDM actions
-      #QObject.connect(self.postSDMExpItem, SIGNAL("triggered()"), self.postSDMExp)
-      #QObject.connect(self.postEnvLayerSetItem, SIGNAL("triggered()"), self.postEnvLayerSet)
-      #QObject.connect(self.listSDMExpsItem, SIGNAL("triggered()"), self.listSDMExp)
+      
+      # connect SDM actions      
+      
       self.postSDMExpItem.triggered.connect(self.postSDMExp)
       self.postEnvLayerSetItem.triggered.connect(self.postEnvLayerSet)
       self.listSDMExpsItem.triggered.connect(self.listSDMExp)
+      
+      # Browse Occurrence Set Action for Icon  ################333
+      self.browseIconAction = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"), \
+            "Browse Occurrence Sets", self.iface.mainWindow())
+      #self.browseIconAction.triggered.connect(self.showHideBrowseDock)
+      ##################################################################
+      #   for the menu item for browse dock
+      #   self.browseOccSetItem = QAction(QCoreApplication.translate("lifemapperTools","Browse Occurrence Providers"),self.iface.mainWindow()) 
+      ##  self.browseOccSetItem.triggered.connect(self.browseOccProv)
       
    def _initUploadEnvLayerAction(self):
       self.uploadEnvlayerAction =  QAction( QCoreApplication.translate("lifemapperTools", "Upload Layer"),self.iface.mainWindow()) 
@@ -182,7 +207,16 @@ class MetoolsPlugin:
                self.postEnvLayersDialog = ListBuildScenariosDialog( self.iface, 
                                                      client = self.signInDialog.client)  
                self.postEnvLayersDialog.exec_()
-# ..............................................................................            
+# ..............................................................................           
+#   def showHideBrowseDock(self):
+#      
+#      if self.occSetBrowseDock.isVisible():
+#         self.occSetBrowseDock.hide()
+#      else:
+#         self.occSetBrowseDock.show()
+      
+      
+# ..............................................................................
          
    def postSDMExp(self):
       if self.signInDialog is not None:
@@ -205,8 +239,12 @@ class MetoolsPlugin:
          self.listSDMExpsDialog = ListSDMExpDialog(self.iface,
                                                    client=self.signInDialog.client)
          self.listSDMExpsDialog.exec_()
+# .............................................................................
+   def setPamSumDialog(self,pamsumDialog):
+      
+      self.pamSumDialog = pamsumDialog
 # ..............................................................................        
-   def currentGrid(self, expId, bucketId, stage, status):
+   def currentGrid(self, expId, bucketId, stage, status, expEPSG, gridName, shpGrd):
       
       self.bucketMenu = QMenu(QCoreApplication.translate( "lifemapperTools", "Current Grid" ) )
       
@@ -216,7 +254,7 @@ class MetoolsPlugin:
       
       self.plotstablesAction = QAction( QCoreApplication.translate("lifemapperTools", "Plots and Tables"),self.iface.mainWindow())
       #QObject.connect(self.plotstablesAction, SIGNAL("triggered()"), lambda :self.openStats(expId,bucketId))
-      self.plotstablesAction.triggered.connect(lambda: self.openStats(expId, bucketId))
+      self.plotstablesAction.triggered.connect(lambda: self.openStats(expId, bucketId, expEPSG, gridName, shpGrd))
       self.statsMenu.addAction(self.plotstablesAction)
   
       
@@ -229,16 +267,23 @@ class MetoolsPlugin:
       self.radMenu.addMenu(self.bucketMenu)
       
 # ..............................................................................     
-   def openStats(self,expId, bucketId):
-      inputs = {'expId':expId,'bucketId':bucketId}
-      if str(self.retrieveCurrentExpId()) != str(expId):
-         projPath = self._retrieveRADExpProjPath(expId)
+   def openStats(self,expId, bucketId, expEPSG, gridName, shpGrd):
+      
+      if self.pamSumDialog is None:
+         inputs = {'expId':expId,'bucketId':bucketId}
+         if str(self.retrieveCurrentExpId()) != str(expId):
+            projPath = self._retrieveRADExpProjPath(expId)
+         else:
+            projPath = False
+         self.PamSumStats = PamSumsStatsDialog(self.iface,
+                                                 inputs=inputs,
+                                                 client=self.signInDialog.client,resume=projPath,
+                                                 expEPSG=expEPSG, gridName=gridName, shpGrd = shpGrd)
+         self.PamSumStats.exec_()
       else:
-         projPath = False
-      self.PamSumStats = PamSumsStatsDialog(self.iface,
-                                              inputs=inputs,
-                                              client=self.signInDialog.client,resume=projPath)
-      self.PamSumStats.exec_()
+         if not self.pamSumDialog.isVisible():
+            self.pamSumDialog.checkShowLinked = True
+            self.pamSumDialog.show()
 # ..............................................................................        
    def openSpatialStats(self,expId, bucketId):  
       inputs = {'expId':expId,'bucketId':bucketId}
@@ -269,6 +314,9 @@ class MetoolsPlugin:
          self.resumeSDMExpDialog.exec_()
 # ..............................................................................          
    def currentExperiment(self, expId, expEPSG, mapunits):
+      
+     
+      
       self.bucketMenu = None
       self.experimentMenu = QMenu(QCoreApplication.translate( "lifemapperTools", "Current Experiment" ) )
        
@@ -279,6 +327,10 @@ class MetoolsPlugin:
       #QObject.connect(self.listBucketsAction, SIGNAL("triggered()"),lambda :self.resumeBuckets(expId, expEPSG, mapunits)) 
       self.listBucketsAction.triggered.connect(lambda :self.resumeBuckets(expId, expEPSG, mapunits))
       self.experimentMenu.addAction(self.listBucketsAction)
+      
+      self.constructGridAction = QAction( QCoreApplication.translate("lifemapperTools", "Construct Grid"),self.iface.mainWindow())
+      self.constructGridAction.triggered.connect(lambda: self.constructGrid(expId,expEPSG,mapunits))
+      self.experimentMenu.addAction(self.constructGridAction)
       
       # list presence absence layers action
       self.listPALayersAction = QAction( QCoreApplication.translate("lifemapperTools", "List Species Layers"),self.iface.mainWindow()) 
@@ -300,14 +352,50 @@ class MetoolsPlugin:
       self.addSDMLayersAction.triggered.connect(lambda :self.addSDMLayers(expId, expEPSG, mapunits))
       self.experimentMenu.addAction(self.addSDMLayersAction)
       
-      # get env layers, and add env layers
+      
+      self.addPhyloAction = QAction( QCoreApplication.translate("lifemapperTools", "Add Phylogeny"),self.iface.mainWindow())
+      self.addPhyloAction.triggered.connect(lambda: self.addPhylogeny(expId, expEPSG, mapunits))
+      self.experimentMenu.addAction(self.addPhyloAction)
+      
+      
       
       #self.menu.insertMenu(self.newExperimentItem,self.experimentMenu)
       self.radMenu.addSeparator()
       self.radMenu.addMenu(self.experimentMenu)
 
+# ..............................................................................
 
- # ..............................................................................    
+   def addPhylogeny(self,currentExpId, expEPSG, mapunits):
+      if self.signInDialog.client is not None:
+         if str(self.retrieveCurrentExpId()) != str(currentExpId):
+            projPath = self._retrieveRADExpProjPath(currentExpId)
+         else:
+            projPath = False
+         try:
+            items = self.signInDialog.client.rad.getPALayers(currentExpId)
+         except:
+            items = None
+            message = "There is a problem with the layer listing service"
+            msgBox = QMessageBox.information(QWidget(),
+                                             "Problem...",
+                                             message,
+                                             QMessageBox.Ok)
+         else:
+            if len(items) != 0:
+               message = "You already have layers in this experiment. You must begin an experiment with trees and their layers"
+               msgBox = QMessageBox.information(QWidget(),
+                                             "Problem...",
+                                             message,
+                                             QMessageBox.Ok)
+            else:
+               self.addPhyloDialog = UploadTreeDialog(self.iface,
+                                                inputs = {'expId':currentExpId},
+                                                client = self.signInDialog.client, 
+                                                epsg = expEPSG,experimentname=str(currentExpId),
+                                                mapunits=mapunits,resume=projPath)
+               self.addPhyloDialog.exec_()
+
+# ..............................................................................    
    def addSDMLayers(self,currentExpId, expEPSG, mapunits):
       if self.signInDialog.client is not None:
          if str(self.retrieveCurrentExpId()) != str(currentExpId):
@@ -336,7 +424,22 @@ class MetoolsPlugin:
                                     mapunits=mapunits,resume=projPath) 
          self.addPALayersDialog.exec_()
       
-      
+# .............................................................................
+   def constructGrid(self, currentExpId, expEPSG, mapunits):
+      if self.signInDialog.client is not None:
+         if str(self.retrieveCurrentExpId()) != str(currentExpId):
+            projPath = self._retrieveRADExpProjPath(currentExpId)
+         else:
+            projPath = False
+         # need to deal with resume   
+         self.constructGridDialog = ConstructGridDialog( self.iface, 
+                                                         inputs = {'expId':currentExpId},
+                                                         mapunits=mapunits,
+                                                         epsg=expEPSG,
+                                                         client = self.signInDialog.client,
+                                                         resume=projPath)
+         self.constructGridDialog.setModal(False)
+         self.constructGridDialog.show()
 # ..............................................................................        
    def resumePALayers(self,currentExpId, expEPSG, mapunits):
       if self.signInDialog.client is not None:
@@ -358,17 +461,34 @@ class MetoolsPlugin:
             projPath = self._retrieveRADExpProjPath(currentExpId)
          else:
             projPath = False
-         self.listBuckets = ListBucketsDialog(self.iface,
+         gridCount = self._getRADGridCount(currentExpId)
+         if not(isinstance(gridCount, HTTPError)):
+            if gridCount > 0:
+               self.listBuckets = ListBucketsDialog(self.iface,
                                               inputs={'expId':currentExpId},
                                               client=self.signInDialog.client,
                                               epsg=expEPSG, 
                                               mapunits=mapunits,resume=projPath)
-         self.listBuckets.exec_()
+               self.listBuckets.exec_()
+            else:
+               message = "There are no Grids for this experiment, use Construct Grid from the menu"
+               msgBox = QMessageBox.information(QWidget(),
+                                             "Info...",
+                                             message,
+                                             QMessageBox.Ok)
+         else:
+            message = "There is a problem with Grid Count"
+            msgBox = QMessageBox.information(QWidget(),
+                                             "Info...",
+                                             message,
+                                             QMessageBox.Ok)
 # ..............................................................................        
    def signOut(self):
+      
       s = QSettings()
       self.checkExperiments()
-      self.signInDialog.client.logout()   
+      user = self.signInDialog.client._cl.userId
+      del self.signInDialog.client
       self.signInItem.setEnabled(True)
       self.ResumeItem.setEnabled(False)
       self.newExperimentItem.setEnabled(False)
@@ -391,7 +511,7 @@ class MetoolsPlugin:
       QgsProject.instance().writeProject.disconnect(self.onSaveSaveAs)
       self.iface.projectRead.disconnect(self.onReadProject)
       
-      user = self.signInDialog.client._cl.userId
+      
       s.remove("currentExpID")
       s.remove("currentUser")
       message = "User %s is signed out of the Lifemapper system" % (user) 
@@ -452,7 +572,11 @@ class MetoolsPlugin:
 
 # ..............................................................................          
    def unload(self):
-      # called when quiting Qgis
+      # called when quiting Qgis, need this to set the object name and so save state 
+      # on shutdown, however...
+      #if self.occSetBrowseDock.isVisible():
+      #   self.occSetBrowseDock.showHideBrowseDock()
+         
       s = QSettings()
       currentExpId = self.retrieveCurrentExpId()
       if currentExpId != QGISProject.NOEXPID and currentExpId != '':
@@ -493,6 +617,16 @@ class MetoolsPlugin:
                #project = QgsProject.instance()
                #filename = str(project.fileName())
                #s.setValue("RADExpProj_"+str(currentExpId), filename)
+               
+# .............................................................................
+   def _getRADGridCount(self, expId):
+      if self.signInDialog.client is not None:
+         try:      
+            count = self.signInDialog.client.rad.countBuckets(expId)
+         except HTTPError,e :
+            count = e
+         return count
+            
 # ..............................................................................         
    def _getRADExps(self):
       if self.signInDialog.client is not None:
@@ -555,4 +689,4 @@ class MetoolsPlugin:
       else:
          print "no client"
          
-      
+ 

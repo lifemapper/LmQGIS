@@ -27,22 +27,28 @@
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import QObject
 from PyQt4.QtGui import QDialog
+from qgis.core import QgsVectorLayer
+from LmCommon.common.lmAttObject import LmAttObj 
 import numpy
  
 # in somemodule.py
 _instance = None 
 class Communicate(QObject):
    
+   setPamSumExist = pyqtSignal(QDialog)
+   
    activateSDMExp = pyqtSignal(str)
    activateRADExp = pyqtSignal(int,str,str)
-   activateGrid = pyqtSignal(int,int,int,int)
+   activateGrid = pyqtSignal(int,int,int,int,str,str,LmAttObj)
    
-   postScenarioFailed = pyqtSignal(bool)
-   postedScenario = pyqtSignal(str,bool)
+   postScenarioFailed  = pyqtSignal(bool)
+   postedScenario      = pyqtSignal(str,bool)
    postedOccurrenceSet = pyqtSignal(str,str,int)
    
-   RADSitesSelected = pyqtSignal(numpy.ndarray,list,bool)
-   RADSpeciesSelected = pyqtSignal(numpy.ndarray,list,bool)
+   
+   RADSpsSelectedFromTree = pyqtSignal(list)
+   RADSpsSelectFromPlot = pyqtSignal(list,list,list,bool)
+   
    
    def __init__(self):
       super(Communicate, self).__init__()

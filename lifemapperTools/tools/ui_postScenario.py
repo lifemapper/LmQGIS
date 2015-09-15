@@ -21,7 +21,7 @@
           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
           02110-1301, USA.
 """
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.common.communicate import Communicate
 from PyQt4 import QtCore, QtGui
 from qgis.core import *
@@ -440,8 +440,8 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
             epsgCode = str(self.epsgCodeEdit.text())
             unitsIdx = self.selectUnits.currentIndex()
             units = str(self.selectUnits.itemData(unitsIdx, role=QtCore.Qt.UserRole))
-            scenarioTitle = str(self.scenarioTitle.text())
-            scenarioCode = str(self.scenarioName.text())
+            scenarioTitle = self.scenarioTitle.text()
+            scenarioCode = self.scenarioName.text()
             layerIds = []
             progress = 0
             for layer in self.actualRows:
@@ -514,7 +514,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
          toolTip = "No Info"
       return toolTip       
 # ..............................................................................
-   def populateLayerCombo(self,index, typeCodeEdit, layerNameEdit):
+   def populateLayerCombo(self, index, typeCodeEdit, layerNameEdit):
       """
       @summary: populates a layer combobox for a row or layer
       @param index: QIndex object from the type code combobox
@@ -553,7 +553,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       layers = []
       try:
          userLayers = self.client.sdm.listLayers(public=False,typeCode=typeCode,
-                                                 epsgCode=epsgCode,fullObjects=getFull)
+                                                 epsgCode=epsgCode,fullObjects=getFull)         
       except Exception, e:
          layers = None
       else:
@@ -714,8 +714,8 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       valid = True
       self.actualRows = list(self.layerRows)
       # check for layer set name, and epsg
-      layerSetName = str(self.scenarioName.text())
-      layerSetTitle = str(self.scenarioTitle.text())
+      layerSetName = self.scenarioName.text()
+      layerSetTitle = self.scenarioTitle.text()
       epsgCode = str(self.epsgCodeEdit.text())
       #if self.postAsLayerSet:
       if len(layerSetName) == 0:
@@ -919,7 +919,7 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='blank', pwd='blank')
+   client =  LMClient(userId='', pwd='')
    qApp = QtGui.QApplication(sys.argv)
    #d = PostScenarioDialog(match=True,scenarioId=204,client=client)
    d = PostScenarioDialog(client=client)

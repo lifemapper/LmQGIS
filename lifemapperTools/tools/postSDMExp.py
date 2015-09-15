@@ -1,3 +1,4 @@
+ # -*- coding: utf-8 -*-
 """
 /***************************************************************************
  MacroEcoDialog
@@ -43,19 +44,40 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from qgis.core import *
 from qgis.gui import *
-from lifemapperTools.common.lmClientLib import LMClient
 from lifemapperTools.common.workspace import Workspace
+from lifemapperTools.tools.ui_postEnvLayer import PostEnvLayerDialog
 from lifemapperTools.tools.ui_postSDMExp import Ui_Dialog
 from lifemapperTools.tools.postOccSet import UploadOccSetDialog
 from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.tools.ui_postScenario import PostScenarioDialog
 from lifemapperTools.common.communicate import Communicate
-from lifemapperTools.common.pluginconstants import GridConstructor,\
-                                         ZIP_EXTENSION, RASTER_EXTENSION,\
-                                         SHAPEFILE_EXTENSION, QGISProject,GENERIC_REQUEST
+from LmCommon.common.lmconstants import MASK_TYPECODE
+from lifemapperTools.common.pluginconstants import  QGISProject,GENERIC_REQUEST
 
 
 # .............................................................................
+
+def toUnicode(value, encoding='utf-8'):
+   """
+   @summary: Encodes a value for a element's text
+   @param value: The object to make text
+   @param encoding: (optional) The encoding of the text
+   @todo: Encoding should be a constant
+   """
+   if isinstance(value, basestring):
+      if not isinstance(value, unicode):
+         value = unicode(value, encoding)
+   else:
+      value = unicode(str(value), encoding)
+   return value
+      
+def fromUnicode(uItem, encoding="utf-8"):
+   """
+   @summary: Converts a unicode string to text for display
+   @param uItem: A unicode object
+   @param encoding: (optional) The encoding to use
+   """
+   return uItem.encode("utf-8")
 
 class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
    
@@ -91,7 +113,9 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       self.occIdText.installEventFilter(self.userEnters)
       # build initial models and delegates
       self.scenProjListModel = LmListModel([], self)
-      self.scenModelListModel = LmListModel([],self,model=True)
+      self.scenModelListModel = LmListModel([],self, model=True)
+      self.maskListModel = LmListModel([],self)
+      #####################################
       self.projDelegate = SDMDelegate()
       self.modelDelegate = SDMDelegate()
       # set models and delegates for projections 
@@ -99,22 +123,14 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       self.modelScenCombo.setModel(self.scenModelListModel)
       self.projectionScenListView.setItemDelegateForRow(0,self.projDelegate)     
       self.modelScenCombo.setItemDelegate(self.modelDelegate)
+      self.modelMaskCombo.setModel(self.maskListModel)
+      self.projectionMaskCombo.setModel(self.maskListModel)
       
       
       _Controller.__init__(self, iface, cancel_close=self.rejectBut,okayButton=self.acceptBut,
                            initializeWithData=False, client=client)
       
-      #QObject.connect(QgsProject.instance(),
-      #                SIGNAL("PostScenarioFailed(PyQt_PyObject)"),
-      #                self.setModelCombo)
-      #
-      #QObject.connect(QgsProject.instance(),
-      #                SIGNAL("PostedScenario(PyQt_PyObject,PyQt_PyObject)"),
-      #                self.refreshScenarios)
-      #
-      #QObject.connect(QgsProject.instance(),
-      #                SIGNAL("PostedOccurrenceSet(PyQt_PyObject,PyQt_PyObject,PyQt_PyObject)"),
-      #                self.setExpValues)
+     
       
       Communicate.instance().postScenarioFailed.connect(self.setModelCombo)
       Communicate.instance().postedScenario.connect(self.refreshScenarios)
@@ -124,7 +140,45 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       self.populateAlgoCombo()
       if iface is not None:
          self.checkExperiments()
-
+# .....................................................................................
+   def uploadNewMask(self):
+      # need to be able to set epsg from occ set in upload dialog, and check layer 
+      # that the user tries to upload for epsg
+      if self.epsgCode is not None:
+         self.uploadEnvLayerDialog = PostEnvLayerDialog(interface=self.interface,
+                                                     client=self.client,parent=self,
+                                                     epsgCode=self.epsgCode,fromMaskinSDM=True)
+         self.uploadEnvLayerDialog.exec_()
+# .....................................................................................   
+   def getMaskLayers(self,typeCode=None,epsgCode=None,getFull=False):
+      """
+      @summary: gets a list of layer atoms
+      @param typeCode: typeCode string to filter on from typeCode combo
+      @param epsgCode: epsgCode [integer] to filter on
+      @return: list of tuples (title, id)
+      """
+      layers = []
+      try:
+         userMaskLyrs = self.client.sdm.listLayers(public=False,typeCode=typeCode,
+                                                 epsgCode=epsgCode,fullObjects=getFull)         
+      except Exception, e:
+         print "EXCEPTION IN GET MASKS ",str(e)
+      else:
+         if len(userMaskLyrs) > 0:
+            for lyr in userMaskLyrs:
+               layers.append(MaskSearchResult(lyr.name,lyr.id))
+            self.maskListModel.updateList(layers)
+         self.maskGroup.setEnabled(True)
+# .....................................................................................
+   def setCombosToNewMask(self,newLyrName,id):
+      
+      
+      data = list(self.maskListModel.listData)
+      data.append(MaskSearchResult(newLyrName,id))
+      self.maskListModel.updateList(data)
+      self.modelMaskCombo.setCurrentIndex(self.modelMaskCombo.findText(newLyrName))
+      self.projectionMaskCombo.setCurrentIndex(self.modelMaskCombo.findText(newLyrName))
+      
 # ......................................................................................    
    def refreshScenarios(self,postedScenId,match):  
    
@@ -240,9 +294,6 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       if len(expName) == 0:
          message = "You must provide an experiment name"
          valid = False
-      if len(prjScns) <= 0:
-         message = "You must provide at least one scenario to project on"
-         valid = False 
       if len(occSetId) <= 0:
          message = "You must provide an occurrence set id"
          valid = False
@@ -254,8 +305,22 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          valid = False
       else:
          self.setParamsOnAlgCopy()
+         if self.algSubWindow:
+            if self.algSubWindow.continueWithoutProj:
+               self.projectionScenListView.clearSelection()
+               prjScns = []
+            else:
+               if len(prjScns) <= 0:
+                  message = "You must provide at least one scenario to project on"
+                  valid = False 
+         else:
+            if len(prjScns) <= 0:
+               message = "You must provide at least one scenario to project on"
+               valid = False       
+      
       if valid: 
          postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email,'name':expName,'description':desc}
+         
          #postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email}
          self.startThread(GENERIC_REQUEST,outputfunc = self.newExperimentCallBack, 
                           requestfunc=self.client.sdm.postExperiment, client=self.client,
@@ -291,6 +356,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       self.modelScenCombo.setCurrentIndex(0)
       self.modelScenCombo.setEnabled(False)
       self.projectionScenListView.setEnabled(False)
+      self.maskGroup.setEnabled(False)
       
    
 # ......................................................................................    
@@ -310,6 +376,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       self.epsgCode = None
       self.modelScenCombo.setEnabled(False)
       self.projectionScenListView.setEnabled(False)
+      self.maskGroup.setEnabled(False)
       # enable upload button
       self.uploadOccBut.setEnabled(True)
       # reset algCodeCombo
@@ -322,7 +389,15 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       
       self.modelScenCombo.setCurrentIndex(0)
 # ......................................................................................       
-
+   def populateAlgoDesc(self):
+      
+      
+      self.algoDesc.clear()
+      if self.algCodeCombo.currentIndex() != 0:
+         code = self.getAlgoCode()
+         algObj = self.client.sdm.getAlgorithmFromCode(code)
+         self.algoDesc.insertPlainText(algObj.description)
+# .......................................................................................      
       
    def setParamsOnAlgCopy(self):
       """
@@ -331,8 +406,10 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       """
       if self.algSubWindow is not None:
          for lineEdit,param in zip(self.algSubWindow.algParamLineEdits,self.algSubWindow.algParams):
+            #print param.name," ",param.value
             value = lineEdit.text()
             param.value = value
+            #print param.name," ",param.value
          self.algCopy = self.algSubWindow.algCopy
       else:     
          code = self.getAlgoCode()
@@ -428,8 +505,10 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          if e == '.shp':
             shapename = name
          z.extract(name,str(zippath))
-      vectorpath = os.path.join(zippath,shapename)
-      vectorLayer = QgsVectorLayer(vectorpath,shapename.replace('.shp',''),'ogr')
+      print "HERE"
+      vectorpath = os.path.join(zippath,toUnicode(shapename))
+      print "VECTOR PATH ",vectorpath
+      vectorLayer = QgsVectorLayer(vectorpath,toUnicode(shapename.replace('.shp','')),'ogr')
       warningname = shapename    
       if not vectorLayer.isValid():
          QMessageBox.warning(self,"status: ",
@@ -444,31 +523,52 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
 # ..............................................................................
    def downloadLayer(self):
+      
+      # right here, maybe?
+      #self.occSetCombo.model
+      
       occSetId = self.occIdText.text()
       if occSetId != '':
          #filename = self.openFileDialog(occSetId)
          occFolder = self.workspace.getOccSetFolder()
          if not occFolder:
             occFolder = self.workspace.createOccFolder()
-         zipName = str(occSetId)
+         zipName = "%s.%s" % (str(occSetId),"zip")
          filename = os.path.join(occFolder,zipName)
          if filename != '':
             try:
+               #print filename
                self.client.sdm.getOccurrenceSetShapefile(occSetId,filename)
-            except:
+            except Exception, e:
+               message = str(e)
+               #print message
                QMessageBox.warning(self,"Error: ",
               "Problem with the shapefile service") 
             else:
-               self.addToCanvas(filename)
+               try:
+                  self.addToCanvas(filename)
+               except:
+                  pass
 # ..............................................................................      
-   def setPreviewDownloadText(self, id):
+   def setPreviewDownloadText(self, displayName):
       
       if id == '':
          self.download.setEnabled(False)
          self.download.setToolTip("optional: Load Data from search")
       else:
          self.download.setEnabled(True)
-         self.download.setToolTip("optional: Load Data for %s" % (str(id)))
+         self.download.setToolTip("optional: Load Data for %s" % (displayName))
+# .............................................................................         
+   def getIdxFromTuples(self,currentText):
+      
+      idx = 0
+      # sO search result Object
+      for sH in self.namedTuples:
+         if sH.name.lower() in currentText.lower():
+            break
+         idx += 1
+      return idx
+
 # ..............................................................................
    def onTextChange(self, text):
       #print text
@@ -482,13 +582,14 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          self.occIdText.setText('')
          self.epsgCode = None
          self.clearScenarios()
-         #self.modelScenCombo.setEnabled(False)
-         #self.projectionScenListView.setEnabled(False)
+         
       if noChars >= 3:
-         if 'points' in text or "(" in text:
-            currentIdx = self.occSetCombo.currentIndex()
-            if currentIdx == -1:
-               self.occSetCombo.setCurrentIndex(0) 
+         if  "points)" in text:
+           
+            currText = self.occSetCombo.currentText()
+            idx = self.getIdxFromTuples(currText)
+             
+            self.occSetCombo.setCurrentIndex(idx) 
             currentIdx = self.occSetCombo.currentIndex()                       
             occurrenceSetId = self.occListModel.listData[currentIdx].occurrenceSetId
             displayName = self.occListModel.listData[currentIdx].displayName
@@ -508,19 +609,19 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
 # ........................................
    def searchOccSets(self,searchText=''):
       try:
-         namedTuples = self.client.sdm.hint(searchText,maxReturned=60)          
-      except:
+         self.namedTuples = self.client.sdm.hint(searchText,maxReturned=60)         
+      except Exception, e:
          pass 
       else:
          items = []
-         if len(namedTuples) > 0:
-            for species in namedTuples:
+         if len(self.namedTuples) > 0:
+            for species in self.namedTuples:
                items.append(SpeciesSearchResult(species.name,species.id,species.numPoints))
          else:
             items.append(SpeciesSearchResult('', '', ''))
          self.occListModel.updateList(items)
       
-      #self.occSetCombo.showPopup()      
+           
 
 #...............................................................................
    def openOccUpload(self):
@@ -555,10 +656,11 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          self.epsgCode = int(occSet.epsgcode)
          
 # ..............................................................................
-   def getScenarios(self): 
+   def getScenariosMasks(self): 
       """
       @summary: checks for epsgCode, if None requests the occset
       """  
+      
       occId = self.occIdText.text() 
       if self.epsgCode is None and len(occId) > 0:
          try:
@@ -571,9 +673,11 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          else:
             self.getOccSet(occId) # sets self.epsgCode
             if self.epsgCode is not None:
+               self.getMaskLayers(typeCode=MASK_TYPECODE,epsgCode=self.epsgCode, getFull=True)
                self.populateModelScenCombo(epsg=self.epsgCode)
       elif self.epsgCode is not None:
          
+         self.getMaskLayers(typeCode=MASK_TYPECODE,epsgCode=self.epsgCode, getFull=True)
          self.populateModelScenCombo(epsg=self.epsgCode)
            
 # ..............................................................................          
@@ -628,12 +732,15 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
             # using this loop against the data model since UserRole doesn't always apply
             for idx, resultObj in enumerate(self.scenModelListModel.listData):
                try:
-                  scenId = int(resultObj)
-               except:
-                  pass
+                  scenId = int(resultObj)      
+               except Exception, e:
+                  newScenIdx = 0
                else:
                   if scenId == newScenId:
                      newScenIdx = idx
+                     break
+                  else:
+                     newScenIdx = 0
             self.modelScenCombo.setCurrentIndex(newScenIdx)
          # enable scenarios
          
@@ -706,7 +813,11 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       index = self.algCodeCombo.currentIndex()
       if index != 0:
          algcode = str(self.algCodeCombo.itemData(index, role=Qt.UserRole))
-         self.algSubWindow = AdvancedAlgo(self.client,algcode)
+         if len(self.getProjScenIds()) > 0:
+            projs = True
+         else:
+            projs = False
+         self.algSubWindow = AdvancedAlgo(self.client,algcode, self, projections=projs)
          self.algSubWindow.exec_()
       else:
          message = "Choose an algorithm from the drop down"
@@ -797,10 +908,14 @@ class Ui_SubDialog(object):
 
 class AdvancedAlgo(QDialog,Ui_SubDialog):     
    
-   def __init__(self,client,algcode):
+   def __init__(self,client, algcode, parent, projections = False):
       QDialog.__init__(self)
       self.algcode = algcode
       self.client = client
+      self.continueWithoutProj = False
+      self.notProjectionErrOnProjValue = False
+      self.projections = projections
+      self.parentDialog = parent
       self.setupUi() 
       self.algCopy = self.client.sdm.getAlgorithmFromCode(self.algcode)
       self.setWindowTitle("Set parameters for %s" % self.algCopy.name) 
@@ -817,34 +932,50 @@ class AdvancedAlgo(QDialog,Ui_SubDialog):
    def reject(self):
       
       self.close()
-      
       self.algCopy = self.client.sdm.getAlgorithmFromCode(self.algcode)
       
       
    def accept(self):
-      if not self.missingParams():
+      
+      missing, message = self.missingParams()
+      if not missing:    
          self.close()
-      else:
-         message = "some parameters are missing or have incorrect values"
-         QMessageBox.warning(self,
-                                      "Problem...",
-                                      message,
-                                      QMessageBox.Ok)
+      else:         
+         if message != "":
+            reply = QMessageBox.question(self, 'conflict with parameters',
+                                         message, QMessageBox.Yes | 
+                                         QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+               self.continueWithoutProj = True
+               self.parentDialog.projectionScenListView.clearSelection()
+               self.close()
+            elif reply == QMessageBox.No:
+               # now what do we do?
+               pass
+         else:
+            warning = "some parameters are missing or have incorrect values"    
+            QMessageBox.warning(self,
+                                 "Problem...",
+                                 warning,
+                                 QMessageBox.Ok)
       
    def missingParams(self):
       """
       @summary: gets missing params from algorithms and highlites missing
       @return: bool 
       """
+      message = ""
       missingParams = False  
       for lineEdit,param,label in zip(self.algParamLineEdits,self.algParams,self.algParamLabels):
          value = lineEdit.text()
          if not(self.validateAlgParam(param,value)):
             label.setStyleSheet("color:red;")
             missingParams = True
+            if param.allowProjectionsIfValue and not(self.notProjectionErrOnProjValue):
+               message = "Cannot use %s with projections.  Continue without projections?" % (param.name)
          else:
             label.setStyleSheet("color:black;")
-      return missingParams
+      return missingParams, message
       
    def validateAlgParam(self, param, value):
       """
@@ -854,14 +985,22 @@ class AdvancedAlgo(QDialog,Ui_SubDialog):
       @param value: value set in lineEdit 
       @return: boolean
       """
+      
       valid = False
-      if value != '':
+      if value != '':         
          try:
             castValue = float(value)
+            if param.type == "Integer":
+               if param.min and param.max:
+                  r = range(int(param.min),int(param.max)+1)
+                  if not castValue in r:
+                     raise
+               castValue = int(value)                  
          except:
-            valid = False
+            if param.allowProjectionsIfValue != None:
+               self.notProjectionErrOnProjValue = True
          else:
-            if param.min and param.max:
+            if param.min and param.max:               
                paramMin = float(param.min)
                paramMax = float(param.max) 
                if paramMin <= castValue <= paramMax:
@@ -874,20 +1013,11 @@ class AdvancedAlgo(QDialog,Ui_SubDialog):
                paramMax = float(param.max) 
                if paramMax >= castValue:
                   valid = True
-            if param.type == "Integer":
-               try:
-                  int(value)
-               except:
-                  valid = False
-               else:
-                  valid = True 
-            elif param.type == "Float":
-               try:
-                  float(value)
-               except:
-                  valid = False
-               else:
-                  valid = True                 
+            else:
+               # doesn't have a min or max
+               valid = True
+            if param.allowProjectionsIfValue != None and castValue > 1 and self.projections: 
+               valid = False                       
       return valid  
    
    def showAlgParams(self):
@@ -922,6 +1052,7 @@ class AdvancedAlgo(QDialog,Ui_SubDialog):
       paramsAdded = 0
       noParams = len(self.algCopy.parameters)
       for param in self.algCopy.parameters:
+         #print "NAME ",param.name
          rowcount += 1
          lineEdit = QLineEdit()
          self.algParamLineEdits.append(lineEdit)
@@ -932,7 +1063,10 @@ class AdvancedAlgo(QDialog,Ui_SubDialog):
             paramNameLimitDesc = "%s (min: %s)" % (str(param.name),str(param.min))
          elif param.max:
             paramNameLimitDesc = "%s (max: %s)" % (str(param.name),str(param.max))
+         else:
+            paramNameLimitDesc = "%s" % (str(param.name))
          label = QLabel(paramNameLimitDesc)
+         label.setToolTip("<p>"+param.doc+"</p>")
          self.algParamLabels.append(label)
          lineEdit.setText(param.default)
          lineEdit.setMaximumSize(70, 19)
@@ -962,19 +1096,18 @@ class AdvancedAlgo(QDialog,Ui_SubDialog):
 #..............................................................................
 class BackSpaceEventHandler(QObject):
    
-   def eventFilter(self,object,event):
+   def eventFilter(self, object, event):
+      #print "is gettting to backspace? ",event.type()
       if event.type() == QEvent.KeyPress:
          if event.key() == Qt.Key_Backspace:
             currentText = object.currentText()
-            try:
-               currentIdx = object.currentIndex()
-               numPoints = object.model().listData[currentIdx].numPoints
-               if numPoints in currentText:               
-                  displayName = object.model().listData[currentIdx].displayName
+            try:             
+               numPoints = object.model().listData[object.findText(currentText)].numPoints
+               if "("+str(numPoints)+" points)" in currentText:               
+                  displayName = object.model().listData[object.findText(currentText)].displayName
                   object.setEditText(displayName+displayName[-1:])
-                  # this should also probably clear the scenario models and 
-                  # and disable
-            except:
+                  
+            except Exception, e:
                pass
             
       return QWidget.eventFilter(self, object, event)
@@ -988,14 +1121,12 @@ class EnterTextEventHandler(QObject):
       super(EnterTextEventHandler, self).__init__()
       self.occSetCombo = occSetCombo
       self.occListModel = occModel
-      #self.preview = preview
       self.download = download
+      
    def eventFilter(self,object,event):
       if event.type() == QEvent.FocusIn:
          self.occListModel.updateList([])
-         self.occSetCombo.setCurrentIndex(0)
-         #self.preview.setText("")
-         #self.download.setText("") 
+         self.occSetCombo.setCurrentIndex(0) 
          self.download.setEnabled(False)
          self.download.setToolTip("optional: Load Data from search")    
       return QWidget.eventFilter(self, object, event)
@@ -1053,8 +1184,10 @@ class LmListModel(QAbstractListModel):
       if index.isValid() and (role == Qt.DisplayRole or role == Qt.EditRole):
          if index.row() == 1 and self.model:
             return "build new model"
-         else:
-            return str(self.listData[index.row()])
+         else:   
+            try: return self.listData[index.row()].customData()
+            except: return self.listData[index.row()]
+           
       if index.isValid() and role == Qt.UserRole:
          return int(self.listData[index.row()])
       else:
@@ -1099,14 +1232,38 @@ class SpeciesSearchResult(object):
       self.displayName = displayName
       self.occurrenceSetId = occurrenceSetId
       self.numPoints = numPoints
-      
+
    # .........................................
-   def __str__(self):
+   def customData(self):
       """
       @summary: Creates a string representation of the SpeciesSearchResult 
                    object
       """
+      
       return "%s (%s points)" % (self.displayName, self.numPoints)
+      
+class MaskSearchResult(object):
+   """
+   @summary: Data structure for ScenarioSearchResult
+   """
+   # .........................................
+   def __init__(self,name, id):
+      """
+      @summary: Contstructor for MaskSearchResult
+      """
+      self.maskId = id
+      self.name = name
+      
+   def customData(self):
+      """
+      @summary: Creates a string representation of the ScenarioSearchResult 
+                   object
+      """
+      return "%s" % (self.name)
+   
+   def __int__(self):
+      
+      return self.maskId
    
 class ScenarioSearchResult(object):
    """
@@ -1123,12 +1280,12 @@ class ScenarioSearchResult(object):
       self.scenTitle = title
       self.match = match
       
-   def __str__(self):
+   def customData(self):
       """
       @summary: Creates a string representation of the ScenarioSearchResult 
                    object
       """
-      return str(self.scenTitle)
+      return "%s" % (self.scenTitle)
    
    def __int__(self):
       
@@ -1137,7 +1294,13 @@ class ScenarioSearchResult(object):
 
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='blank', pwd='blank')
+   import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
+   sys.path.append(os.path.join(import_path, 'LmShared'))
+   configPath = os.path.join(import_path, 'config', 'config.ini') 
+   os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
+   from LmClient.lmClientLib import LMClient
+   client =  LMClient()
+   client.login(userId='Dermot', pwd='Dermot')
    qApp = QApplication(sys.argv)
    d = PostSDMExpDialog(None,client=client)
    #d = AdvancedAlgo()

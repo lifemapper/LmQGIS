@@ -110,11 +110,11 @@ class Ui_Dialog(object):
       
       self.attachActiveLyr = QtGui.QCheckBox("Link Plot to Active Lyr")
       self.attachActiveLyr.setEnabled(False)
-      self.attachActiveLyr.clicked.connect(self.checkActiveLyrPlot)
+      #self.attachActiveLyr.clicked.connect(self.checkActiveLyrPlot)
       
       self.statsLblLink = QtGui.QHBoxLayout()
       self.statsLblLink.addWidget(self.sitesLabel)
-      self.statsLblLink.addWidget(self.attachActiveLyr)
+      #self.statsLblLink.addWidget(self.attachActiveLyr)
       
       self.pamsumsCombo = QtGui.QComboBox()
       self.pamsumsCombo.currentIndexChanged.connect(self.checkPamSumNotAll)
@@ -158,6 +158,12 @@ class Ui_Dialog(object):
       self.spatiallyView.setMinimumSize(104, 30)
       self.spatiallyView.setEnabled(False)
       
+      self.treeViewerBut = QtGui.QPushButton("Tree View")
+      self.treeViewerBut.clicked.connect(self.openTree)
+      self.treeViewerBut.setMaximumSize(104, 30)
+      self.treeViewerBut.setMinimumSize(104, 30)
+      self.treeViewerBut.setEnabled(False)
+      
       
       self.comboLayout.addWidget(self.pamsumsCombo,      4,1,1,1,QtCore.Qt.AlignTop)
       self.comboLayout.addWidget(self.statsCombo,        4,3,1,1,QtCore.Qt.AlignTop)
@@ -166,6 +172,7 @@ class Ui_Dialog(object):
       self.HButtonBox.addWidget(self.exportStatsBut)     #5,2,1,1)
       self.HButtonBox.addWidget(self.scatterPlot)        #5,3,1,1,QtCore.Qt.AlignCenter)
       self.HButtonBox.addWidget(self.spatiallyView)      #5,4,1,1,QtCore.Qt.AlignCenter)
+      self.HButtonBox.addWidget(self.treeViewerBut)
       
       self.comboLayout.addLayout(self.HButtonBox, 5, 0, 1, 5)
       

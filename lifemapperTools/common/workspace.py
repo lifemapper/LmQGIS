@@ -76,6 +76,16 @@ class Workspace:
       else:
          ws = QGISProject.NOWS
       return ws
+# ...........................................................................   
+   def createTreeFolder(self,expId):
+      
+      expDir = self.getExpFolder(expId)
+      if expDir:
+         directory = os.path.join(expDir,'tree')
+         created = QDir().mkdir(directory)
+         if created:
+            return directory
+         else: return False
 # ...........................................................................
    def createOccFolder(self):
       ws = self.getWSforUser()
@@ -83,6 +93,14 @@ class Workspace:
       if ws != QGISProject.NOWS:
          directory = os.path.join(ws,'occSetsPreviews')
          QDir().mkdir(directory)
+      return directory
+   
+   def getTreeFolder(self,expId):
+      directory = False
+      expDir = self.getExpFolder(expId)
+      if expDir:
+         if os.path.exists(os.path.join(expDir,'tree')):
+            directory = os.path.join(expDir,'tree')
       return directory
 # ...........................................................................
    def getOccSetFolder(self):

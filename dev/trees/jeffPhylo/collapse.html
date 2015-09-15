@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <link type="text/css" rel="stylesheet" href="style.css"/>
+    <script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+    
+    <style type="text/css">
+
+ .overlay {
+	fill: none;
+        pointer-events: all;
+    }
+
+ .node circle {
+   cursor: pointer;
+   fill: #fff;
+   stroke: steelblue;
+   stroke-width: 1.5px;
+  }
+
+/*
+
+.node text {
+  font-size: 11px;
+}
+
+*/
+
+path.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+    </style>
+  </head>
+  <body>
+    <div id="body">
+   
+
+    </div>
+    <script type="text/javascript">
+
+/*
+ stopped development on this version on april 29th 2014 and copied to treeWeb.html in tools
+*/
+    
+togCount = 1
+pathToToggle = false;
+leafs = {}; 
+visibleNodes = false
+
+var m = [20, 120, 20, 120],
+    w = 1280 - m[1] - m[3],
+    h = 800 - m[0] - m[2],
+    i = 0,
+    x = d3.scale.linear().domain([0,w]).range([0,w]),
+    y = d3.scale.linear().domain([0,h]).range([h,0]),
+    root;
+    
+
+
+var width = 1600,
+    height = 1300;
+
+var cluster = d3.layout.cluster()
+    .separation(function(a, b) { return a.parent == b.parent ? 3 : 3; })
+    .size([h, w])
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var elbow = function(d,i) {
+  return "M" + d.source.y + "," + d.source.x
+      + "V" + d.target.x + "H" + d.target.y;
+};
+
+zoomy = d3.behavior.zoom().x(x).y(y)
+  .scaleExtent([0.1, 2.5])
+  .on("zoom", function() {
+    //console.log('onzoom');
+    vis.attr("transform", "translate(" + zoomy.translate() + ") scale( " + zoomy.scale() + ")");
+    //vis.attr("transform", "translate(" + d3.event.translate + ") scale( " + d3.event.scale + ")");
+    
+});
+
+function brushstart(){};
+function brushmove(){};
+function brushend(){};
+ var brush = d3.svg.brush()
+      .x(x)
+      .y(y)
+      .on("brushstart", brushstart)
+      .on("brush", brushmove)
+      .on("brushend", brushend);
+
+
+var vis = d3.select("#body").append("svg:svg") 
+    .call(zoomy)
+    //.call(brush)
+    .attr("width", w + m[1] + m[3])
+    .attr("height", h + m[0] + m[2])
+    .append("svg:g")
+    .attr("transform", "translate(" + m[3] + "," + m[0] + ")")
+
+//.call(d3.behavior.zoom().x(x).y(y).scaleExtent([1, 8]).on("zoom", zoom))
+
+
+
+vis.append("rect")
+	.attr("class","overlay")
+	.attr("width", w + m[1] + m[3])
+	.attr("height", h + m[0] + m[2])
+	.attr("opacity", 0); 
+
+function loadTree() {
+	// amphibians_re_path.json //african_mammal_realDealMX.json, BTW this has all mammals in tree, but mx for everything in the PAM
+	// file:///home/jcavner/PhyloXM_Examples/bats.json, bats_re_path.json, all_mammals.json
+
+	i = 0;
+	leafs = {};
+	cluster.size([h, w]); 
+	
+	//console.log(cluster.size())
+	d3.json("file:///home/jcavner/PhyloXM_Examples/african_mammal_realDealMX.json", function(json) {
+	  root = json;
+	  root.x0 = h / 2;
+	  root.y0 = 0;
+	
+	  function toggleAll(d) {
+	    if (d.children) {
+	      d.children.forEach(toggleAll);
+	      toggle(d);
+	    }
+	  }
+	
+	   // Initialize the display to show a few nodes.
+	   //root.children.forEach(toggleAll);
+	   // root.children[0].children[0].children[0].children[0].children[0].children.forEach(toggleAll); // for bats
+	   //root.children[0].children[0].children[0].children.forEach(toggleAll)  // bats
+	   //root.children[0].children.forEach(toggleAll)  //amphibians
+	   //root.children[0].children[1].children.forEach(toggleAll)  //amphibians test
+	    root.children[1].children.forEach(toggleAll) //mammals
+	 
+	  //  probably want to expand the size of the cluster here depending on 
+	  //  what happens on initialization of the display
+	  
+	  update(root);
+	  
+	});
+};
+
+var replacer=function(key, value){
+    
+	if (key == 'parent' || key == '__data__'){ return value.name }
+        
+        return value;
+};
+
+var jsonify=function(o){
+    var jso=JSON.stringify(o,replacer);
+    return jso;
+};
+
+
+
+function visible_old(){
+	for (var y = 0; y < visibleNodes.length; y++){
+		if (visibleNodes[y].pathId == lookingFor){
+			return true;
+		}
+	}
+	return false;
+}
+
+function visible(foundnode){
+	
+	var found = false;
+	if (foundnode.children){
+		
+		foundnode.children.forEach(function(d){ if (lookingFor.indexOf(d.pathId) != -1){found = true;} })
+		
+		if (found){
+			return found;
+		}
+	}else{
+		// if it does not have children but foundnode is what we are looking for
+		
+		if (lookingFor.indexOf(found.pathId) != -1){
+			return true;
+		} else {
+			return false;
+		}
+		
+	}
+		
+};
+
+
+function recurseIds(pathArray,node){
+	//console.log("pathArray in recurse ",pathArray)
+	if (typeof node === 'undefined') 
+	{ var vN = visibleNodes; } else{
+	  var vN = node.children
+	}
+   
+	for (var i = 0; i < pathArray.length; i++) {
+		  
+		 for (var y = 0; y < vN.length; y++){
+			 
+			
+			 if (vN[y].pathId == pathArray[i]){
+				 
+				 //console.log(pathArray[i])
+				 
+				 toggleAll2(vN[y]); 
+				 update(vN[y]);
+								 
+				 //console.log(vN[y].children)
+				 
+				 if (visible(vN[y])){  // this used to not have an argument
+					//console.log('return from visible true')
+					return;
+				 } else {
+					 //console.log('calling itself')
+					 if (vN[y].children){
+					 	recurseIds(pathArray,vN[y]);
+					 } else {
+						recurseIds(pathArray,vN[y].parent)
+					 }
+					 
+				 } 
+				return; 
+			 }	 		 
+		 }
+			
+		}	
+	
+};
+
+function findClades(compositePathStr,lookFors){
+	
+	
+	var tips = lookFors.split(',');
+	lookingFor = tips;
+	for (var i = 0; i < tips.length; i++){
+		
+		if (Object.keys(leafs).indexOf(tips[i]) == -1){  // this means the tip in not in the leaves
+			
+			var compositeTiplessPath = compositePathStr.split(',');
+			compositeTiplessPath.splice(0,0,tips[i]) // adds the tips, needs to have the check for leafs to work properly
+			pathToToggle = compositeTiplessPath; 
+			recurseIds(pathToToggle);			
+		}	else {
+			console.log(tips[i]+ ' is in tips') //still needs work in here
+			//toggleAll2(leafs[tips[i]]); 
+			//update(leafs[tips[i]]);
+		}	
+		
+	}
+	
+	pathToToggle = false;		
+	
+};
+
+
+function findClade(path,spsName){
+	
+	lookingFor = [];
+	var treeIds = path.split(',');
+	pathToToggle = treeIds;
+	lookingFor.push(treeIds[0]);
+	if (Object.keys(leafs).indexOf(treeIds[0]) != -1){  //check in leafs
+
+	 toggleAll2(leafs[treeIds[0]]); 
+	 update(leafs[treeIds[0]]);
+	 pathToToggle = false;
+	   return;
+	 } 
+	
+	 
+	recurseIds(treeIds);
+	pathToToggle = false;
+	
+};
+
+function reportLeafs(){
+	
+	var list = [];
+	for (prop in leafs){
+		
+		//leafJSON = jsonify(leafs[prop])
+		//pyObj.processLeafJSON(leafJSON)
+		list.push(leafs[prop]);
+	}
+	var selectedLeafs = {};
+	selectedLeafs["selected"] = list;
+	signalJSON = jsonify(selectedLeafs);
+	pyObj.processLeafJSON(signalJSON)
+	
+	
+};	
+
+
+function update(source) {
+	
+  l = Object.keys(leafs).length;
+  if (visibleNodes){
+	 all =  l + visibleNodes.length;
+   }else{
+	 all = l;  
+   }
+  
+  wa = all * 1.6;
+  cluster.size([h+all*12,w])
+  
+  var duration = d3.event && d3.event.altKey ? 5000 : 500;
+
+  // Compute the new tree layout.
+    var nodes = cluster.nodes(root).reverse();
+    var links = cluster.links(nodes);
+    
+    //nL = nodes.length;
+    //console.log(nL)
+    
+    
+  // Normalize for fixed-depth.
+  // nodes.forEach(function(d) { d.y = d.depth * 180; });
+  
+  // Update the nodes
+  var node = vis.selectAll("g.node")
+      .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter any new nodes at the parent's previous position.
+  var nodeEnter = node.enter().append("svg:g")
+      .attr("class", "node")
+      .attr("transform", function(d) {return "translate(" + source.y0 + "," + source.x0 + ")"; })
+      .on("click", function(d) { togCount = 1;toggleAll2(d); update(d);});
+      
+
+  nodeEnter.append("svg:circle")
+      .attr("r", 1e-6)
+      .style("fill", function(d) { if (d._children){
+                                	   color = "lightsteelblue";
+                                   } else {                                 	   
+                                	   //if (pathToToggle){d.pathId == lookingFor ? color = "red": color = "#fff"}else{
+                                		if (pathToToggle){lookingFor.indexOf(d.pathId) != -1 ? color = "red": color = "#fff"}else{
+                                	   leafs[d.pathId] ? color = "red" : color = "#fff";}}
+                                   return color
+                                  });
+ 
+  nodeEnter.append("svg:text")
+      .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
+      .attr("font-size", function(d){return d.children || d._children ? "10px" :"6px"})
+      .attr("dy", function(d){return d.children || d._children ? ".95em" : ".35em"})
+      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+      .text(function(d) { return d.name; })
+      .style("fill-opacity", 1);
+
+  // Transition nodes to their new position.
+  var nodeUpdate = node.transition()
+      .duration(duration)
+      .attr("transform", function(d) { return "translate(" + d.y  + "," + d.x + ")"; });
+
+  nodeUpdate.select("circle")
+      .attr("r", 4.5)
+      .style("fill", function(d) { if (d._children){
+                                  color = "lightsteelblue";
+                                  } else {                                 	   
+   	                               //if (pathToToggle){d.pathId == lookingFor ? color = "red": color = "#fff"}else{
+   	                            	 if (pathToToggle){lookingFor.indexOf(d.pathId) != -1 ? color = "red": color = "#fff"}else{
+   	                               leafs[d.pathId] ? color = "red" : color = "#fff";}}
+                                  return color
+                                 });
+
+  nodeUpdate.select("text")
+      .style("fill-opacity", 1);
+
+  // Transition exiting nodes to the parent's new position.
+  var nodeExit = node.exit().transition()
+      .duration(duration)
+      .attr("transform", function(d) {return "translate(" + source.y  + "," + source.x + ")"; })
+      .remove();
+  
+  nodeExit.select("circle")
+      .attr("r", 1e-6);
+
+  nodeExit.select("text")
+      .style("fill-opacity", 1);
+
+  // Update the links…
+  var link = vis.selectAll("path.link")
+      .data(links, function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  link.enter().append("svg:path", "g")
+     .attr("class", "link")
+     .attr("d",function(d) {
+	    var o = {x: source.x0, y: source.y0};
+            return elbow({source: o, target: o});  
+           })
+    .transition()
+    .duration(duration)
+    .attr("d", elbow);
+
+  // Transition links to their new position.
+  link.transition()
+      .duration(duration)
+      .attr("d", elbow);
+
+  // Transition exiting links to the parent's new position.
+  link.exit().transition()
+      .duration(duration)
+      .attr("d", function(d) {
+        var o = {x: source.x, y: source.y};
+        return elbow({source: o, target: o});
+      })
+      .remove();
+
+  // Stash the old positions for transition.
+  nodes.forEach(function(d) {
+    d.x0 = d.x;
+    d.y0 = d.y;
+  });
+ 
+  visibleNodes = nodes;
+  
+   
+}  //end of update
+
+/*
+    function zoom(d) {  // this was for svg based zoom, not canvas zoom
+        var nodes = vis.selectAll("g.node");
+        nodes.attr("transform", transform);
+
+        // Update the links...
+        var link = vis.selectAll("path.link");
+        link.attr("d", translate);  
+    };
+
+    function transform(d) {
+        return "translate(" + x(d.y) + "," + y(d.x) + ")";
+        //return "translate(" + y(d.y) + "," + x(d.x) + ")";
+    };
+
+    function translate(d) {
+        var sourceX = x(d.target.parent.y);
+        var sourceY = y(d.target.parent.x);
+        var targetX = x(d.target.y);
+        var targetY = (sourceX + targetX)/2;
+        var linkTargetY = y(d.target.x0);
+        //var result = "M"+sourceY+","+sourceX+" C"+targetX+","+sourceY+" "+targetY+","+y(d.target.x0)+" "+targetX+","+linkTargetY+"";
+       
+      var result =  "M" + sourceY + "," + sourceX + "V" + targetX + "H" + targetY;
+      // console.log(result)
+
+       
+       return result;
+    };
+ */   
+
+function removeLeaves(d){
+
+	 delete leafs[d.pathId];
+	 if (d.children){
+		//console.log("does it get in here?")
+		 d.children.forEach(removeLeaves) 
+	 }
+	 if (d._children){
+		 //console.log("or here")
+		 d._children.forEach(removeLeaves)
+	 }
+	 
+ };
+
+
+function toggleAll2(d) {
+	    
+	    if (d._children) {
+	    	
+	      //d._children.forEach(toggleAll2);
+	      // pathToToggle branch for just toggling clades in the path for ind. species search
+	       if (pathToToggle) {
+	    	   if (pathToToggle.indexOf(d.pathId) != -1)
+	    	   {
+	    		
+	    		   d._children.forEach(toggleAll2);
+	    		   toggle(d); 
+	    	   }
+	      }
+	      else{
+	    	  d._children.forEach(toggleAll2);
+	    	  toggle(d); 
+	    	  
+	      } 
+	      //toggle(d)
+	    } else {
+	    	
+	    	//console.log("not d._children")
+	    	if (d.children){
+	    	   //console.log("just on collapse") // this seems to be true
+	    	   // console.log(d.name)
+	    		togCount = togCount - 1
+	    		d.children.forEach(toggleAll2);
+	    		d.children.forEach(removeLeaves);  // all the keys were not getting
+	    		// removed from leafs on collapse
+	    		toggle(d)
+	    	}
+	    	else{
+	    		 
+	    		 if (leafs[d.pathId]){
+	    			 
+	    			 delete leafs[d.pathId];
+	    			 
+	    			 
+	    		 } else { 
+	    			 if (pathToToggle){
+	    				 if (lookingFor.indexOf(d.pathId) != -1){
+	    					 
+	    					 leafs[d.pathId] = d;
+	    				 }
+	    			 } else {
+	    				 
+	    				 leafs[d.pathId] = d;
+	    				 
+	    			 }
+	    			 //leafs[d.pathId] = d;
+	    		 }
+	    		 
+	    		
+	    	}
+	    }
+   
+};   
+    
+// Toggle children.
+function toggle(d) { 	  
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+    
+  } else {
+    d.children = d._children;
+    d._children = null;
+    togCount = togCount + 1
+  }
+}
+loadTree();
+    </script>
+  </body>
+</html>

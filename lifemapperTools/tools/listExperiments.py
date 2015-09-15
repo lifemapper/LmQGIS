@@ -30,6 +30,7 @@ import sys
 import types
 import zipfile
 import numpy as np
+from urllib2 import HTTPError
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from qgis.core import *
@@ -42,7 +43,7 @@ from lifemapperTools.tools.listBuckets import ListBucketsDialog
 from lifemapperTools.common.pluginconstants import ListExperiments
 from lifemapperTools.common.pluginconstants import QGISProject,PER_PAGE
 from lifemapperTools.common.workspace import Workspace
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.tools.addSDMLayer import UploadSDMDialog
 from lifemapperTools.tools.radTable import RADTable, RADTableModel
 from lifemapperTools.common.communicate import Communicate
@@ -102,12 +103,21 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
    def openOnDoubleClick(self,index):
       expId = index.model().data[index.row()][1]
       self._compareExpId(expId)
+# ..............................................................................
+   def _getRADGridCount(self, expId):
+      
+      try:      
+         count = self.client.rad.countBuckets(expId)
+      except HTTPError,e :
+         count = e
+      return count
 # ..............................................................................      
    def accept(self, action):
       
 
       selectedrowindex = self.tableview.tableView.selectionModel().currentIndex().row()
-      if selectedrowindex == -1:
+      selModel = self.tableview.tableView.selectionModel()
+      if selectedrowindex == -1 or not(selModel.hasSelection()):
          QMessageBox.warning(self,"status: ",
                          "Please select one experiment")
          return 
@@ -116,15 +126,31 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       expEPSG = str(selectedrow[2])
       mapunits = self.getMapUnitsForEPSG(expEPSG)
       inputs = {'expId': selectedrow[1]}
+      expId = selectedrow[1]
       self._compareExpId(selectedrow[1])
       #self.addGridsToMenu()
       #if self.viewBuckets.isChecked():
       if action == 'buckets':
          self.close()  
-         d = ListBucketsDialog(self.interface, inputs=inputs,
+         gridCount = self._getRADGridCount(expId)
+         if not(isinstance(gridCount, HTTPError)):
+            if gridCount > 0:
+               d = ListBucketsDialog(self.interface, inputs=inputs,
                                client= self.client, epsg = expEPSG,
                                mapunits=mapunits)
-         d.exec_()
+               d.exec_()
+            else:
+               message = "There are no Grids for this experiment, use Construct Grid from the menu"
+               msgBox = QMessageBox.information(QWidget(),
+                                             "Info...",
+                                             message,
+                                             QMessageBox.Ok)
+         else:
+            message = "There is a problem with Grid Count"
+            msgBox = QMessageBox.information(QWidget(),
+                                             "Info...",
+                                             message,
+                                             QMessageBox.Ok)
       #elif self.viewLayers.isChecked():
       elif action == 'viewLyrs':
          self.close()
@@ -367,8 +393,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
          if self.expDataView.model().noPages == 1:
                self.tableview.pageForward.setEnabled(False)
                
-         #QObject.connect(self.expDataView.selectionModel(), SIGNAL("selectionChanged(const QItemSelection&, const QItemSelection&)"),self.tablerowselected) 
-         #QObject.connect(self.expDataView, SIGNAL("doubleClicked(const QModelIndex &)"), self.openOnDoubleClick)  
+         
          
          self.expDataView.selectionModel().selectionChanged.connect(self.tablerowselected)
          self.expDataView.doubleClicked.connect(self.openOnDoubleClick)

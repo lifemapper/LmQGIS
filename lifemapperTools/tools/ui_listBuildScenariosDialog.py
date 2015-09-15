@@ -29,7 +29,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.tools.ui_postScenario import PostScenarioDialog
 from lifemapperTools.common.communicate import Communicate
 
@@ -199,10 +199,13 @@ class ListBuildScenariosDialog(QtGui.QDialog, Ui_Dialog):
                try:
                   scenId = int(resultObj)
                except:
-                  pass
+                  newScenIdx = 0
                else:
                   if scenId == newScenId:
                      newScenIdx = idx
+                     break
+                  else:
+                     newScenIdx = 0
             self.modelScenCombo.setCurrentIndex(newScenIdx)  
       
    def populateProjScenCombo(self, index):
@@ -298,7 +301,8 @@ class LmListModel(QAbstractListModel):
          if index.row() == 1 and self.model:
             return "build new model"
          else:
-            return str(self.listData[index.row()])
+            try: return self.listData[index.row()].customData()
+            except: return self.listData[index.row()]
       if index.isValid() and role == Qt.UserRole:
          return int(self.listData[index.row()])
       else:
@@ -362,12 +366,12 @@ class ScenarioSearchResult(object):
       self.scenId = id
       self.scenTitle = title
       
-   def __str__(self):
+   def customData(self):
       """
       @summary: Creates a string representation of the ScenarioSearchResult 
                    object
       """
-      return str(self.scenTitle)
+      return "%s" % (self.scenTitle)
    
    def __int__(self):
       
@@ -381,7 +385,7 @@ class ScenarioSearchResult(object):
 
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='blank', pwd='blank')
+   client =  LMClient(userId='', pwd='')
    qApp = QtGui.QApplication(sys.argv)
    #d = testDialog(match=True,scenarioId=112,client=client)
    d = ListBuildScenariosDialog(client=client)

@@ -125,68 +125,37 @@ class SpatialStatsDialog(_Controller, QDialog, Ui_Dialog):
             self.rampIndex = 0
       colorramp = ColorPalette(ptype=self.rampTypes[self.rampIndex],n=numberOfClasses-1)
       self.rampIndex += 1
-      if layer.isUsingRendererV2():         
-         # Get the field index based on the field name
-         fieldIndex = layer.fieldNameIndex(fieldName)
-         provider = layer.dataProvider()
-         minimum = provider.minimumValue( fieldIndex ).toDouble()[ 0 ]
-         maximum = provider.maximumValue( fieldIndex ).toDouble()[ 0 ]
-         ranges = []       
-         for i in range(0,numberOfClasses):
-            red = colorramp[i][1] 
-            green = colorramp[i][2]
-            blue = colorramp[i][3]      
-            color = QColor(red,green,blue)
-            
-            symbol = QgsSymbolV2.defaultSymbol(layer.geometryType())
-            symbol.setColor(color)
-            lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
-            upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
-            label = "%s - %s" % (lower, upper)
-            newrange = QgsRendererRangeV2(
-                                       float(lower),
-                                       float(upper),
-                                       symbol,
-                                       label)
-            ranges.append(newrange)
-         renderer = QgsGraduatedSymbolRendererV2('',ranges)
-         renderer.setMode(
-                 QgsGraduatedSymbolRendererV2.EqualInterval)
-         renderer.setClassAttribute(fieldName)
+      #if layer.isUsingRendererV2():         
+      # Get the field index based on the field name
+      fieldIndex = layer.fieldNameIndex(fieldName)
+      provider = layer.dataProvider()
+      minimum = float(provider.minimumValue( fieldIndex ))
+      maximum = float(provider.maximumValue( fieldIndex ))
+      ranges = []       
+      for i in range(0,numberOfClasses):
+         red = colorramp[i][1] 
+         green = colorramp[i][2]
+         blue = colorramp[i][3]      
+         color = QColor(red,green,blue)
          
-         layer.setRendererV2(renderer)
-      else:
-         # old style renderer
-         # Get the field index based on the field name
-         fieldIndex = layer.fieldNameIndex(fieldName)
-         print "fieldIndex", fieldIndex
-         # Create the renderer object to be associated to the layer later
-         renderer = QgsGraduatedSymbolRenderer( layer.geometryType() )
-         
-         # Here you may choose the renderer mode from EqualInterval/Quantile/Empty
-         renderer.setMode( QgsGraduatedSymbolRenderer.EqualInterval )
-         
-         # Define classes (lower and upper value as well as a label for each class)
-         provider = layer.dataProvider()
-         minimum = provider.minimumValue( fieldIndex ).toDouble()[ 0 ]
-         maximum = provider.maximumValue( fieldIndex ).toDouble()[ 0 ]
-
-         for i in range( numberOfClasses ):
-            # Switch if attribute is int or double
-            lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
-            upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
-            label = "%s - %s" % (lower, upper)
-            red = colorramp[i][1] 
-            green = colorramp[i][2]
-            blue = colorramp[i][3]      
-            color = QColor(red,green,blue)
-            #color = QColor(255*i/numberOfClasses, 0, 255-255*i/numberOfClasses)
-            sym = QgsSymbol( layer.geometryType(), lower, upper, label, color )
-            renderer.addSymbol( sym )
-         
-         # Set the field index to classify and set the created renderer object to the layer
-         renderer.setClassificationField( fieldIndex )
-         layer.setRenderer( renderer )
+         symbol = QgsSymbolV2.defaultSymbol(layer.geometryType())
+         symbol.setColor(color)
+         lower = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * i ) )
+         upper = ('%.*f' % (2, minimum + ( maximum - minimum ) / numberOfClasses * ( i + 1 ) ) )
+         label = "%s - %s" % (lower, upper)
+         newrange = QgsRendererRangeV2(
+                                    float(lower),
+                                    float(upper),
+                                    symbol,
+                                    label)
+         ranges.append(newrange)
+      renderer = QgsGraduatedSymbolRendererV2('',ranges)
+      renderer.setMode(
+              QgsGraduatedSymbolRendererV2.EqualInterval)
+      renderer.setClassAttribute(fieldName)
+      
+      layer.setRendererV2(renderer)
+     
          
       return layer
 # ..............................................................................
@@ -225,69 +194,63 @@ class SpatialStatsDialog(_Controller, QDialog, Ui_Dialog):
    def addtoCanvas(self, pamsumid, bucketid, expid):
       if self.isModal():
          self.setModal(False)
-      #if len(self.outEdit.text()) > 0:
-         self.progressbar.show()
-         if self.speciesrichness.isChecked():
-            fieldName = 'specrich'
-            tocName = 'Species Richness'
-         elif self.meanproportionalrangesize.isChecked():
-            fieldName =  'avgpropRaS'    
-            tocName =  'Mean Proportional Range Size'                                 
-         elif self.proportionalspeciesdiversity.isChecked():        
-            fieldName =  'propspecDi'     
-            tocName = 'Proportional Species Diversity'                      
-         elif self.localityrangesize.isChecked():
-            fieldName =  'RaSLoc'   
-            tocName = 'Per-site Range Size of a Locality'          
-         #success = self.client.rad.getPamSumShapegrid(str(self.outEdit.text()),
-         #                                         expid, bucketid, pamsumid)
-         expFolder = self.workspace.getExpFolder(expid)
-         if not expFolder:
-            expFolder = self.workspace.createProjectFolder(expid)
-         zipName = str(pamsumid)
-         pathname = os.path.join(expFolder,zipName)
-
-         success = self.client.rad.getPamSumShapegrid(pathname,
-                                                  expid, bucketid, pamsumid)
-         if success:
-            self.progressbar.setValue(100)
-            #pathname = self.outEdit.text()
-            zippath = os.path.dirname(str(pathname))                         
-            z = zipfile.ZipFile(str(pathname),'r')
-            for name in z.namelist():
-               f,e = os.path.splitext(name)
-               if e == '.shp':
-                  shapename = name
-               z.extract(name,str(zippath))
-            vectorpath = os.path.join(zippath,shapename)
-            vectorLayer = QgsVectorLayer(vectorpath,shapename.replace('.shp',''),'ogr')
-            warningname = shapename         
-            if not vectorLayer.isValid():
-               QMessageBox.warning(self.outputGroup,"status: ",
-                 warningname)
-            else: 
-               lyrs = QgsMapLayerRegistry.instance().mapLayers()
-               for id in lyrs.keys():
-                  if str(lyrs[id].name()) == shapename.replace('.shp',''):
-                     QgsMapLayerRegistry.instance().removeMapLayer(id) 
-               classedLayer = self.classify(vectorLayer, fieldName)
-               classedLayer.setLayerName(tocName)               
-               QgsMapLayerRegistry.instance().addMapLayer(classedLayer)
- 
-         else:
-            message = "Could not retrieve the shapefile"
-            msgBox = QMessageBox.information(self,
-                                             "Problem...",
-                                             message,
-                                             QMessageBox.Ok)
-               
+      
+      self.progressbar.show()
+      if self.speciesrichness.isChecked():
+         fieldName = 'specrich'
+         tocName = 'Species Richness'
+      elif self.meanproportionalrangesize.isChecked():
+         fieldName =  'avgpropRaS'    
+         tocName =  'Mean Proportional Range Size'                                 
+      elif self.proportionalspeciesdiversity.isChecked():        
+         fieldName =  'propspecDi'     
+         tocName = 'Proportional Species Diversity'                      
+      elif self.localityrangesize.isChecked():
+         fieldName =  'RaSLoc'   
+         tocName = 'Per-site Range Size of a Locality'          
+      #success = self.client.rad.getPamSumShapegrid(str(self.outEdit.text()),
+      #                                         expid, bucketid, pamsumid)
+      expFolder = self.workspace.getExpFolder(expid)
+      if not expFolder:
+         expFolder = self.workspace.createProjectFolder(expid)
+      zipName = str(pamsumid)
+      pathname = os.path.join(expFolder,zipName)
+   
+      success = self.client.rad.getPamSumShapegrid(pathname,
+                                               expid, bucketid, pamsumid)
+      if success:
+         self.progressbar.setValue(100)
+         #pathname = self.outEdit.text()
+         zippath = os.path.dirname(str(pathname))                         
+         z = zipfile.ZipFile(str(pathname),'r')
+         for name in z.namelist():
+            f,e = os.path.splitext(name)
+            if e == '.shp':
+               shapename = name
+            z.extract(name,str(zippath))
+         vectorpath = os.path.join(zippath,shapename)
+         vectorLayer = QgsVectorLayer(vectorpath,shapename.replace('.shp',''),'ogr')
+         warningname = shapename         
+         if not vectorLayer.isValid():
+            QMessageBox.warning(self.outputGroup,"status: ",
+              warningname)
+         else: 
+            lyrs = QgsMapLayerRegistry.instance().mapLayers()
+            for id in lyrs.keys():
+               if str(lyrs[id].name()) == shapename.replace('.shp',''):
+                  QgsMapLayerRegistry.instance().removeMapLayer(id) 
+            classedLayer = self.classify(vectorLayer, fieldName)
+            classedLayer.setLayerName(tocName)               
+            QgsMapLayerRegistry.instance().addMapLayer(classedLayer)
+    
       else:
-         
-         message = "Must provide an output path"
+         message = "Could not retrieve the shapefile"
          msgBox = QMessageBox.information(self,
                                           "Problem...",
                                           message,
                                           QMessageBox.Ok)
+               
+      
       
 # ..............................................................................         
    def help(self):

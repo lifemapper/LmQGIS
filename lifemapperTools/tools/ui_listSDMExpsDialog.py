@@ -35,7 +35,7 @@ class Ui_Dialog(object):
 
    
    def setupUi(self):
-      print "setting up V2 dialog from V2 ui import"
+      
       self.setObjectName("Dialog")
       self.resize(818, 448)
       self.setMinimumSize(418,248)

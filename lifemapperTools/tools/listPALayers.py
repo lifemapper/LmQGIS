@@ -124,28 +124,26 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
    
          
    def showTable(self, items, model):
+      
       try:
          if len(items) == 0:
             raise Exception,"No Layers"
-         data = [[o.name,o.id,"<a href='%s'>view</a>"  % o.mapPrefix, o.attrPresence,
-                  o.minPresence,o.maxPresence,o.percentPresence] for o in items]
-         self.table =  RADTable(data)
-         headerList = ['Layer title', 'Lyr id', 'view','Attr Presence','min Presence','max Presence',
+         
+         data = [[o.name,o.id, o.attrPresence,
+                  o.minPresence,o.maxPresence,o.percentPresence] for o in items]         
+         self.table =  RADTable(data)         
+         headerList = ['Layer title', 'Lyr id', 'Attr Presence','min Presence','max Presence',
                        'Percent Presence']
-    
-         self.tableview = self.table.createTable(headerList,editsIndexList=[999],
-                                                 controlsIndexList=[2],
-                                                 htmlIndexList=[2])
-         #QObject.connect(self.tableview, SIGNAL("clicked(const QModelIndex &)"), self.addWMS)  
-         self.tableview.clicked.connect(self.addWMS)          
+         self.tableview = self.table.createTable(headerList,editsIndexList=[999])
          self.holderGroup.hide()     
          self.gridLayout.addWidget(self.tableview,1,1,1,1) 
          header = self.tableview.horizontalHeader()
-         #QObject.connect(header, SIGNAL("sectionDoubleClicked(int)"), self.makeEditable)
+         
          self.ColumnSet.setEnabled(False)
          self.setAllColumnButton.setEnabled(False) 
          self.setParamsBut.setEnabled(False)
       except Exception, e:
+         
          self.loadTabelLabel.setText("No layers to view")
          self.addLayersBut = QPushButton("Add Layers",self)
          self.buttonBox.addButton(self.addLayersBut, QDialogButtonBox.ActionRole)

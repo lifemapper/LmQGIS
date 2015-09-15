@@ -28,18 +28,20 @@
 import os
 import sys
 import zipfile
+import shutil
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.tools.ui_listSDMExpsDialog import Ui_Dialog
 from lifemapperTools.tools.radTable import RADTable
 from lifemapperTools.icons import icons
 from lifemapperTools.common.communicate import Communicate
-from lifemapperTools.common.pluginconstants import STATUSLOOKUP,QGISProject, JobStatus,\
-                                                   PER_PAGE
+from LmCommon.common.lmconstants import JobStatus
+from lifemapperTools.common.pluginconstants import STATUSLOOKUP,QGISProject,\
+                                                   PER_PAGE,Messages
 
 
 
@@ -64,13 +66,15 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       self.backOneLinkProj = None
       self.backTwoLinkProj = None
       self.emptyTableView = None
+      self.asciiPkgs = {}
       if experimentId == None:
+         self.expId = None
          self.currentExp = False
          items = self.listExperiments()
          self.showExpTable(items)
       else:
          self.currentExp = True
-         self.viewExeprimentInit(experimentId)
+         self.viewExperimentInit(experimentId)
       
 # ...........................................................................
    def _showNoExpWarning(self):
@@ -311,7 +315,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       expId = index.model().data[index.row()][1]
       self._compareExpId(expId)
 # ...........................................................................         
-   def viewExeprimentInit(self,expId):
+   def viewExperimentInit(self,expId):
       
       """
       @summary: retrieves an experiment for the current exp action in the menu
@@ -319,6 +323,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       """   
          
       experiment = self.getExperiment(expId) 
+      self.experiment = experiment
       if experiment is not None: 
          self._compareExpId(expId) 
          self.expId = expId   
@@ -331,14 +336,16 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          expStatus = experiment.model.status
          if int(expStatus) >= JobStatus.GENERAL_ERROR:
             statusDisplay = 'error'
-         elif int(expStatus) == JobStatus.RETRIEVE_COMPLETE:
+         elif int(expStatus) == JobStatus.COMPLETE:
             statusDisplay = STATUSLOOKUP[int(expStatus)]
          else:
             statusDisplay = "running"
          expAlgoCode = experiment.model.algorithmCode 
          try:
+            print "EXPERIMENT.PROJECTIONS RIGHT OFF OF OBJECT ",experiment.projections
             self.projections = list(experiment.projections)
          except:
+            print "SETTING PROJECTIONS TO NONE"
             self.projections = None
          self.displayName.setText(expDisplayName)
          self.status.setText(statusDisplay)
@@ -360,6 +367,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       if index.column() in self.expTableView.tableModel.controlIndexes:
          expId = str(index.model().data[index.row()][1])
          experiment = self.getExperiment(expId) 
+         self.experiment = experiment
          if experiment is not None:  
             self.expId = expId
             self._compareExpId(expId)  # UNCOMMENT when in QGIS
@@ -374,14 +382,16 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
             expStatus = experiment.model.status
             if int(expStatus) >= JobStatus.GENERAL_ERROR:
                statusDisplay = 'error'
-            elif int(expStatus) == JobStatus.RETRIEVE_COMPLETE:
+            elif int(expStatus) == JobStatus.COMPLETE:
                statusDisplay = STATUSLOOKUP[int(expStatus)]
             else:
                statusDisplay = "running"
             expAlgoCode = experiment.model.algorithmCode 
             try:
+               print "EXPERIMENT.PROJECTIONS RIGHT OFF OF OBJECT ",experiment.projections
                self.projections = list(experiment.projections)
             except:
+               print "SETTING PROJECTIONS TO NONE"
                self.projections = None
             self.displayName.setText(expDisplayName)
             self.status.setText(statusDisplay)
@@ -412,7 +422,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       return str(filename[0])
 # .............................................................................. 
    def addTiffToCanvas(self, path, tocName):
-      print "TYPE TOCNAME ",type(tocName)
+      
       fileInfo = QFileInfo(path)
       baseName = fileInfo.baseName()
       rasterLayer = QgsRasterLayer(path,tocName)  
@@ -460,7 +470,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       and either adds a WMS or downloads and adds tiff
       @param index: index of item in table view [QModelIndex]
       """
-      if index.model().data[index.row()][5] == str(JobStatus.RETRIEVE_COMPLETE):
+      if index.model().data[index.row()][5] == str(JobStatus.COMPLETE):
          if index.column() in self.projsTable.tableModel.controlIndexes:
             if index.column() == 2:
                self.downLoadProjectionTiff(index)
@@ -475,9 +485,110 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       headerList = [header]    
       self.emptyTableView = self.emptyTable.createTable(headerList)           
       self.tableGrid.addWidget(self.emptyTableView,1,1,1,1) 
+# ...........................................................................
+   def getExpPackage(self):
+      """
+      @summary: 
+      """
+      expFolder = self.workspace.getExpFolder(self.expId)
+      if not expFolder:
+         expFolder = self.workspace.createProjectFolder(self.expId)
+      path = os.path.join(expFolder,"%s.zip" % (str(self.expId)))
+      success = False
+      if self.expId is not None:
+         try:
+            success = self.client.sdm.getExperimentPackage(self.expId,path)
+         except Exception, e:
+            self.showMessage("Could not retrieve pkg %s" % (str(e)),Messages.WARNING)
+         else:
+            if os.path.exists(path):
+               self.getAsciiFromPackageZip(path,expFolder)
+               if len(self.asciiPkgs[int(self.expId)]) > 0:
+                  success = True
+      return success
+# ..........................................................................
+
+
+# ...........................................................................
+   def getAsciiFromPackageZip(self,zipPath,expFolder):
+      namePaths = []
+      with zipfile.ZipFile(zipPath) as zpf:
+         for m in zpf.namelist():
+            if ".asc" in os.path.basename(m):
+               src = zpf.open(m)
+               tg = file(os.path.join(expFolder,os.path.basename(m)),'wb')
+               with src,tg:
+                  shutil.copyfileobj(src,tg)
+               if os.path.exists(os.path.join(expFolder,os.path.basename(m))):
+                  namePaths.append((os.path.basename(m),os.path.join(expFolder,os.path.basename(m))))
+         
+      self.asciiPkgs[int(self.expId)] = namePaths
+      
+# ...........................................................................
+   def showMessage(self, message, type = Messages.INFO, status = ""):  
+        
+      if type == Messages.WARNING:         
+         QMessageBox.warning(self,"status: ",
+                                "%s %s" % (message,status))  
+      if type == Messages.INFO:
+         msgBox = QMessageBox.information(self,
+                                              "Problem...",
+                                               message,
+                                               QMessageBox.Ok)    
+# ...........................................................................
+   def buildPkgTable(self):
+      if bool(self.asciiPkgs): 
+         try:
+            data = []
+            for name,path in self.asciiPkgs[int(self.expId)]:
+               download = "<a href='www.fake.fake'>Add To Canvas</a>"
+               data.append([name, download,"complete",path])
+            self.projsTable =  RADTable(data)
+           
+            header = ['  Name    ','  Download    ','Status','']    
+            self.projsTableView = self.projsTable.createTable(header,hiddencolumns=[3],
+                                                              editsIndexList=[999],
+                                                              controlsIndexList=[1],
+                                                              htmlIndexList=[1]) 
+         
+            self.projsTableView.clicked.connect(self.addAsciiToCanvas)                   
+            self.tableGrid.addWidget(self.projsTableView,1,1,1,1)             
+         except Exception, e:
+            self.showEmptyTable('No Projections', '')
+            return False
+         else:
+            return True
+      else:
+         self.showEmptyTable('ERROR','problem with ascii files for this experiment')  
+         return False  
+# ..........................................................................
+
+   def addAsciiToCanvas(self, index):
+      """
+      @summary: connected to click signal on projections table, checks for status,
+      and either adds a WMS or downloads and adds tiff
+      @param index: index of item in table view [QModelIndex]
+      """
+      if index.column() in self.projsTable.tableModel.controlIndexes:
+         if index.column() == 1:
+            path = index.model().data[index.row()][3]
+            name = index.model().data[index.row()][0]
+            self.addTiffToCanvas(path,name)
+
 # ........................................................................... 
    def showProjTable(self):
-      success = self.buildProjsTable(self.projections)     
+      #if int(self.experiment.model.status) == JobStatus.COMPLETE:
+      success = False
+      if self.projections is not None:
+         success = self.buildProjsTable(self.projections)  
+      else:
+         if int(self.expId) not in self.asciiPkgs:
+            if self.getExpPackage():
+               success = self.buildPkgTable()
+            else:
+               return
+         else:
+            success = self.buildPkgTable()
       if self.backOneLinkProj is None:
          self.backOneLinkProj = QLabel('<a href="www.fake.com">Back to experiment details</a>')
          #QObject.connect(self.backOneLinkProj, SIGNAL("linkActivated(const QString &)"), self.switchtoExpViewFromProj)
@@ -516,7 +627,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       expFolder = self.workspace.getExpFolder(self.expId)
       if not expFolder:
          expFolder = self.workspace.createProjectFolder(self.expId)
-      zipName = self.occSetDisplayName.replace(' ','_')
+      zipName = self.occSetDisplayName.replace(' ','_')+'.zip'
       filename = os.path.join(expFolder,zipName)
       if filename != '':
          try:
@@ -618,7 +729,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
          try:
             data = []
             for o in items:
-               if int(o.status) == JobStatus.RETRIEVE_COMPLETE:
+               if int(o.status) == JobStatus.COMPLETE:
                   status = STATUSLOOKUP[int(o.status)]
                   download = "<a href='www.fake.fake'>download</a>"
                elif int(o.status) < JobStatus.GENERAL_ERROR:
@@ -627,10 +738,10 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
                if int(o.status) >= JobStatus.GENERAL_ERROR:
                   status = 'error' 
                   download = "unavailable"
-               data.append([o.scenarioCode,o.id,download,status,o.title,o.status,o.mapPrefix])
+               data.append([o.scenarioCode,o.id,download,status,o.title,o.status])
             self.projsTable =  RADTable(data)
-            header = ['  Scenario Code    ','Id','  Download    ','Status','','','']    
-            self.projsTableView = self.projsTable.createTable(header,hiddencolumns=[4,5,6],
+            header = ['  Scenario Code    ','Id','  Download    ','Status','','']    
+            self.projsTableView = self.projsTable.createTable(header,hiddencolumns=[4,5],
                                                               editsIndexList=[999],
                                                               controlsIndexList=[2],
                                                               htmlIndexList=[2]) 
@@ -724,13 +835,10 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
             self.expDataView = self.expTableView.createTable(header,editsIndexList=[999],
                                                     controlsIndexList=[3],
                                                     htmlIndexList=[3],toolTips=[5])
-            #QObject.connect(self.expDataView.model(),SIGNAL("getMore(PyQt_PyObject,PyQt_PyObject)"),self.getNextPage)
+            
             self.expDataView.model().getNext.connect(self.getNextPage)
             if self.expDataView.model().noPages == 1:
-               self.expTableView.pageForward.setEnabled(False)
-            
-            #QObject.connect(self.expDataView, SIGNAL("clicked(const QModelIndex &)"), self.viewExperiment)   
-            #QObject.connect(self.expDataView, SIGNAL("doubleClicked(const QModelIndex &)"), self.openOnDoubleClick) 
+               self.expTableView.pageForward.setEnabled(False)            
             
             self.expDataView.clicked.connect(self.viewExperiment)
             self.expDataView.doubleClicked.connect(self.openOnDoubleClick) 
@@ -771,7 +879,7 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
              
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='Dermot', pwd='Dermot')
+   client =  LMClient(userId='', pwd='')
    qApp = QApplication(sys.argv)
    d = ListSDMExpDialog(None,client=client)#,experimentId=596106
    d.show()

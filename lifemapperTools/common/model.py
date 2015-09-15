@@ -121,12 +121,10 @@ class RequestModel(_Model):
       
       try:
          outputs = requestfunc(**inputs)
-
          status = "success"
          self.status = status
          self.outputs = outputs          
       except Exception, e:
-         #self.emit(SIGNAL("HTTPError"), "",str(e))
          self.HTTPError.emit("",str(e))
          return 'Failed'        
       else:

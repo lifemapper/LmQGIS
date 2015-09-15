@@ -43,22 +43,25 @@ class Ui_Dialog(object):
       ##########################################################################
       #    tables 
       ########################################################################## 
-      self.data2 = [['','','','','','','','']]
+      self.data2 = [['','','','','','','','','']]
       self.table2 =  RADTable(self.data2) 
       header2 = ['  layer name                ', 'layerurl','Presence Attribute', 
-                'Min Presence', 'Max Presence', '% Presence','Type','id']
+                'Min Presence', 'Max Presence', '% Presence','Type','id','palayername']
+      # added palayername for a shorter name, since author names in the 'layer name'
+      # but didn't use it because you need to be able to rename, stashing it for now
       self.tableview2 = self.table2.createTable(header2,editsIndexList=[0,3,4,5],
-                                              hiddencolumns=[1,6,7])
+                                              hiddencolumns=[1,6,7,8])
       self.tableview2.setSelectionBehavior(QAbstractItemView.SelectRows)
       self.tableview2.setContextMenuPolicy(Qt.CustomContextMenu)
       self.tableview2.customContextMenuRequested.connect(self.setAllPopUp)
       ##########################################################################
-      self.data1 = [['','','','','','','','','','']]
+      self.data1 = [['','','','','','','','','','','']]
       self.table1 =  RADTable(self.data1,totalCount=0)
       header1 = ['  layer name                ', 'id','preview', 'Algorithm', 
-                'Scenario','Type','minVal','maxVal','noDataVal','resolution']
+                'Scenario','Type','minVal','maxVal','noDataVal','resolution','notTitle']
+      # added notTitle as a backup
       self.tableview1 = self.table1.createTable(header1,editsIndexList=[-999],
-                                              hiddencolumns=[5,6,7,8,9],htmlIndexList=[2],
+                                              hiddencolumns=[5,6,7,8,9,10],htmlIndexList=[2],
                                               controlsIndexList=[2])
       self.table1.pageForward.setEnabled(False)
       self.tableview1.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -314,6 +317,7 @@ class Ui_Dialog(object):
                self.table2.tableView.model().removeRow(row)
             
    def addLayersToUploadTable(self):
+      #table2
       selectedrowidxs = self.table1.tableView.selectionModel().selectedRows()
       if len(selectedrowidxs) == 0:
          
@@ -326,16 +330,27 @@ class Ui_Dialog(object):
          for x,index in enumerate(selectedrowidxs):
             # make a row here from the things we can get from the selected row
             layername = index.model().data[index.row()][0]
+            # not using binomial with author name anymore, March 2015
             layerid = index.model().data[index.row()][1]
             layerurl = self.client.sdm.getProjectionUrl(layerid,frmt="tiff")
             layertype = index.model().data[index.row()][5]
-            self.table2.tableView.model().insertRow(x,[layername, layerurl,"pixel",'','','',layertype,layerid])
+            try:
+               splL = layername.split(' ')
+               palayername = "%s_%s_%s" % (splL[0],splL[1],splL[len(splL)-1])
+               layername = palayername
+            except:
+               # get it from notTitle
+               notTitle = index.model().data[index.row()][10]
+               palayername = notTitle
+               layername = notTitle
+            # just stashing palayername in hidden column [8] for now 
+            self.table2.tableView.model().insertRow(x,[layername, layerurl,"pixel",'','','',layertype,layerid,palayername])
             self.acceptBut.setEnabled(True)
          self.tableview2.resizeColumnsToContents()
          self.tableview2.horizontalHeader().setStretchLastSection(True)
       
    def addLayersToResultsTable(self,layers,userLayers=False):
-      
+      # table1
       self.table1.setNoPages(totalCount=self.projectionCount)
       self.table1.tableView.model().setNoPages(self.table1.noPages)
       readOut = "%s/%s" % (str(1),str(self.table1.noPages))
@@ -346,6 +361,12 @@ class Ui_Dialog(object):
                layername = layer.title
             except:
                layername = layer.name
+            else:
+               # put notTitle (name) in hidden column [10], should be like prj_1233242
+               try:
+                  notTitle = layer.name
+               except:
+                  notTitle = "-999"
             layerid = layer.id
             Alg = layer.algorithmCode
             Scen = layer.scenarioCode
@@ -359,7 +380,7 @@ class Ui_Dialog(object):
                maxVal = 'no data'
                noDataVal = 'nodata'
                resolution = 'nodata'
-            self.table1.tableView.model().insertRow(x,[layername, layerid,"<a href='nothing'>view</a>",Alg,Scen,'PUBLIC',minVal,maxVal,noDataVal,resolution])
+            self.table1.tableView.model().insertRow(x,[layername, layerid,"<a href='nothing'>view</a>",Alg,Scen,'PUBLIC',minVal,maxVal,noDataVal,resolution,notTitle])
          self.tableview1.resizeColumnsToContents()
          self.tableview1.horizontalHeader().setStretchLastSection(True)
       else:

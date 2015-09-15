@@ -54,7 +54,7 @@ class Ui_Dialog(object):
       self.style2 = QtGui.QStyleFactory.create("motif") # try plastique too!
       self.outputGroup.setStyle(self.style2)
       self.gridLayout_output = QtGui.QGridLayout(self.outputGroup)
-      self.gridLayout_output.setObjectName("gridLayout_input")
+      self.gridLayout_output.setObjectName("gridLayout_output")
       self.gridLayout.addWidget(self.outputGroup, 4,0,4,0)
       self.gridLayout.setRowStretch(4,6)
        
@@ -62,30 +62,23 @@ class Ui_Dialog(object):
       self.statuslabel.setObjectName('status')
       self.gridLayout_output.addWidget(self.statuslabel)
       self.statuslabel.setText(QtGui.QApplication.translate("self", 
-         'Running Process', None, QtGui.QApplication.UnicodeUTF8))
+         'Sending request..', None, QtGui.QApplication.UnicodeUTF8))
       
-      self.progressbar = QtGui.QProgressBar(self.outputGroup)
-      self.progressbar.setMinimum(0)
-      self.progressbar.setMaximum(100)
-      self.progressbar.setTextVisible(False)
-      self.progressbar.setObjectName('progressbar')
-      self.gridLayout_output.addWidget(self.progressbar)
+      self.progressbar = QtGui.QProgressBar();self.progressbar.setMinimum(0);self.progressbar.setMaximum(0)
+      #self.progressWidget = QtGui.QWidget()
+      #self.progressWidget.hide()
+      #self.progressHzLayout = QtGui.QHBoxLayout(self.progressbar)
+      self.progressbar.hide()
+      self.gridLayout_input.addWidget( self.progressbar,4,0,1,4)
+      #self.progressbar = QtGui.QProgressBar(self.outputGroup)
+      #self.progressbar.setMinimum(0)
+      #self.progressbar.setMaximum(100)
+      #self.progressbar.setTextVisible(False)
+      #self.progressbar.setObjectName('progressbar')
+      #self.gridLayout_output.addWidget(self.progressbar)
       
       
-      #self.outlabel = QtGui.QLabel(self.outputGroup)
-      #self.outlabel.setGeometry(QtCore.QRect(10, 270, 293, 20))
-      #self.outlabel.setObjectName("outlabel")
-      #self.outlabel.setText("Output to file")
-      #self.outEdit = QtGui.QLineEdit(self.outputGroup)
-      #self.outEdit.setGeometry(QtCore.QRect(10, 290, 213, 25))
-      #self.outEdit.setObjectName("shapepath")
-      #self.outEdit.setEnabled(False)
-      #
-      #self.fileButton = QtGui.QPushButton(QtGui.QIcon("file.ico"), "Browse", self.outputGroup)
-      #self.fileButton.setFocusPolicy(QtCore.Qt.NoFocus)
-      #self.fileButton.setGeometry(QtCore.QRect(240,290,75,23))
-      #self.fileButton.setEnabled(False)
-
+           
        
       self.outputGroup.hide()
       
@@ -108,14 +101,14 @@ class Ui_Dialog(object):
       self.gridLayout_input.setRowMinimumHeight(4,89)
       
       
+      self.hideButtonsWidget = QtGui.QWidget()
+      self.buttonHzLayout = QtGui.QHBoxLayout(self.hideButtonsWidget)
+      #self.gridLayout_input.addLayout( self.buttonHzLayout,4,0,1,4)
+      self.gridLayout_input.addWidget( self.hideButtonsWidget,4,0,1,4)
       
-      self.buttonHzLayout = QtGui.QHBoxLayout()
-      self.gridLayout_input.addLayout( self.buttonHzLayout,4,0,1,4)
-     
-      #self.splitBucketBut = QtGui.QPushButton("Split Bucket",self)
       self.getStatsBut = QtGui.QPushButton("Get Statistics",self)
       self.buttonHzLayout.addWidget(self.getStatsBut)
-      #self.calcBut = QtGui.QPushButton("Calculate",self)   
+     
       self.intersectBut = QtGui.QPushButton("Intersect && Calculate",self)
       self.buttonHzLayout.addWidget(self.intersectBut)
      

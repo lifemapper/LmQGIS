@@ -36,7 +36,7 @@ import os
 from PyQt4.QtGui import *
 from PyQt4.QtCore import Qt, QUrl
 from qgis.core import *
-from lifemapperTools.common.pluginconstants import RandomizeMethods
+from LmCommon.common.lmconstants import RandomizeMethods
 from lifemapperTools.tools.ui_randomizePAMDialog import Ui_Dialog
 from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.common.pluginconstants import GENERIC_REQUEST, EXECUTE_REQUEST
@@ -47,7 +47,7 @@ from lifemapperTools.common.pluginconstants import GENERIC_REQUEST, EXECUTE_REQU
 class RandomizePAMDialog( _Controller, QDialog, Ui_Dialog):
    
    """
-   Grid Dialog Class, inherits from QDialog,_Controller and Ui_Dialog
+   Randomize Dialog Class, inherits from QDialog,_Controller and Ui_Dialog
    """
 
 # .............................................................................
@@ -85,7 +85,7 @@ class RandomizePAMDialog( _Controller, QDialog, Ui_Dialog):
             self.keyvalues.update(self.inputs)
          
          self.startThread(EXECUTE_REQUEST,outputfunc = self.verifyRandom, 
-                          requestfunc=self.client.rad.randomize, client=self.client,
+                          requestfunc=self.client.rad.randomizeBucket, client=self.client,
                           inputs=self.keyvalues)
       else:
          pass
@@ -102,9 +102,9 @@ class RandomizePAMDialog( _Controller, QDialog, Ui_Dialog):
             self.keyvalues['method'] = 'splotch'
          elif self.swapCheck.isChecked():
             self.keyvalues['method'] = 'swap'          
-            self.keyvalues['iterations'] = str(self.iterationsEdit.text())
+            self.keyvalues['numSwaps'] = str(self.iterationsEdit.text())
             if len(self.iterationsEdit.text()) <= 0:
-               message = "Please supply number of iterations"
+               message = "Please supply number of swaps"
                valid = False
          
          

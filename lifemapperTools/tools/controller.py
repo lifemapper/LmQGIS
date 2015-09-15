@@ -31,15 +31,13 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import xml.etree.ElementTree as ET
 from lifemapperTools.common.model import RequestModel
-from lifemapperTools.common.lmClientLib import LMClient
-from lifemapperTools.common.pluginconstants import (STATUS_ACCEPTED, STATUS_STARTED,
-                                          STATUS_FAILED, STATUS_SUCCEEDED,
-                                          GENERIC_REQUEST,EXECUTE_REQUEST,JobStatus)
-
+from LmClient.lmClientLib import LMClient
+from lifemapperTools.common.pluginconstants import  GENERIC_REQUEST,EXECUTE_REQUEST
+from LmCommon.common.lmconstants import JobStatus
+from LmCommon.common.localconstants import ARCHIVE_USER
 import pdb
 
-DEFAULT_USER = 'anon'
-DEFUALT_PWD = 'anon'
+
 
 # .............................................................................
 
@@ -84,9 +82,9 @@ class _Controller:
       self.buttonOk = okayButton
       self.clientmethod = requestfunc
       self.outputfunction = None
+      
       if client is None:
-         client = LMClient(userId=DEFAULT_USER,pwd=DEFUALT_PWD)
-
+         client = LMClient()         
       if initializeWithData:
          # the model, because of thread and signals, has to live in the 
          # thread and the client lives in the model, so here we 
@@ -254,7 +252,6 @@ class WPSThread(QThread):
 # .............................................................................         
    def httpError(self, msgtype, http):
       
-      #messageString = ' '.join(args)
       messageString = msgtype+" "+http
       self.error = messageString
       
@@ -291,8 +288,8 @@ class WPSThread(QThread):
          return None, None
       else:
          if not(self.completedStage):
-            if not(status >= 1000):
-               if status == STATUS_SUCCEEDED:
+            if not(status >= JobStatus.GENERAL_ERROR):
+               if status == JobStatus.COMPLETE:
                   #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)  
                   self.wpsStatus.emit(100)                                   
                   return status, self.model  
@@ -302,12 +299,12 @@ class WPSThread(QThread):
                      callBackCounter += 1
                      loops = 0
                      model = True
-                     while (not(status >= 1000) and status != STATUS_SUCCEEDED) or \
-                     ((callBackCounter <= len(callBacks)) and not(status > STATUS_SUCCEEDED)):
+                     while (not(status >= JobStatus.GENERAL_ERROR) and status != JobStatus.COMPLETE) or \
+                     ((callBackCounter <= len(callBacks)) and not(status > JobStatus.COMPLETE)):
                         status, stage = self.model.getStatus(requestfunc=statusfunc)
                         status = int(status)
                         stage = int(stage)
-                        if status != STATUS_SUCCEEDED:
+                        if status != JobStatus.COMPLETE:
                            if self.progress == 100 and loops < 1:
                               self.progress = 0 
                               loops += 1
@@ -323,17 +320,17 @@ class WPSThread(QThread):
                         #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
                         self.wpsStatus.emit(self.progress)
                         time.sleep(2)
-                     if status >= 1000:
+                     if status >= JobStatus.GENERAL_ERROR:
                         # need to get a more informative error code here, like below                  
                         self.error = "error-status "+str(status)
                         model = False
                         break
                         #return status, None
-                     elif status == STATUS_SUCCEEDED:                
+                     elif status == JobStatus.COMPLETE:                
                         #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
                         self.wpsStatus.emit(100)
                         #return status, self.model
-                     elif status != STATUS_SUCCEEDED and status < 1000:
+                     elif status != JobStatus.COMPLETE and status < JobStatus.GENERAL_ERROR:
                         model = False
                         #return status, None
                   if model:
@@ -341,11 +338,11 @@ class WPSThread(QThread):
                   else:
                      return status, None
                   
-            elif status >= 1000:
-               self.error = "status already above 1000"
+            elif status >= JobStatus.GENERAL_ERROR:
+               self.error = "status already above JobStatus.GENERAL_ERROR"
                return status, None
          else:
-            if not(status >= 1000):
+            if not(status >= JobStatus.GENERAL_ERROR):
                if stage == self.completedStage:
                   #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)     
                   self.wpsStatus.emit(100)                                
@@ -357,8 +354,8 @@ class WPSThread(QThread):
                      callBackCounter += 1
                      loops = 0
                      model = True
-                     while ((stage < self.completedStage) and not(status > STATUS_SUCCEEDED)) or \
-                     ((callBackCounter <= len(callBacks)) and not(status > STATUS_SUCCEEDED)):
+                     while ((stage < self.completedStage) and not(status > JobStatus.COMPLETE)) or \
+                     ((callBackCounter <= len(callBacks)) and not(status > JobStatus.COMPLETE)):
                         status, stage = self.model.getStatus(requestfunc=statusfunc)
                         status = int(status)
                         stage = int(stage)
@@ -378,20 +375,20 @@ class WPSThread(QThread):
                         #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), self.progress)
                         self.wpsStatus.emit(self.progress)
                         time.sleep(2)
-                     if status >= 1000:       
+                     if status >= JobStatus.GENERAL_ERROR:       
                         self.error = "error-status "+str(status)
                         model = False
                         break
                         
-                     elif stage == self.completedStage and status == STATUS_SUCCEEDED:                
+                     elif stage == self.completedStage and status == JobStatus.COMPLETE:                
                         #self.emit( SIGNAL( "wpsStatus(PyQt_PyObject)" ), 100)
                         self.wpsStatus.emit(100)
                         
-                     elif STATUS_SUCCEEDED < status < 1000:
+                     elif JobStatus.COMPLETE < status < JobStatus.GENERAL_ERROR:
                         self.error = "cluster error or not found"
                         model = False
                         
-                     elif status != STATUS_SUCCEEDED and status < 1000:
+                     elif status != JobStatus.COMPLETE and status < JobStatus.GENERAL_ERROR:
                         model = False
                         
                   if model:
@@ -399,8 +396,8 @@ class WPSThread(QThread):
                   else:
                      return status, None
                   
-            elif status >= 1000:
-               self.error = "status already above 1000"
+            elif status >= JobStatus.GENERAL_ERROR:
+               self.error = "status already above JobStatus.GENERAL_ERROR"
                return stage, None
               
 # .............................................................................          
@@ -417,15 +414,13 @@ class WPSThread(QThread):
       self.model.HTTPError.connect(self.httpError)
       
       try: 
-         #pyqtRemoveInputHook()
-         #pdb.set_trace()
        
          outputs,status = self.model.makeRequest(requestfunc=self.clientmethod,
                                                  inputs=self.threadinputs)        
-      except:
+      except Exception, e:
         
          self.results = None
-         self.error = 'process error'        
+         self.error = str(e)        
       else:
         
          self.progress = 100   #maybe                         

@@ -24,7 +24,7 @@
 """
 from PyQt4 import QtCore, QtGui
 from lifemapperTools.tools.radTable import *
-from lifemapperTools.common.pluginconstants import RASTER_EXTENSION, SHAPEFILE_EXTENSION 
+from LmCommon.common.lmconstants import OutputFormat #OutputFormat.GTIFF, OutputFormat.SHAPE 
 import os
 
 
@@ -62,6 +62,7 @@ class Ui_Dialog(object):
                 'Minimum Presence', 'Maximum Presence', 'Percent Presence (1-100)     ','unique']
       self.tableview = self.table.createTable(header,editsIndexList=[0,2,3,4,5],
                                               hiddencolumns=[1,6],comboIndices=comboIndices)
+      self.tableview.setSortingEnabled(False)
       self.tableview.setSelectionBehavior(QAbstractItemView.SelectRows)
       self.tableview.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
       self.tableview.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -115,7 +116,21 @@ class Ui_Dialog(object):
       self.acceptLayout.addWidget(self.acceptBut)
       self.gridLayout.addLayout(self.acceptLayout,2,0,1,1)
       
+      ############   trees ###############
+      self.treeGroup = QtGui.QGroupBox()
+      self.treeGroup.setObjectName("treeGroup")
+      self.style = QtGui.QStyleFactory.create("motif") # try plastique too!
+      self.treeGroup.setStyle(self.style)
       
+      self.treeLayout = QtGui.QGridLayout()
+      
+      self.treeWidget = QtGui.QWidget()
+      self.treeWidget.setMinimumHeight(120)
+      self.treeLayout.addWidget(self.treeWidget)
+      
+      self.treeGroup.setLayout(self.treeLayout)
+      #self.gridLayout.addWidget(self.treeGroup,3,0,1,1)
+      ########################################
        
       self.outputGroup = QtGui.QGroupBox(self)
       self.outputGroup.setObjectName("outputGroup")
@@ -187,7 +202,7 @@ class Ui_Dialog(object):
          else:
             rowsToRemove = [index.model().data[index.row()] for index in selectedrowidxs]
             skips = self.table.tableView.model().skipComboinRow
-            print "SKIPS at BEGINNING OF REMOVE ",skips
+            
             removeskips = []
             removeshpsRowIdxs = []
             fieldpositions = []
@@ -219,7 +234,7 @@ class Ui_Dialog(object):
             self.table.tableView.model().fields = newfields
             self.table.tableView.model().skipComboinRow = allRasterSkips 
        
-      print "SKIPS at end of REMOVE"
+      
       
       
       
@@ -319,6 +334,7 @@ class Ui_Dialog(object):
       """
       @summary: Shows a file selection dialog
       """
+      self.acceptBut.setEnabled(True)
       settings = QtCore.QSettings()
       dirName = settings.value( "/UI/lastShapefileDir" )
       filenames = QtGui.QFileDialog.getOpenFileNames(self, 
@@ -332,7 +348,7 @@ class Ui_Dialog(object):
       @summary: adds records to the table's view
       """
       self.tableview.setEditTriggers(QtGui.QAbstractItemView.DoubleClicked | QtGui.QAbstractItemView.EditKeyPressed)
-      shpList = [file for file in filenames if os.path.splitext(str(file))[1] == SHAPEFILE_EXTENSION]
+      shpList = [file for file in filenames if os.path.splitext(str(file))[1] == OutputFormat.SHAPE]
       fields = self.getFields(shpList) 
       if self.table.tableView.model().data[0][1] == 'start':
          lengthOfExistingData = 0
@@ -343,7 +359,7 @@ class Ui_Dialog(object):
          map(lambda field: self.table.tableView.model().fields.append(field),fields)
       for x, file in enumerate(filenames):
          layername = os.path.basename(os.path.splitext(str(file))[0])
-         if os.path.splitext(str(file))[1] == RASTER_EXTENSION:
+         if os.path.splitext(str(file))[1] == OutputFormat.GTIFF:
             self.table.tableView.model().insertRow(x,[layername,str(file),'pixel','','','',lengthOfExistingData+x])
             if lengthOfExistingData > 0:
                index = self.table.tableView.model().index(x+lengthOfExistingData,2)
@@ -371,7 +387,7 @@ class Ui_Dialog(object):
       self.tableview.resizeColumnsToContents()     
       #self.tableview.horizontalHeader().setStretchLastSection(True)
       self.acceptBut.setEnabled(True)
-      print "SKIPS in ADD"
+      
       
       
       

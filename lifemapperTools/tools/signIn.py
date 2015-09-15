@@ -46,10 +46,10 @@ from lifemapperTools.tools.ui_signInDialog import Ui_Dialog
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
-from lifemapperTools.common.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject, SIGNUPURL
-
+from LmClient.lmClientLib import LMClient, OutOfDateException
+#from lifemapperTools.common.lmClientLib import LMClient, OutOfDateException
 
 
 class Ui_SubDialog(object):
@@ -141,8 +141,9 @@ class SignInDialog(QDialog, Ui_Dialog):
       valid = self.validate()
       if valid:
          try:
-            cl = LMClient(userId=self.keyvalues["usernameEdit"], 
-                          pwd=self.keyvalues["passEdit"])
+            cl = LMClient()
+            cl.login(userId=self.keyvalues["usernameEdit"], 
+                     pwd=self.keyvalues["passEdit"])
          except OutOfDateException, e:
             message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
             QMessageBox.warning(self,"Problem...",message,QMessageBox.Ok)
@@ -154,9 +155,14 @@ class SignInDialog(QDialog, Ui_Dialog):
             msgBox = QMessageBox.warning(self,
                                                 "Problem...",
                                                 message,
-                                                QMessageBox.Ok)           
+                                                QMessageBox.Ok)  
+         except:
+            message = "No Network Connection"  
+            msgBox = QMessageBox.warning(self,
+                                                "Problem...",
+                                                message,
+                                                QMessageBox.Ok)        
          else:
-            
             username = str(self.usernameEdit.text())
             self.client = cl
             try:

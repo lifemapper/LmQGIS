@@ -35,7 +35,6 @@ from PyQt4.QtCore import QSettings, Qt, SIGNAL, QUrl
 from qgis.core import *
 from qgis.gui import *
 from lifemapperTools.tools.ui_newExperimentDialog import Ui_Dialog
-from lifemapperTools.tools.controller import _Controller
 from lifemapperTools.tools.listPALayers import ListPALayersDialog
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.uploadLayers import UploadDialog
@@ -45,6 +44,7 @@ from lifemapperTools.common.pluginconstants import ListExperiments, GENERIC_REQU
 from lifemapperTools.common.pluginconstants import QGISProject
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.tools.radTable import RADTable
+from lifemapperTools.tools.uploadTreeOTL import UploadTreeDialog
 from lifemapperTools.common.communicate import Communicate
 
 
@@ -53,7 +53,7 @@ from lifemapperTools.common.communicate import Communicate
 
 
 
-class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
+class NewExperimentDialog(QDialog, Ui_Dialog):
    
    
    
@@ -68,18 +68,18 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       self.checkExperiments()    
       self.setupUi()     
       self.client = client
-      cc = self.rejectBut
-      bok = self.acceptBut
+      #cc = self.rejectBut
+      #bok = self.acceptBut
       self.expId = None
       self.mapunits = None
       self.keyvalues = {}
       if email is not None:
          self.keyvalues['email'] = email
-      _Controller.__init__(self, iface, BASE_URL=ListExperiments.BASE_URL, 
-                           STATUS_URL=ListExperiments.STATUS_URL, 
-                           REST_URL=ListExperiments.REST_URL,
-                           cancel_close=cc, okayButton=bok, ids=RADids,
-                           initializeWithData=False, client=client)
+      #_Controller.__init__(self, iface, BASE_URL=ListExperiments.BASE_URL, 
+      #                    STATUS_URL=ListExperiments.STATUS_URL, 
+      #                    REST_URL=ListExperiments.REST_URL,
+      #                    cancel_close=cc, okayButton=bok, ids=RADids,
+      #                    initializeWithData=False, client=client)
 
 # ..............................................................................   
    def _checkQgisProjForKey(self):
@@ -134,29 +134,49 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
 
 
 # ..............................................................................      
-   def accept(self):
+   #def accept(self):
+   #   
+   #  
+   #   valid = self.validate()
+   #   if self.expId is not None:
+   #      self.openNewDialog()        
+   #   elif valid and self.expId is None: 
+   #      self.startThread(GENERIC_REQUEST,outputfunc = self.newExperimentCallBack, 
+   #                       requestfunc=self.client.rad.postExperiment, client=self.client,
+   #                       inputs=self.keyvalues)
+   #   elif not valid and self.expId is None:
+   #      pass        
+# ..............................................................................
+   def postNewOpen(self,buttonValue):
       
-     
       valid = self.validate()
       if self.expId is not None:
-         self.openNewDialog()        
-      elif valid and self.expId is None: 
-         self.startThread(GENERIC_REQUEST,outputfunc = self.newExperimentCallBack, 
-                          requestfunc=self.client.rad.postExperiment, client=self.client,
-                          inputs=self.keyvalues)
+         self.openNewDialog(buttonValue)
+      elif valid and self.expId is None:
+         try:
+            print self.keyvalues
+            exp = self.client.rad.postExperiment(**self.keyvalues)
+         except Exception, e:
+            
+            message = "Error posting new experiment "+str(e)
+            msgBox = QMessageBox.information(self,
+                                                "Problem...",
+                                                message,
+                                                QMessageBox.Ok)
+         else:
+            self.newExperimentCallBack(exp,buttonValue)
       elif not valid and self.expId is None:
-         pass
-         
-      
+         pass      
+          
 # ..............................................................................
    def validate(self):  
       valid = True
       message = ""
-      self.keyvalues['epsgCode'] = str(self.epsgEdit.text())
-      self.keyvalues['name'] = str(self.expNameEdit.text())
-      self.keyvalues['description'] = str(self.description.toPlainText())
+      self.keyvalues['epsgCode'] = self.epsgEdit.text()
+      self.keyvalues['name'] = self.expNameEdit.text()
+      self.keyvalues['description'] = self.description.toPlainText()
       epsg = self.epsgEdit.text()   
-      self.setMapUnitsFromEPSG(epsg=epsg)
+      #self.setMapUnitsFromEPSG(epsg=epsg)
       experimentname = self.expNameEdit.text()
       if len(experimentname) <= 0:
          message = "Please supply a experiment name"
@@ -184,7 +204,6 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       """
       projSelector = QgsGenericProjectionSelector(self)
       dialog = projSelector.exec_()
-      print dir(projSelector)
       EpsgCode = projSelector.selectedAuthId().replace('EPSG:','')
       # some projections don't have epsg's
       if dialog != 0:
@@ -198,7 +217,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
                self.mapunits = 'feet'
             elif mapunitscode == 2:
                self.mapunits = 'dd' 
-            print "MAP UNITS ",self.mapunits
+            
             self.epsgEdit.setText(str(EpsgCode))
          else:
             # error message saying that the users chosen projection doesn't have a epsg
@@ -209,7 +228,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
                                                 message,
                                                 QMessageBox.Ok)
       else:
-         print "closed dialog without choosing a projection"
+         
          self.mapunits = None
          
          
@@ -256,8 +275,10 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
          self.mapunits = 'dd'
       elif mapunitscode == 3:
          self.mapunits = 'UnknownUnit'
+# ..............................................................................
+
 # ..............................................................................         
-   def newExperimentCallBack(self, item, model):
+   def newExperimentCallBack(self, item, buttonValue):
       """
       @summary: when a new expid comes back it gets saved to settings as
       currentExpID, then calls openNewDialog
@@ -272,7 +293,7 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
          self.setMapUnitsFromEPSG()
       self.setNewExperiment()
       Communicate.instance().activateRADExp.emit(int(self.expId),self.expEPSG,self.mapunits)
-      self.openNewDialog()
+      self.openNewDialog(buttonValue)
 # ..............................................................................
    def setNewExperiment(self):
       """
@@ -288,10 +309,10 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
                          "Could not save expId to settings") 
       
 # ..............................................................................         
-   def openNewDialog(self):
+   def openNewDialog(self,buttonValue):
       inputs = {'expId':self.expId}
       experimentname = self.keyvalues['name'] 
-      if self.gridRadio.isChecked():       
+      if buttonValue == "Grid":       
          self.constructGridDialog = ConstructGridDialog( self.interface, 
                                                          inputs = inputs,
                                                          client = self.client,
@@ -299,43 +320,75 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
                                                          mapunits=self.mapunits)
          self.setModal(False)
          self.constructGridDialog.show()
-         self.listBucketsRadio.show() 
+         self.listBucketsRadio.setEnabled(True)
               
-      elif self.addSDMLayerRadio.isChecked():          
+      elif buttonValue == "SDM":          
          SDMDialog = UploadSDMDialog(self.interface,
                                     inputs = inputs,
                                     client = self.client,
                                     epsg=self.expEPSG,
                                     experimentname = experimentname,
                                     mapunits=self.mapunits)
-         self.setModal(False) 
+         
+         self.setModal(False) # has to be closed to continue
          SDMDialog.exec_() 
-         self.listPALayersRadio.show() 
-                        
-      elif self.addLocalSpeciesRadio.isChecked():        
+         self.listPALayersRadio.setEnabled(True)
+      
+      elif buttonValue == "Tree": 
+                  
+         try:
+            items = self.client.rad.getPALayers(self.expId)
+         except:
+            items = None
+            message = "There is a problem with the layer listing service"
+            msgBox = QMessageBox.information(self,
+                                             "Problem...",
+                                             message,
+                                             QMessageBox.Ok)
+         else:
+            if len(items) != 0:
+               message = "You already have layers in this experiment. You must begin an experiment with trees and their layers to use a tree."
+               msgBox = QMessageBox.information(self,
+                                             "Problem...",
+                                             message,
+                                             QMessageBox.Ok)
+            elif len(items) == 0:
+               
+               treeDialog = UploadTreeDialog(self.interface,
+                                             inputs = inputs,
+                                             client = self.client,
+                                             epsg  = self.expEPSG,
+                                             experimentname=experimentname,
+                                             mapunits=self.mapunits)
+               self.setModal(False)
+               treeDialog.exec_()
+               self.listPALayersRadio.setEnabled(True)
+                                 
+      elif buttonValue == "Local":        
          d = UploadDialog(self.interface,
                           inputs = inputs,
                           client = self.client,
                           epsg=self.expEPSG,
                           experimentname=experimentname,
                           mapunits=self.mapunits) 
+         
          d.exec_() 
-         self.listPALayersRadio.show()
+         self.listPALayersRadio.setEnabled(True)
          
            
-      elif self.emptyRadio.isChecked():         
+      elif buttonValue == "Empty":         
          pass      
-      elif self.listBucketsRadio.isChecked():
+      elif buttonValue == "ListBuckets":
          d = ListBucketsDialog(self.interface, inputs=inputs,
                                   client= self.client, epsg=self.expEPSG,
                                   mapunits=self.mapunits)
          d.exec_()         
-      elif self.listPALayersRadio.isChecked():
+      elif buttonValue == "ListLayers":
          d = ListPALayersDialog(self.interface, inputs=inputs,
                                   client= self.client, epsg=self.expEPSG,
                                   mapunits=self.mapunits)
          d.exec_()         
-      self.acceptBut.setEnabled( True )
+      #self.acceptBut.setEnabled( True )
 
 # ..............................................................................         
    def help(self):
@@ -359,8 +412,16 @@ class NewExperimentDialog(_Controller,QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   #client =  LMClient(userId='blank', pwd='blank')
    import sys
+   #import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
+   #sys.path.append(os.path.join(import_path, 'LmShared'))
+   ###
+   #configPath = os.path.join(import_path, 'config', 'config.ini')
+   ###
+   #os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
+   #from LmClient.lmClientLib import LMClient
+   #client =  LMClient(userId='blank', pwd='blank')
+
    qApp = QApplication(sys.argv)
    d = NewExperimentDialog(None)#,experimentId=596106
    d.show()

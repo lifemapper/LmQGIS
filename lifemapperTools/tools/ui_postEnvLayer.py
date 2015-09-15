@@ -21,7 +21,6 @@
           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
           02110-1301, USA.
 """
-from lifemapperTools.common.lmClientLib import LMClient
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
@@ -31,6 +30,7 @@ import sys
 import os.path
 from urllib2 import HTTPError
 from collections import Counter, defaultdict, namedtuple
+from LmCommon.common.lmconstants import MASK_TYPECODE
 
 
 
@@ -129,10 +129,8 @@ class Ui_Dialog(object):
       self.layerTypeCodeLabel.setMaximumHeight(28)
       
       self.selectTypeCode = QtGui.QComboBox()
-      self.selectTypeCode.addItem('',
-                                     0)
-      self.selectTypeCode.addItem('new...',
-                                     1)
+      #self.selectTypeCode.addItem('',0)
+      #self.selectTypeCode.addItem('new...',1)
       
       
       self.selectTypeCode.currentIndexChanged.connect(self.newTypeCode)
@@ -184,18 +182,31 @@ class Ui_Dialog(object):
       self.epsgLayout = QtGui.QGridLayout()
       self.epsgLayout.setRowMinimumHeight(0,30)
       self.epsgLayout.setRowMinimumHeight(1,30)
+      self.epsgLayout.setRowMinimumHeight(2,30)
+      
       self.epsgLayout.setColumnMinimumWidth(0,190)
       self.epsgLayout.setColumnMinimumWidth(1,120)
       self.epsgLayout.setColumnMinimumWidth(2,80)
       self.epsgLayout.setColumnMinimumWidth(3,120)
       
-      self.epsgLayout.addWidget(self.layerTypeCodeLabel,0,0,1,1)
-      self.epsgLayout.addWidget(self.epsgCodeLabel,     0,1,1,1)
-      self.epsgLayout.addWidget(self.unitsLabel,        0,3,1,1)
-      self.epsgLayout.addWidget(self.selectTypeCode,     1,0,1,1)
-      self.epsgLayout.addWidget(self.epsgCodeEdit,      1,1,1,1)
-      self.epsgLayout.addWidget(self.epsgButton,        1,2,1,1)
-      self.epsgLayout.addWidget(self.selectUnits,       1,3,1,1)
+      littleWidget =  QHBoxLayout()
+      self.maskCheckBox = QCheckBox()
+      self.maskCheckBox.toggled.connect(self.setMaskType)
+      self.maskCheckLabel = QLabel()
+      self.maskCheckLabel.setText("Layer is a mask")
+      littleWidget.addWidget(self.maskCheckBox)
+      littleWidget.addWidget(self.maskCheckLabel,Qt.AlignLeft)
+      
+      self.epsgLayout.addLayout(littleWidget,0,0,1,1)
+      #self.epsgLayout.addWidget(littleWidget,      0,0,1,1)
+      #self.epsgLayout.addWidget(self.maskCheckLabel,    0,1,1,1)
+      self.epsgLayout.addWidget(self.layerTypeCodeLabel,1,0,1,1)
+      self.epsgLayout.addWidget(self.epsgCodeLabel,     1,1,1,1)
+      self.epsgLayout.addWidget(self.unitsLabel,        1,3,1,1)
+      self.epsgLayout.addWidget(self.selectTypeCode,    2,0,1,1)
+      self.epsgLayout.addWidget(self.epsgCodeEdit,      2,1,1,1)
+      self.epsgLayout.addWidget(self.epsgButton,        2,2,1,1)
+      self.epsgLayout.addWidget(self.selectUnits,       2,3,1,1)
       
       
       self.epsgGroup.setLayout(self.epsgLayout)
@@ -328,6 +339,7 @@ class PostTypeCodeDialog(QtGui.QDialog,Ui_SubDialog):
       def unHighLiteAll(self):
          self.typeCodeName.setStyleSheet("background-color: white")
          self.typeCodeTitle.setStyleSheet("background-color: white")
+         
       def validate(self):
          valid = True
          self.unHighLiteAll()
@@ -400,18 +412,121 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
    
    insertedTypeCode = pyqtSignal(str)
    
-   def __init__(self, client=None, interface=None):
+   def __init__(self, client=None, interface=None, epsgCode=None, typeCode=None, parent=None, fromMaskinSDM=False):
       QtGui.QDialog.__init__(self)
       self.inputElements = []
       self.formElement = namedtuple('QLineElement',['type','element'])
       self.iface = interface
       self.client = client
       self.postSucceeded = False
+      self.fromMaskinSDM = fromMaskinSDM
+      self.epsgCode = epsgCode
       self.setupUi()
-      self.insertedTypeCode.connect(self.insertTypeCode)
+      self.SDMDialog = parent
+      self.maskTypeList = None
+      self.useMaskList = False
       self.typeCodes = self.getTypeCodes()
+      self.insertedTypeCode.connect(self.insertTypeCode)
+      
+      if fromMaskinSDM:
+         self.maskCheckBox.setChecked(True)
+         self.maskCheckBox.setEnabled(False)
+         self.populateEPSG(epsgCode)
+         
+      self.populateTypeCodes(useMask=self.useMaskList)
+# .............................................................................   
+   def checkForMASKTypeCode(self):
+      tempCode = []
       if self.typeCodes is not None:
-         self.populateTypeCodes()
+         if len(self.typeCodes) != 0:
+            for type in self.typeCodes:
+               try:
+                  if type.typeCode == MASK_TYPECODE:
+                     tempCode.append(type)
+                     break
+               except:
+                  pass
+      if len(tempCode) == 0:
+         self.maskTypeList = self.makeMASKTypeCode()
+      else:
+         self.maskTypeList = tempCode
+         
+# .............................................................................  
+   def setMaskType(self, checked):
+      if checked:
+         self.useMaskList = True
+         if self.maskTypeList is None:
+            self.checkForMASKTypeCode()
+         if not self.fromMaskinSDM:
+            self.populateTypeCodes(useMask=self.useMaskList)           
+      else:
+         self.populateTypeCodes(useMask=False)
+# .............................................................................   
+   def makeMASKTypeCode(self):
+      newCodeList = None
+      try:
+         newCode = self.client.sdm.postTypeCode(MASK_TYPECODE, title=MASK_TYPECODE)
+      except Exception,e:
+         message = "Could not post new type code "+str(e)
+         msgBox = QMessageBox.warning(self, "Problem...", message, QMessageBox.Ok)
+      else:
+         newCodeList = []
+         newCodeList.append(newCode)
+      return newCodeList
+# .............................................................................         
+   def checkLyrForEPSG(self,file):
+      
+      match = False
+      QgsLayer = QgsRasterLayer(file,'testCRS')
+      epsg = str(QgsLayer.crs().authid()).strip('EPSG:')
+      if str(epsg) == str(self.epsgCode):
+         match = True
+      return match  
+# ............................................................................. 
+   def getTypeCodes(self):
+      try:
+         typeCodes = self.client.sdm.listTypeCodes(public=False,fullObjects=True)
+         
+      except:
+         typeCodes = None
+      return typeCodes
+# .............................................................................          
+   def populateTypeCodes(self,useMask=False):
+      self.selectTypeCode.clear()
+      if useMask:
+         codes = self.maskTypeList
+      else:
+         self.selectTypeCode.addItem('',0)
+         self.selectTypeCode.addItem('new...',1)
+         codes = self.typeCodes
+      if codes is not None:
+         for code in codes:
+            try:
+               self.selectTypeCode.addItem(code.typeTitle,
+                                        code.typeCode)
+            except:
+               try:
+                  self.selectTypeCode.addItem(code.typeCode,
+                                        code.typeCode)
+               except:
+                  pass      
+         
+   def populateEPSG(self,epsg):
+      epsgcode = str(epsg)
+      self.epsgCodeEdit.setText(epsgcode)
+      self.epsgCodeEdit.setEnabled(False) 
+      crs = QgsCoordinateReferenceSystem()
+      crs.createFromOgcWmsCrs('EPSG:%s' % (epsgcode))
+      mapunitscode = crs.mapUnits()
+      if mapunitscode == 0:
+         mapunits = 'meters'
+      elif mapunitscode == 1:
+         mapunits = 'feet'
+      elif mapunitscode == 2:
+         mapunits = 'dd' 
+      unitsIdx = self.selectUnits.findData(mapunits, role=QtCore.Qt.UserRole)
+      self.selectUnits.setCurrentIndex(unitsIdx) 
+      self.selectUnits.setEnabled(False)
          
    def insertTypeCode(self,newTypeCode):
       """
@@ -433,35 +548,25 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
          self.uploadTypeCode.exec_()
 # .............................................................................       
    def addFileName(self,file):
-      
-      self.fileEdit.setText(file) 
+      if not self.fromMaskinSDM:
+         self.fileEdit.setText(file) 
+      else:
+         goodEPSG = self.checkLyrForEPSG(file)
+         if goodEPSG:
+            self.fileEdit.setText(file)
+         else:
+            message = "layer does not match experiment map projection"
+            msgBox = QtGui.QMessageBox.information(self,
+                                                "Problem...",
+                                                message,
+                                                QtGui.QMessageBox.Ok)
 # .............................................................................    
    def unHighLiteAll(self):
       for t in self.inputElements:
          if t.type != 'combo' and t.type != 'block' and t.type != 'typeCombo':
             t.element.setStyleSheet("background-color: white")
 
-# ............................................................................. 
-   def getTypeCodes(self):
-      try:
-         typeCodes = self.client.sdm.listTypeCodes(public=False,fullObjects=True)
-         
-      except:
-         typeCodes = None
-      return typeCodes
-# .............................................................................          
-   def populateTypeCodes(self):
-      
-      for code in self.typeCodes:
-         try:
-            self.selectTypeCode.addItem(code.typeTitle,
-                                     code.typeCode)
-         except:
-            try:
-               self.selectTypeCode.addItem(code.typeCode,
-                                     code.typeCode)
-            except:
-               pass
+
 # ................................................................................            
    def validate(self):
       self.unHighLiteAll()
@@ -484,8 +589,10 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
                   t.element.setStyleSheet("background-color: #F5693B") 
          elif t.type == 'typeCode':
             currentIdx = t.element.currentIndex()
-            if currentIdx == 0 or currentIdx == 1:
-               t.element.setStyleSheet("background-color: #F5693B")
+            if not self.fromMaskinSDM:
+               if currentIdx == 0 or currentIdx == 1:
+                  valid = False
+                  t.element.setStyleSheet("background-color: #F5693B")
             
                                           
       return valid                 
@@ -541,11 +648,16 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
             for progress in range(1,100):
                self.progressbar.setValue(progress) 
             self.resetForm()
+            if self.fromMaskinSDM:
+               self.SDMDialog.setCombosToNewMask(name,str(obj.id))
+               # call method in parent to update model and set combo boxes to new mask index
             message = "Successfully uploaded environmental layer"
          msgBox = QtGui.QMessageBox.information(self,
                                                 "Status...",
                                                 message,
-                                                QtGui.QMessageBox.Ok)                                            
+                                                QtGui.QMessageBox.Ok)   
+         if self.fromMaskinSDM:
+            self.close()                                         
 # ..................................................................................             
    def openProjSelectorSetEPSG(self):
       """
@@ -623,7 +735,13 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   client =  LMClient(userId='Dermot', pwd='Dermot')
+   import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
+   sys.path.append(os.path.join(import_path, 'LmShared'))
+   configPath = os.path.join(import_path, 'config', 'config.ini') 
+   os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
+   from LmClient.lmClientLib import LMClient 
+   client =  LMClient()
+   client.login('Dermot', 'Dermot')
    qApp = QtGui.QApplication(sys.argv)
    #d = PostScenarioDialog(match=True,scenarioId=112,client=client)
    d = PostEnvLayerDialog(client=client)

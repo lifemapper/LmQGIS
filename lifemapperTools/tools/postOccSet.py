@@ -36,7 +36,7 @@ from lifemapperTools.tools.ui_postOccSetDialog import Ui_Dialog
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.common.communicate import Communicate
 
 
@@ -61,7 +61,6 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
    def accept(self):
       # after upload, we recieve an occurrence id
       # which we need to pass back along with everything else to the postExp Dialog
-      
       if self.validate():
          self.uploadBut.setEnabled(False)
          try:
@@ -70,7 +69,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
          except:
             msgBox = QMessageBox.information(self,
                                                "Problem...",
-                                               "Problem witht the post occurrence set service",
+                                               "Problem with the post occurrence set service",
                                                QMessageBox.Ok)
          else:
             occSetId = response.id
@@ -84,9 +83,9 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
    def validate(self):
       
       epsgCode = str(self.epsgCodeEdit.text())
-      self.displayName = str(self.displayNameEdit.text())
+      self.displayName = self.displayNameEdit.text()
       if self.fileName is None:
-         self.fileName = str(self.file.text())
+         self.fileName = self.file.text()
       self.fileType = self.getFileType(userData=False)
       self.occMapLayerName = self.canvasLayersCombo.currentText()
       valid = True
@@ -164,10 +163,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
                source = layers[key].source() 
                name = layers[key].name()
                self.canvasLayersCombo.addItem(name,userData=source)
-      # we connect the combo here, because adding items triggers the currenIndexChanged signal,
-      # maybe we don't connect unless there are point layers         
-      #QObject.connect(self.canvasLayersCombo, 
-      #                       SIGNAL("currentIndexChanged(int)"), self.selectFromCanvas)
+      
       self.canvasLayersCombo.currentIndexChanged.connect(self.selectFromCanvas)
 # ..............................................................................
    def openProjSelectorSetEPSG(self):

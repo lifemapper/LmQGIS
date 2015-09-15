@@ -86,40 +86,57 @@ class Ui_Dialog(object):
       self.description.setMaximumSize(230, 78)
       self.description.setGeometry(QtCore.QRect(10, 220, 230, 90))
       
-      self.gridRadio = QtGui.QRadioButton('Define Input Grid',self.inputGroup)
-      self.gridRadio.setGeometry(QtCore.QRect(343, 30, 153, 25))
+      buttonList = []
+      #self.gridRadio = QtGui.QRadioButton('Define Input Grid',self.inputGroup)
+      self.gridRadio = QtGui.QPushButton('Define Input Grid',self.inputGroup)
+      self.gridRadio.setGeometry(QtCore.QRect(343, 30, 255, 25))
       self.gridRadio.setObjectName('gridRadio')
       self.gridRadio.setChecked(True)
+      buttonList.append((self.gridRadio,"Grid"))
       
-      self.addLocalSpeciesRadio = QtGui.QRadioButton('Add Local Species Layers',self.inputGroup)
-      self.addLocalSpeciesRadio.setGeometry(QtCore.QRect(343, 80, 189, 25))
+      self.addLocalSpeciesRadio = QtGui.QPushButton('Add Local Species Layers',self.inputGroup)
+      self.addLocalSpeciesRadio.setGeometry(QtCore.QRect(343, 80, 255, 25))
       self.addLocalSpeciesRadio.setObjectName('speciesRadio')
+      buttonList.append((self.addLocalSpeciesRadio,"Local"))
       
+      self.treesLyrsRadio =  QtGui.QPushButton('Add Tree and Local Species',self.inputGroup)
+      self.treesLyrsRadio.setToolTip("Begin an experiment with Newick phylo tree and supporting lyrs")
+      self.treesLyrsRadio.setGeometry(QtCore.QRect(343,130,255,25))
+      self.treesLyrsRadio.setObjectName("treeRadio")
+      buttonList.append((self.treesLyrsRadio,"Tree"))
+      #130,180,230,280
       
-      self.addSDMLayerRadio = QtGui.QRadioButton('Add LM species distribution model',self.inputGroup)
+      self.addSDMLayerRadio = QtGui.QPushButton('Add LM species distribution model',self.inputGroup)
       self.addSDMLayerRadio.setToolTip('Serach for and add Species Distribution Model from Lifemapper')
-      self.addSDMLayerRadio.setGeometry(QtCore.QRect(343, 130, 255, 25))
+      self.addSDMLayerRadio.setGeometry(QtCore.QRect(343, 180, 255, 25))
       self.addSDMLayerRadio.setObjectName("addlayer") 
+      buttonList.append((self.addSDMLayerRadio,"SDM"))
       
       
-      self.emptyRadio = QtGui.QRadioButton('Empty Experiment',self.inputGroup)
-      self.emptyRadio.setGeometry(QtCore.QRect(343, 180, 183, 25))
+      self.emptyRadio = QtGui.QPushButton('Empty Experiment',self.inputGroup)
+      self.emptyRadio.setGeometry(QtCore.QRect(343, 230, 255, 25))
       self.emptyRadio.setObjectName('emptyRadio')
+      buttonList.append((self.emptyRadio,"Empty"))
       
      
       
-      self.listBucketsRadio = QtGui.QRadioButton('List Grids',self.inputGroup)
-      self.listBucketsRadio.setGeometry(QtCore.QRect(343, 230, 183, 25))
+      self.listBucketsRadio = QtGui.QPushButton('List Grids',self.inputGroup)
+      self.listBucketsRadio.setGeometry(QtCore.QRect(343, 280, 255, 25))
       self.listBucketsRadio.setObjectName('listBucketsRadio')
-      self.listBucketsRadio.hide()
+      self.listBucketsRadio.setEnabled(False)
+      buttonList.append((self.listBucketsRadio,"ListBuckets"))
       
-      self.listPALayersRadio = QtGui.QRadioButton('List Layers',self.inputGroup)
-      self.listPALayersRadio.setGeometry(QtCore.QRect(343, 280, 183, 25))
+      self.listPALayersRadio = QtGui.QPushButton('List Layers',self.inputGroup)
+      self.listPALayersRadio.setGeometry(QtCore.QRect(343, 330, 255, 25))
       self.listPALayersRadio.setObjectName('listPALayersRadio')
-      self.listPALayersRadio.hide()
+      self.listPALayersRadio.setEnabled(False)
+      buttonList.append((self.listPALayersRadio,"ListLayers"))
       
-      
-
+      self.mapper = QSignalMapper(self)
+      for button,code in buttonList:
+         self.mapper.setMapping(button, code)
+         button.clicked.connect(self.mapper.map)
+      self.mapper.mapped['QString'].connect(self.postNewOpen)
       
       
       self.outputGroup = QtGui.QGroupBox(self)
@@ -149,15 +166,15 @@ class Ui_Dialog(object):
       self.helpBut.setMaximumSize(30, 30)
       self.helpBut.clicked.connect(self.help)
       
-      self.acceptBut = QtGui.QPushButton("OK",self)
-      self.acceptBut.setDefault(True)
+      #self.acceptBut = QtGui.QPushButton("OK",self)
+      #self.acceptBut.setDefault(True)
       self.rejectBut = QtGui.QPushButton("Close",self)
       #
       self.buttonBox = QtGui.QDialogButtonBox(self)
       self.buttonBox.setObjectName("buttonBox")
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.ActionRole)
-      self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
+      #self.buttonBox.addButton(self.acceptBut, QtGui.QDialogButtonBox.ActionRole)
       #self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.RejectRole)
       
      
@@ -167,7 +184,7 @@ class Ui_Dialog(object):
       self.retranslateUi()
       
       self.rejectBut.clicked.connect(self.reject)
-      self.acceptBut.clicked.connect(self.accept)
+      #self.acceptBut.clicked.connect(self.accept)
        
       
           

@@ -3,17 +3,23 @@
 author=Jeff Cavner
 email=lifemapper@ku.edu
 name=Lifemapper MacroEcology Range and Diversity Tools (LmRAD)
-qgisMinimumVersion=2.0
-description=Lifemapper Macroecology tools for range and diversity statistics on presence absence matrices
+qgisMinimumVersion=2.6
+description=Lifemapper Species Distribution Modeling (LmSDM) and presence absence based Range and Diversity macroecology tools (LmRAD). LmRAD supports phylogenetic trees for linking statistics to Range/Diversity plots. (Release notes for version on github) Supported by US NSF Grants:  BIO/DBI #0851290, EHR/DRL #0918590, BIO/DEB #1208472 
 category=Web
-version=version 2.0.0 
+version=version 2.2.0 
+about=Plugin for Lifemapper webservices for SDM modeling, and multispecies Presence Absence Matrix (PAM) analysis.
+	The tool allows you to build SDM models using GBIF,iDigBio, or user supplied species occurrence data. An occurrence set 
+	browser for GBIF or iDigBio allows you to search for occurrence set data by clicking the Lifemapper icon without logging in. 
+	Environmental layers can be uploaded and compiled into Environmental layer sets to model on.  PAM analysis can be driven by 
+	whole folders of species data organized by taxa, or phylogenetic trees.  Trees can be supplied by the user, or browsed and 
+	used from Open Tree of Life.  An extensive help system for each step in the workflow is supplied in each dialog.
 ; end of mandatory metadata
 
 ; start of optional metadata
 
 
 ; tags are in comma separated value format, spaces are allowed
-tags=macroecology,webservices,presence absence,lifemapper,LmRAD,pam,PAM
+tags=macroecology,webservices,presence absence,phylogeny,phylogenetic diversity,lifemapper,LmRAD,PAM,community, ecology, biodiversity, museum, species
 
 ; these metadata can be empty
 ; in a future version of the web application it will

@@ -32,12 +32,11 @@ import zipfile
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from qgis.core import *
-from lifemapperTools.common.lmClientLib import LMClient
+from LmClient.lmClientLib import LMClient
 from lifemapperTools.tools.ui_addSDMLayerDialog import Ui_Dialog
 from lifemapperTools.tools.controller import _Controller
-from lifemapperTools.common.pluginconstants import ZIP_EXTENSION, RASTER_EXTENSION,\
-                                         SHAPEFILE_EXTENSION, JobStatus, PER_PAGE
-
+from lifemapperTools.common.pluginconstants import PER_PAGE                                         
+from LmCommon.common.lmconstants import JobStatus
 
 # .............................................................................
 
@@ -151,7 +150,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
       try:
          count = self.client.sdm.countProjections(displayName=displayName, epsgCode=epsgCode, 
                                                   algorithmCode=algorithmCode, scenarioId=scenarioId, 
-                                                  status=JobStatus.RETRIEVE_COMPLETE, public=public)
+                                                  status=JobStatus.COMPLETE, public=public)
       except:
          count = 0
       return count
@@ -228,7 +227,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
       if self.publicRadio.isChecked(): 
          try:           
             layers = self.client.sdm.listProjections(displayName=self.displayname, perPage=pageSize,
-                                               status=JobStatus.RETRIEVE_COMPLETE,public=True,
+                                               status=JobStatus.COMPLETE,public=True,
                                                scenarioId=self.Scen,algorithmCode=self.Alg,epsgCode=self.expEPSG,
                                                fullObjects=True,page=page) 
          except:
@@ -236,7 +235,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
       if self.userRadio.isChecked():
          try:              
             layers = self.client.sdm.listProjections(displayName=self.displayname, perPage=pageSize,
-                                                  status=JobStatus.RETRIEVE_COMPLETE,public=False,
+                                                  status=JobStatus.COMPLETE,public=False,
                                                   scenarioId=self.Scen,algorithmCode=self.Alg,epsgCode=self.expEPSG,
                                                   fullObjects=True,page=page)
          except:
@@ -289,7 +288,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
             try:
                count = self.getProjectionCount(True, self.displayname, self.expEPSG, algorithmCode=self.Alg, scenarioId=self.Scen)  
                archiveLayers = self.client.sdm.listProjections(displayName=self.displayname, perPage=PER_PAGE,
-                                                     status=JobStatus.RETRIEVE_COMPLETE,public=True,
+                                                     status=JobStatus.COMPLETE,public=True,
                                                      scenarioId=self.Scen,algorithmCode=self.Alg,epsgCode=self.expEPSG,
                                                      fullObjects=True)
             except:
@@ -302,7 +301,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
             try:  
                count = self.getProjectionCount(False, self.displayname, self.expEPSG, algorithmCode=self.Alg, scenarioId=self.Scen)      
                userLayers = self.client.sdm.listProjections(displayName=self.displayname, perPage=PER_PAGE,
-                                                  status=JobStatus.RETRIEVE_COMPLETE,public=False,
+                                                  status=JobStatus.COMPLETE,public=False,
                                                   scenarioId=self.Scen,algorithmCode=self.Alg,epsgCode=self.expEPSG,
                                                   fullObjects=True)
             except:
@@ -313,6 +312,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
          layers = archiveLayers + userLayers
          if len(layers) > 0:
             if len(archiveLayers) > 0:
+               
                self.addLayersToResultsTable(archiveLayers,userLayers=False)
             if len(userLayers) > 0:
                self.addLayersToResultsTable(userLayers,userLayers=True)
@@ -340,7 +340,6 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
       idList = []
       for record in enumerate(self.table2.tableView.model().data):
          name = str(record[1][0])
-         #layerId = int(record[1][7])
          try:
             layerCount = self.client.rad.countLayers(layerName=name,epsgCode=self.expEPSG)
          except Exception, e:
@@ -526,27 +525,84 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
    def getGuid(self,projid):
       try:
          projObj = self.client.sdm.getProjection(projid) 
+         
          guid = self.client.sdm.getOgcEndpoint(projObj)
+        
       except Exception, e:
          guid = None
       return guid
 # ..............................................................................         
         
    def addWMS(self,index):
+      
       if index.column() in self.table1.tableModel.controlIndexes and \
-      not(index.model().data[index.row()][index.column()] == ''):        
+      not(index.model().data[index.row()][index.column()] == ''):  
+               
          projid = index.model().data[index.row()][1] 
+         
          guid = self.getGuid(projid)
+         print "GUID ",guid
          if guid is not None:
-            basename = index.model().data[index.row()][0]       
-            requestserviceversion = "&request=GetMap&service=WMS&version=1.1.0&TRANSPARENT=true&"
-            url = guid+requestserviceversion        
-            imgformat = 'format=image/png&'
-            crs = 'srs=EPSG:%s&' % self.expEPSG
-            styles = 'styles=default&'
-            url = url+imgformat+crs+styles
+                                     
             try:
-               rlayer = QgsRasterLayer(url, basename)
+               params = []
+        
+               requestserviceversion = "request=GetMap&service=WMS&version=1.1.0&TRANSPARENT=true"
+               params.append(requestserviceversion)
+               ################
+               # section for new key values
+               #######################
+               urlWithLyrs = guid.replace("&amp;","&")   # this should have the GetMap behind the ?, replacing
+               # encoding for &amp, since this is a string now, it will also have the layers key/value pair
+               url = urlWithLyrs.split('&')[0]
+               params.append("url="+url)
+               
+               lyrs = urlWithLyrs.split('&')[1]
+               params.append(lyrs)
+               
+               imgformat = 'format=image/png'
+               params.append(imgformat)
+               
+               crs = 'crs=EPSG:%s' % self.expEPSG
+               params.append(crs)
+               
+               styles = 'styles=default'  # need to see if this is plural or singular???
+               params.append(styles)
+               
+               basename = lyrs.split("=")[1]
+               # # !!!!! CHECK HERE http://lists.osgeo.org/pipermail/qgis-developer/2013-October/028756.html
+               
+               url = '&'.join(params)
+            except:
+               # try new style 
+               # "http://sporks.nhm.ku.edu/services/sdm/projections/702191/ogc?layers=prj_702191&request=GetMap&version=1.1.0&service=WMS&srs=EPSG:4326&TRANSPARENT=true&format=image/png&srs=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=-400&HEIGHT=400"            
+               # guid should be http://sporks.nhm.ku.edu/services/sdm/projections/702191/ogc?layers=prj_702191
+               if 'projections' in guid:
+                  try:
+                     params = [] 
+                     requestserviceversion = "request=GetMap&service=WMS&version=1.1.0&TRANSPARENT=true"
+                     params.append(requestserviceversion) 
+                     params.append("url=%s" % (guid.split("?")[0]))     
+                     lyrs = guid.split('?')[1]
+                     params.append(lyrs) 
+                     imgformat = 'format=image/png'
+                     params.append(imgformat) 
+                     crs = 'crs=EPSG:%s' % self.expEPSG
+                     params.append(crs)               
+                     styles = 'styles=default'  # need to see if this is plural or singular???
+                     params.append(styles)
+                     basename = lyrs.split("=")[1] 
+                     url = '&'.join(params)
+                  except:
+                     url = ''
+                     basname = ''
+               else:
+                  # punt
+                  url = ''
+                  basename = ''
+            
+            try:
+               rlayer = QgsRasterLayer(url, basename,'wms')
                if not rlayer.isValid():
                   pass
                QgsMapLayerRegistry.instance().addMapLayer(rlayer)
@@ -577,7 +633,7 @@ if __name__ == "__main__":
 #  
    client =  LMClient(userId='blank', pwd='blank')
    qApp = QApplication(sys.argv)
-   d = UploadSDMDialog(None, inputs={'expId':119}, client=client, epsg='4326',
+   d = UploadSDMDialog(None, inputs={'expId':447}, client=client, epsg='4326',
                        experimentname='',mapunits='dd')
    d.show()
    sys.exit(qApp.exec_())
