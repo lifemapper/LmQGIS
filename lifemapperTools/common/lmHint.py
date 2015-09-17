@@ -2,15 +2,6 @@ import os, sys
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from lifemapperTools.common.lmListModel import LmListModel, EnterTextEventHandler
-from lifemapperTools.tools.radTable import RADTableModel
-
-
-class TableModel(RADTableModel):
-   
-   def __init__(self,model,headers):
-      
-      RADTableModel.__init__(self, model,headers,[],[])
-
 
 
 def toUnicode(value, encoding='utf-8'):
@@ -72,20 +63,23 @@ class HintModel(LmListModel):
 
 class Hint:
    
-   def __init__(self, client , parent = None, callBack = None):
+   def __init__(self, client , parent = None, callBack = None, setModel=True):
       
       self.client = client
       # need to initialize a LmListModel
       self.parent = parent
-      self.model = HintModel([],parent)
       
+      self.model = None
       ######## combo #######
       self.combo = LmCombo()
-      self.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
-                                 QComboBox::down-arrow {image: url(noimg);}""")
+      #self.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
+      #                           QComboBox::down-arrow {image: url(noimg);}""")
       self.combo.setAutoCompletion(True)
       self.combo.setEditable(True)
-      self.combo.setModel(self.model)
+      
+      if setModel:
+         self.model = HintModel([],parent)
+         self.combo.setModel(self.model)
       
       ######### QLineEdit with Completer ###############
       #self.combo = QLineEdit()
@@ -104,15 +98,15 @@ class Hint:
       @todo:    needs a call back, probably set on init
       """
       try:
-         self.namedTuples = self.client.sdm.hint(searchText,maxReturned=60)         
+         self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),maxReturned=60)         
       except Exception, e:
-         print "or is throwing except ",str(e) 
+         print "or is throwing except ", e 
       else:
          items = []
          tableItems = []
          if len(self.namedTuples) > 0:
             for species in self.namedTuples:
-               print dir(species)
+               
                items.append(SpeciesSearchResult(species.name,species.id,
                                                 numPoints=species.numPoints, numModels=species.numModels,
                                                 downloadUrl=species.downloadUrl))
@@ -135,7 +129,6 @@ class Hint:
    
    def onTextChange(self, text):
 
-      #displayName = self.searchText.text()
       
       noChars = len(text)
       # %20
@@ -145,8 +138,8 @@ class Hint:
          if self.callback is not None:
             self.callback([SpeciesSearchResult('', '', '','')])
       if noChars >= 3:
-         if  "points)" in text:
-           
+         if  " " in text:
+         #if self.namedTuples is not None:  
             currText = self.combo.currentText()
             idx = self.getIdxFromTuples(currText)
             self.combo.setCurrentIndex(idx) 
