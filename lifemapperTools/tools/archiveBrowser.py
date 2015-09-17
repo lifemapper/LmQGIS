@@ -7,6 +7,7 @@ from qgis.gui import *
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
+from lifemapperTools.common.lmListModel import LmListModel
 
 
 class BrowserTreeModel(QAbstractItemModel):
@@ -225,60 +226,117 @@ class TreeItem(object):
    
 class LMTreeView(QTreeView):
    
-   def __init__(self, parent):
+   def __init__(self, parent, client):
       
       QTreeView.__init__(self,parent)
+      self.client = client
       self.header().hide()
       self.doubleClicked.connect(parent.handleEvent)
       self.dragEnabled()
       self.setDragDropMode(QAbstractItemView.DragOnly)
       self.header().setResizeMode(QHeaderView.ResizeToContents)
+# .............................................................. 
+
+   def doThreading(self, lmId, hit, fullPath, client):
       
+      dlThread = QThread()
+      dlw = DownLoadWorker(lmId=lmId,hit=hit,path=fullPath,client=client)
+      dlw.moveToThread(dlThread)
+      dlw.finished.connect(dlThread.quit)
+      dlThread.started.connect(dlw.downloadProcess)
+      dlThread.start()
 # ..............................................................      
    def startDrag(self, *args, **kwargs):
       """
       @summary: drag event calls this but only for leaves in tree
       """
-      # can a I start a thread? and have it continue to drag?
       
-      drag = QDrag(self)  
-      mimeData = QMimeData()
       # ..............
       # row - itemIdx.row()
       # row of parent - itemIdx.parent().row()
       # parent node - self.model().nodeFromIndex(itemIdx.parent())
       # selected data - elf.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData
-      sis = self.selectionModel().selectedIndexes()
-      itemIdx = sis[0]
+      itemIdx = self.selectionModel().selectedIndexes()[0]
       childRowIdx = itemIdx.row()
       occSetId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
+      displayName = self.model().nodeFromIndex(itemIdx.parent()).name
+      hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
       
-      # will use "text/uri-list" for dragging onto canvas
-      #mimeData.setData("text/uri-list", "/home/jcavner/%s.shp" % (occSetId))
-      mimeData.setData("text/uri-list","/home/jcavner/USAdminBoundaries/Lower_48_Bison_Dissolved.shp")
+      shpName = "Lifemapper_%s.shp" % (displayName) # provider is hardcoded here
+      tmpDir = "/tmp/"
+      fullPath = os.path.join(tmpDir,shpName)
+      
+      #self.doThreading(occSetId, hit, fullPath, self.client)
+      
+      dlThread = QThread()
+      dlw = DownLoadWorker(lmId=occSetId,hit=hit,path=fullPath,client=self.client)
+      dlw.moveToThread(dlThread)
+      dlw.finished.connect(dlThread.quit)
+      dlThread.started.connect(dlw.downloadProcess)
+      dlThread.start()
+      
+       
+      drag = QDrag(self)  
+      mimeData = QMimeData()
+      #mimeData.setData("text/uri-list","/home/jcavner/USAdminBoundaries/Lower_48_Bison_Dissolved.shp")
+      mimeData.setData("text/uri-list",fullPath)
+      
       drag.setMimeData(mimeData)   
       pixmap = QPixmap()
       pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
       drag.setPixmap(pixmap)
       result = drag.start(Qt.MoveAction)
       
-
+class DownLoadWorker(QObject):
+   
+   finished = pyqtSignal()
+   
+   def __init__(self,lmId=None,hit=None,path=None,client=None):
+      QObject.__init__(self)
+      self.id = lmId
+      self.hit = hit
+      self.tmpDir = path
+      self.provider = "Lifemapper"
+      self.client = client
+   
+   @pyqtSlot()
+   def downloadProcess(self):
       
-class LmEdit(QLineEdit):
-   def __init__(self):
-      QLineEdit.__init__(self)
-      self.setAcceptDrops(True)
-        
-   def dropEvent(self, event):
-      #print "dropped ",event.mimeData().text()
-      self.setText(str(event.mimeData().urls()))  #urls() retiurns list, uri-list 
-      #print "dropEvent called"
-        
-   def dragEnterEvent(self, event):
-      #print "in enter ",event.mimeData()
-      #if event.mimeData().hasFormat("text/uri-list"):
-      if event.mimeData().hasFormat("text/uri-list"):
-         event.accept()      
+      #for x in range(0,10000): print x
+      try:
+         self.client.sdm.getShapefileFromOccurrencesHint(self.hit,self.tmpDir,instanceName = self.provider, overwrite=True)
+      except Exception, e:
+         print str(e)
+      else:
+         pass
+      
+      self.finished.emit()
+      
+class ArchiveComboModel(LmListModel):
+   
+   def __init__(self,data,parent):
+      
+      LmListModel.__init__(self, data, parent)    
+   
+   def data(self, index, role):
+      """
+      @summary: Gets data at the selected index
+      @param index: The index to return
+      @param role: The role of the item
+      @return: The requested item
+      @rtype: QtCore.QVariant
+      """
+      if index.isValid() and (role == Qt.DisplayRole or role == Qt.EditRole):
+         if index.row() == 1 and self.model:
+            return "build new model"
+         else:   
+            try: return self.listData[index.row()].displayName
+            except: return self.listData[index.row()]
+           
+      if index.isValid() and role == Qt.UserRole:
+         return int(self.listData[index.row()])
+      else:
+         return 
      
 class Ui_Dock(object):
    
@@ -291,7 +349,7 @@ class Ui_Dock(object):
       self.verticalLayout = QVBoxLayout(self.centralwidget)
       self.verticalLayout.setObjectName("verticalLayout")
       
-      self.treeView = LMTreeView(dockWidget)
+      self.treeView = LMTreeView(dockWidget,self.client)
       self.treeModel = BrowserTreeModel()
       self.treeView.setModel(self.treeModel)
       self.treeView.setObjectName("treeView")
@@ -299,7 +357,6 @@ class Ui_Dock(object):
       
       
       self.verticalLayout.addWidget(self.hint.combo)
-      #self.verticalLayout.addWidget(LmEdit())
       self.verticalLayout.addWidget(self.treeView)
       
       #MainWindow.setCentralWidget(self.centralwidget)
@@ -313,7 +370,13 @@ class Ui_Dock(object):
       combo can be added as a widget using self.hint.combo, callback
       adds extra functionality in addition to combo model
       """
-      self.hint = Hint(self.client, callBack=self.callBack)
+      self.hint = Hint(self.client, callBack=self.callBack, setModel=False)
+      archiveComboModel = ArchiveComboModel([],None)
+      self.hint.model = archiveComboModel
+      self.hint.combo.setModel(archiveComboModel)
+      self.hint.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
+                                 QComboBox::down-arrow {image: url(noimg);}""")
+      
 # .............................................................. 
    def callBack(self, items):
       """
@@ -324,7 +387,6 @@ class Ui_Dock(object):
       
       if items[0].displayName == '':
          
-         #print "count ",self.treeModel.provider.childCount()
          self.treeModel.beginRemoveRows(self.treeModel.index(0,0,QModelIndex()), 0, self.treeModel.provider.childCount()-1)
          self.treeModel.provider.childItems = []
          self.treeModel.endRemoveRows()
@@ -333,9 +395,9 @@ class Ui_Dock(object):
          row = 0
          self.treeModel.provider.childItems = []
          for sps in items:
-            #print "making an item"
             nameFolder = TreeItem(sps.displayName,sps.displayName,self.treeModel.provider)
-            occSet     = TreeItem(sps.occurrenceSetId,"occurrence set",nameFolder,hit=sps)
+            occSetName = "occurrence set (%s points)" % sps.numPoints
+            occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,hit=sps)
             maxentFolder = TreeItem('MaxEnt','MaxEnt',nameFolder)
             rs = str(random.randint(1000, 123545))
             rs2 = str(random.randint(1000, 123545))
@@ -343,22 +405,10 @@ class Ui_Dock(object):
             someProj2 = TreeItem(rs2,rs2,maxentFolder)
             self.treeModel.insertRow(row, QModelIndex())
             row = row + 1
-            #self.treeModel.emitDataChanged()
+            
                      
          self.treeView.expand(self.treeModel.index(0,0,QModelIndex()))
 
-class LmCanvas(QgsMapCanvas):
-   
-   def __init__(self):
-      QgsMapCanvas.__init__(self)
-   
-   def setAcceptDrops(self, *args, **kwargs):
-      return QgsMapCanvas.setAcceptDrops(self, *args, **kwargs)
-     
-   def acceptDrops(self, *args, **kwargs):
-      return QgsMapCanvas.acceptDrops(self, *args, **kwargs)
-   
-   #def setDropAction(self):
    
 class archiveBrowserDock(QDockWidget, Ui_Dock,):
    
@@ -370,22 +420,15 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       self.serviceRoot = True
       # ..................
       self.setTmpDir()
-      self.mapCanvas = self.iface.mapCanvas()
-      #self.mapCanvas.dropEvent = self.archiveDrop
       self.action = action
       self.client = None
       self.action.triggered.connect(self.showHideBrowseDock)
-      self.setUpHintService()
       self.setupUi(self)
-# ..............................................................     
-   def archiveDrop(self,*args,**kwargs):
-      print "IS IT HERE ON DROP"
-      print args
-      print kwargs
+
 # ..............................................................      
    def handleEvent(self, index):
       
-      if index.row() == 0:
+      if index.row() == 0:  # this is the row for the occurrence set
          hit,occSetId = self.getDataFromDoubleClick(index, occSet=True)
          if hit and occSetId:
             self.downloadShpFile(hit)
@@ -404,7 +447,7 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       
          return hit, occSetId
  # ..............................................................  
-   def getDataFromSeletion(self, occSet=False):
+   def getDataFromSelection(self, occSet=False):
       """
       @summary: gets data from tree model from selection in view
       """
@@ -429,6 +472,7 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
             #self.loadInstanceCombo()
             if self.client is not None:
                self.hint.client = self.client
+               self.treeView.client = self.client
          self.show()
 # ..............................................................         
    def signIn(self):
