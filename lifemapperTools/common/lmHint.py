@@ -28,8 +28,9 @@ def fromUnicode(uItem, encoding="utf-8"):
 
 class LmCombo(QComboBox):
    # subclassed this to override pop up
-   def __init__(self):
+   def __init__(self, hit):
       
+      self.hit = hit
       QComboBox.__init__(self)
       
    def showPopup(self, *args, **kwargs):
@@ -68,10 +69,9 @@ class Hint:
       self.client = client
       # need to initialize a LmListModel
       self.parent = parent
-      
       self.model = None
       ######## combo #######
-      self.combo = LmCombo()
+      self.combo = LmCombo(self)
       #self.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
       #                           QComboBox::down-arrow {image: url(noimg);}""")
       self.combo.setAutoCompletion(True)
@@ -100,10 +100,10 @@ class Hint:
       try:
          self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),maxReturned=60)         
       except Exception, e:
-         print "or is throwing except ", e 
+         #print "or is throwing except ", e 
+         pass
       else:
          items = []
-         tableItems = []
          if len(self.namedTuples) > 0:
             for species in self.namedTuples:
                
@@ -128,29 +128,22 @@ class Hint:
       return idx
    
    def onTextChange(self, text):
-
       
       noChars = len(text)
-      # %20
-      #occurrenceSetId = None
       if text == '':
          self.combo.clear()
          if self.callback is not None:
             self.callback([SpeciesSearchResult('', '', '','')])
       if noChars >= 3:
-         if  " " in text:
-         #if self.namedTuples is not None:  
+         
+         if text.count(" ") > 1:
+            
             currText = self.combo.currentText()
             idx = self.getIdxFromTuples(currText)
             self.combo.setCurrentIndex(idx) 
-            #currentIdx = self.combo.currentIndex()                       
-            #occurrenceSetId = self.model.listData[currentIdx].occurrenceSetId
-            #displayName = self.model.listData[currentIdx].displayName
             
             return
-         if ' ' in text:
-            text.replace(' ','%20')
-        
+         
          self.searchOccSets(text)
 
 class SpeciesSearchResult(object):
