@@ -9,6 +9,29 @@ import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 
+# ..........................
+
+def toUnicode(value, encoding='utf-8'):
+   """
+   @summary: Encodes a value for a element's text
+   @param value: The object to make text
+   @param encoding: (optional) The encoding of the text
+   @todo: Encoding should be a constant
+   """
+   if isinstance(value, basestring):
+      if not isinstance(value, unicode):
+         value = unicode(value, encoding)
+   else:
+      value = unicode(str(value), encoding)
+   return value
+      
+def fromUnicode(uItem, encoding="utf-8"):
+   """
+   @summary: Converts a unicode string to text for display
+   @param uItem: A unicode object
+   @param encoding: (optional) The encoding to use
+   """
+   return uItem.encode("utf-8")
 
 class BrowserTreeModel(QAbstractItemModel):
 
@@ -266,7 +289,7 @@ class LMTreeView(QTreeView):
       displayName = self.model().nodeFromIndex(itemIdx.parent()).name
       hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
       
-      shpName = "Lifemapper_%s.shp" % (displayName) # provider is hardcoded here
+      shpName = "Lifemapper_%s.shp" % (toUnicode(displayName).encode('utf-8')) # provider is hardcoded here
       tmpDir = "/tmp/"
       fullPath = os.path.join(tmpDir,shpName)
       
