@@ -4,7 +4,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
+from lifemapperTools.common.lmHint import Hint
 import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
@@ -245,6 +245,10 @@ class LMTreeView(QTreeView):
       dlw.finished.connect(dlThread.quit)
       dlThread.started.connect(dlw.downloadProcess)
       dlThread.start()
+      
+   def threadFinished(self):
+      # this isn't right
+      print "thread finished"
 # ..............................................................      
    def startDrag(self, *args, **kwargs):
       """
@@ -273,7 +277,9 @@ class LMTreeView(QTreeView):
       dlw.moveToThread(dlThread)
       dlw.finished.connect(dlThread.quit)
       dlThread.started.connect(dlw.downloadProcess)
+      #dlThread.finished.connect(self.threadFinished) #maybe
       dlThread.start()
+      dlw.deleteLater()
       
        
       drag = QDrag(self)  
@@ -374,6 +380,8 @@ class Ui_Dock(object):
       archiveComboModel = ArchiveComboModel([],None)
       self.hint.model = archiveComboModel
       self.hint.combo.setModel(archiveComboModel)
+      self.comboEvent = ComboEventHandler()
+      self.hint.combo.installEventFilter(self.comboEvent)
       self.hint.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
                                  QComboBox::down-arrow {image: url(noimg);}""")
       
@@ -579,8 +587,19 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
    @serviceRoot.setter   
    def serviceRoot(self, value):      
       self._serviceRoot = value
+
                 
-      
+class ComboEventHandler(QObject):
+   
+   def eventFilter(self, object, event):
+      if event.type() == QEvent.KeyPress:         
+         if event.key() == Qt.Key_Return:
+            currentText = object.currentText()
+            sL = currentText.split(" ")
+            if len(sL) > 1:
+               currentText = " ".join(sL[:2])
+               object.hit.searchOccSets(searchText=currentText)       
+      return QWidget.eventFilter(self, object, event)     
 
       
 
