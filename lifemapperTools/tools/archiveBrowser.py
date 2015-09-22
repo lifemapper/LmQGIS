@@ -1,5 +1,7 @@
 import sys, os
 import random
+import platform
+import tempfile
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
@@ -8,6 +10,7 @@ from lifemapperTools.common.lmHint import Hint
 import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
+from lifemapperTools.common.pluginconstants import ARCHIVE_DWL_TYPE
 
 # ..........................
 
@@ -176,26 +179,27 @@ class TreeItem(object):
    
    # --- class for tree items
    
-   def __init__(self, data, name, parent=None, hit=None):
+   def __init__(self, data, name, parent=None, hit=None, type=None):
       
       self.name = name
       self.parentItem = parent
-      self.itemData = data
+      self.itemData = data  # this usually means an id
+      self.type = type
       self.childItems = []
       self.setParent(parent)
       
       # ........
       # hit object
-      if hit is not None:
-         self.hit = hit
-   
+      
+      self.hit = hit
+   # ..........................................   
    def setParent(self, parent):
       if parent != None:
          self.parent = parent
          self.parent.appendChild(self)
       else:
          self.parent = None
-      
+   # ..........................................   
    def appendChild(self, item):
       self.childItems.append(item)
    
@@ -206,7 +210,7 @@ class TreeItem(object):
          return self.childItems[row]
       except:
          pass
-   
+   # ..........................................
    def childCount(self):
       return len(self.childItems)
    
@@ -249,29 +253,84 @@ class TreeItem(object):
    
 class LMTreeView(QTreeView):
    
-   def __init__(self, parent, client):
+   def __init__(self, parent, client ,tmpDir):
       
       QTreeView.__init__(self,parent)
       self.client = client
+      self.provider = "Lifemapper"
+      self.serviceRoot = True
+      self.tmpDir = tmpDir
       self.header().hide()
-      self.doubleClicked.connect(parent.handleEvent)
+      self.doubleClicked.connect(self.handleEvent)
       self.dragEnabled()
       self.setDragDropMode(QAbstractItemView.DragOnly)
       self.header().setResizeMode(QHeaderView.ResizeToContents)
+# .................................................................      
+   def handleEvent(self, index):
+      
+      # will need to get type
+      childRowIdx = index.row()
+      downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
+      if downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE:  # this is the row for the occurrence set
+         hit,occSetId = self.getDataFromDoubleClick(index, occSet=True)
+         if hit and occSetId:
+            self.downloadShpFile(hit)
+      if downloadType == ARCHIVE_DWL_TYPE.PROJ:
+         print "download projection"
+      
+# ..............................................................  
+   def getDataFromDoubleClick(self, itemIdx, occSet=False):
+      """
+      @summary: gets data from tree model from selection in view
+      """
+      hit = False
+      occSetId = False
+      childRowIdx = itemIdx.row()
+      occSetId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
+      if occSet:
+         hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
+      
+         return hit, occSetId
+      
 # .............................................................. 
+   def addShpToCanvas(self, vectorpath, shapename):
+     
+      vectorLayer = QgsVectorLayer(vectorpath,shapename,'ogr')
+      warningname = shapename    
+      if not vectorLayer.isValid():
+         QMessageBox.warning(self,"status: ",
+           "%s not valid" % (warningname))           
+      else:
+         
+         QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
+         #self.iface.zoomFull()
+   # ........................................       
 
-   def doThreading(self, lmId, hit, fullPath, client):
+   def downloadShpFile(self, hit):
       
-      dlThread = QThread()
-      dlw = DownLoadWorker(lmId=lmId,hit=hit,path=fullPath,client=client)
-      dlw.moveToThread(dlThread)
-      dlw.finished.connect(dlThread.quit)
-      dlThread.started.connect(dlw.downloadProcess)
-      dlThread.start()
-      
-   def threadFinished(self):
-      # this isn't right
-      print "thread finished"
+      if self.serviceRoot:         
+         try:
+            tocName = '%s_%s' % (self.provider, hit.displayName)
+            if self.tmpDir is not None:
+               tmpDir = os.path.join(self.tmpDir,"%s.shp" % (tocName))
+               try:
+                  self.client.sdm.getShapefileFromOccurrencesHint(hit,tmpDir,instanceName = self.provider, overwrite=True)
+               except Exception, e:
+                  print str(e)
+               else:
+                  try:
+                     self.addShpToCanvas(tmpDir, tocName)
+                  except Exception, e:
+                     message = "couldn't add shp file to canvas "+str(e)
+                     QMessageBox.warning(self,"status: ", message)
+                                     
+            else:
+               message = "No tmp directory set in Environment variable, try setting TMPDIR"
+               QMessageBox.warning(self,"status: ",message) 
+         except Exception, e:
+               message = str(e)
+               QMessageBox.warning(self,"status: ",message) 
+
 # ..............................................................      
    def startDrag(self, *args, **kwargs):
       """
@@ -288,15 +347,19 @@ class LMTreeView(QTreeView):
       occSetId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
       displayName = self.model().nodeFromIndex(itemIdx.parent()).name
       hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
+      downloadType = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).type
       
-      shpName = "Lifemapper_%s.shp" % (toUnicode(displayName).encode('utf-8')) # provider is hardcoded here
-      tmpDir = "/tmp/"
-      fullPath = os.path.join(tmpDir,shpName)
+      if downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE:
+         fn = "Lifemapper_%s.shp" % (toUnicode(displayName).encode('utf-8')) # provider is hardcoded here
+      if downloadType == ARCHIVE_DWL_TYPE.PROJ:
+         fn = "Lifemapper_%s.tif" % (toUnicode(displayName).encode('utf-8'))
+      fullPath = os.path.join(self.tmpDir,fn)
       
       #self.doThreading(occSetId, hit, fullPath, self.client)
       
       dlThread = QThread()
-      dlw = DownLoadWorker(lmId=occSetId,hit=hit,path=fullPath,client=self.client)
+      dlw = DownLoadWorker(lmId=occSetId,hit=hit,path=fullPath,client=self.client,
+                           downloadType = downloadType)
       dlw.moveToThread(dlThread)
       dlw.finished.connect(dlThread.quit)
       dlThread.started.connect(dlw.downloadProcess)
@@ -320,10 +383,11 @@ class DownLoadWorker(QObject):
    
    finished = pyqtSignal()
    
-   def __init__(self,lmId=None,hit=None,path=None,client=None):
+   def __init__(self,lmId=None,hit=None,path=None,client=None,downloadType=None):
       QObject.__init__(self)
       self.id = lmId
       self.hit = hit
+      self.downloadType = downloadType
       self.tmpDir = path
       self.provider = "Lifemapper"
       self.client = client
@@ -331,13 +395,15 @@ class DownLoadWorker(QObject):
    @pyqtSlot()
    def downloadProcess(self):
       
-      #for x in range(0,10000): print x
-      try:
-         self.client.sdm.getShapefileFromOccurrencesHint(self.hit,self.tmpDir,instanceName = self.provider, overwrite=True)
-      except Exception, e:
-         print str(e)
-      else:
-         pass
+      if self.downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE:
+         try:
+            self.client.sdm.getShapefileFromOccurrencesHint(self.hit,self.tmpDir,instanceName = self.provider, overwrite=True)
+         except Exception, e:
+            print str(e)
+         else:
+            pass
+      if self.downloadType == ARCHIVE_DWL_TYPE.PROJ:
+         print "drag download projection"
       
       self.finished.emit()
       
@@ -366,19 +432,31 @@ class ArchiveComboModel(LmListModel):
          return int(self.listData[index.row()])
       else:
          return 
+
+class customWidget(QWidget):
+   
+   def __init__(self):
+      QWidget.__init__(self)
+      
+   def sizeHint(self, *args, **kwargs):
+      
+      #return QWidget.sizeHint(self, *args, **kwargs)
+      return QSize(550,800)
+
      
 class Ui_Dock(object):
    
    def setupUi(self, dockWidget):
       
+      
       self.setUpHintService()
-      self.centralwidget = QWidget()
+      self.centralwidget = customWidget()
       self.centralwidget.setObjectName("centralwidget")
       
       self.verticalLayout = QVBoxLayout(self.centralwidget)
       self.verticalLayout.setObjectName("verticalLayout")
       
-      self.treeView = LMTreeView(dockWidget,self.client)
+      self.treeView = LMTreeView(dockWidget,self.client,self.tmpDir)
       self.treeModel = BrowserTreeModel()
       self.treeView.setModel(self.treeModel)
       self.treeView.setObjectName("treeView")
@@ -388,10 +466,9 @@ class Ui_Dock(object):
       self.verticalLayout.addWidget(self.hint.combo)
       self.verticalLayout.addWidget(self.treeView)
       
-      #MainWindow.setCentralWidget(self.centralwidget)
+      
       
       dockWidget.setWidget(self.centralwidget)
-      QMetaObject.connectSlotsByName(dockWidget)
 # ..............................................................    
    def setUpHintService(self):
       """
@@ -428,12 +505,13 @@ class Ui_Dock(object):
          for sps in items:
             nameFolder = TreeItem(sps.displayName,sps.displayName,self.treeModel.provider)
             occSetName = "occurrence set (%s points)" % sps.numPoints
-            occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,hit=sps)
+            occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,hit=sps,
+                                  type=ARCHIVE_DWL_TYPE.OCCURRENCE)
             maxentFolder = TreeItem('MaxEnt','MaxEnt',nameFolder)
             rs = str(random.randint(1000, 123545))
             rs2 = str(random.randint(1000, 123545))
-            someProj =  TreeItem(rs,rs,maxentFolder)
-            someProj2 = TreeItem(rs2,rs2,maxentFolder)
+            someProj =  TreeItem(rs,rs,maxentFolder,type=ARCHIVE_DWL_TYPE.PROJ,hit=sps)
+            someProj2 = TreeItem(rs2,rs2,maxentFolder,type=ARCHIVE_DWL_TYPE.PROJ,hit=sps)
             self.treeModel.insertRow(row, QModelIndex())
             row = row + 1
             
@@ -445,6 +523,8 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
    
    def __init__(self,iface, action=None):
       QDockWidget.__init__(self,None)
+      
+      self.setWindowTitle("Lifemapper Archive")
       self.iface = iface
       # ...... hard coded (CHANGE)
       self.provider = "Lifemapper"
@@ -457,26 +537,26 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       self.setupUi(self)
 
 # ..............................................................      
-   def handleEvent(self, index):
-      
-      if index.row() == 0:  # this is the row for the occurrence set
-         hit,occSetId = self.getDataFromDoubleClick(index, occSet=True)
-         if hit and occSetId:
-            self.downloadShpFile(hit)
-      
-# ..............................................................  
-   def getDataFromDoubleClick(self, itemIdx, occSet=False):
-      """
-      @summary: gets data from tree model from selection in view
-      """
-      hit = False
-      occSetId = False
-      childRowIdx = itemIdx.row()
-      occSetId = self.treeModel.nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
-      if occSet:
-         hit = self.treeModel.nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
-      
-         return hit, occSetId
+#   def handleEvent(self, index):
+#      
+#      if index.row() == 0:  # this is the row for the occurrence set
+#         hit,occSetId = self.getDataFromDoubleClick(index, occSet=True)
+#         if hit and occSetId:
+#            self.downloadShpFile(hit)
+#      
+## ..............................................................  
+#   def getDataFromDoubleClick(self, itemIdx, occSet=False):
+#      """
+#      @summary: gets data from tree model from selection in view
+#      """
+#      hit = False
+#      occSetId = False
+#      childRowIdx = itemIdx.row()
+#      occSetId = self.treeModel.nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
+#      if occSet:
+#         hit = self.treeModel.nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
+#      
+#         return hit, occSetId
  # ..............................................................  
    def getDataFromSelection(self, occSet=False):
       """
@@ -535,63 +615,78 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
                                              QMessageBox.Ok)
    # ........................................
 
-   def addToCanvas(self, vectorpath, shapename):
-     
-      vectorLayer = QgsVectorLayer(vectorpath,shapename,'ogr')
-      warningname = shapename    
-      if not vectorLayer.isValid():
-         QMessageBox.warning(self,"status: ",
-           "%s not valid" % (warningname))           
-      else:
-         
-         QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
-         #self.iface.zoomFull()
-   # ........................................       
-
-   def downloadShpFile(self, hit):
-      
-      if self.serviceRoot:
-         
-         try:
-            tocName = '%s_%s' % (self.provider, hit.displayName)
-            if self.tmpDir is not None:
-               tmpDir = os.path.join(self.tmpDir,"%s.shp" % (tocName))
-               try:
-                  self.client.sdm.getShapefileFromOccurrencesHint(hit,tmpDir,instanceName = self.provider, overwrite=True)
-               except Exception, e:
-                  print str(e)
-               else:
-                  try:
-                     self.addToCanvas(tmpDir, tocName)
-                  except Exception, e:
-                     message = "couldn't add shp file to canvas "+str(e)
-                     QMessageBox.warning(self,"status: ", message)
-                                     
-            else:
-               message = "No tmp directory set in Environment variable, try setting TMPDIR"
-               QMessageBox.warning(self,"status: ",message) 
-         except Exception, e:
-               message = str(e)
-               QMessageBox.warning(self,"status: ",message)     
+#   def addToCanvas(self, vectorpath, shapename):
+#     
+#      vectorLayer = QgsVectorLayer(vectorpath,shapename,'ogr')
+#      warningname = shapename    
+#      if not vectorLayer.isValid():
+#         QMessageBox.warning(self,"status: ",
+#           "%s not valid" % (warningname))           
+#      else:
+#         
+#         QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
+#         #self.iface.zoomFull()
+#   # ........................................       
+#
+#   def downloadShpFile(self, hit):
+#      
+#      if self.serviceRoot:
+#         
+#         try:
+#            tocName = '%s_%s' % (self.provider, hit.displayName)
+#            if self.tmpDir is not None:
+#               tmpDir = os.path.join(self.tmpDir,"%s.shp" % (tocName))
+#               try:
+#                  self.client.sdm.getShapefileFromOccurrencesHint(hit,tmpDir,instanceName = self.provider, overwrite=True)
+#               except Exception, e:
+#                  print str(e)
+#               else:
+#                  try:
+#                     self.addToCanvas(tmpDir, tocName)
+#                  except Exception, e:
+#                     message = "couldn't add shp file to canvas "+str(e)
+#                     QMessageBox.warning(self,"status: ", message)
+#                                     
+#            else:
+#               message = "No tmp directory set in Environment variable, try setting TMPDIR"
+#               QMessageBox.warning(self,"status: ",message) 
+#         except Exception, e:
+#               message = str(e)
+#               QMessageBox.warning(self,"status: ",message)     
    # .......................................
 
    def setTmpDir(self):  
-        
-      tmp = None
-      try:
-         tmp = QDir.tempPath()  # this on windows might be weird
-         if not os.path.exists(tmp):
-            raise
-      except:
+      
+      if platform.mac_ver() == '': 
          tmp = None
          try:
-            import tempfile
-            tmp = tempfile.gettempdir()
+            tmp = QDir.tempPath()  # this on windows might be weird
             if not os.path.exists(tmp):
                raise
          except:
             tmp = None
-      self._tmpDir = tmp
+            try:
+               #import tempfile
+               tmp = tempfile.gettempdir()
+               if not os.path.exists(tmp):
+                  raise
+            except:
+               tmp = None
+         self._tmpDir = tmp
+      else:
+         tmp = None
+         if os.path.exists("/tmp"):
+            self._tmpDir = "/tmp"
+         else:
+            home = os.path.expanduser("~")
+            tmp = tempfile.mkdtemp(dir=home)
+            if os.path.exists(tmp):
+               self._tmpDir = tmp
+            else:
+               self._tmpDir = tmp
+               
+            
+            
 
    @property
    def tmpDir(self):
@@ -617,11 +712,14 @@ class ComboEventHandler(QObject):
    def eventFilter(self, object, event):
       if event.type() == QEvent.KeyPress:         
          if event.key() == Qt.Key_Return:
-            currentText = object.currentText()
-            sL = currentText.split(" ")
-            if len(sL) > 1:
-               currentText = " ".join(sL[:2])
-               object.hit.searchOccSets(searchText=currentText)       
+            try:
+               currentText = object.currentText()
+               sL = currentText.split(" ")
+               if len(sL) > 1:
+                  currentText = " ".join(sL[:2])
+                  object.hit.searchOccSets(searchText=currentText)    
+            except Exception, e:
+               pass   
       return QWidget.eventFilter(self, object, event)     
 
       
