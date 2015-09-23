@@ -64,10 +64,11 @@ class HintModel(LmListModel):
 
 class Hint:
    
-   def __init__(self, client , parent = None, callBack = None, setModel=True):
+   def __init__(self, client , parent = None, callBack = None, setModel=True, serviceRoot="http://lifemapper.org"):
       
       self.client = client
       # need to initialize a LmListModel
+      self.serviceRoot = serviceRoot
       self.parent = parent
       self.model = None
       ######## combo #######
@@ -97,8 +98,10 @@ class Hint:
       @param    searchText: text to search for
       @todo:    needs a call back, probably set on init
       """
+      root = self.serviceRoot
       try:
-         self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),maxReturned=60)         
+         self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),
+                                                 maxReturned=60,serviceRoot=root)         
       except Exception, e:
          #print "or is throwing except ", e 
          pass
@@ -111,7 +114,7 @@ class Hint:
                                                 numPoints=species.numPoints, numModels=species.numModels,
                                                 downloadUrl=species.downloadUrl))
          else:
-            items.append(SpeciesSearchResult('', '', '',''))
+            items.append(SpeciesSearchResult('', '', '','',''))
          self.model.updateList(items)
          if self.callback is not None:
             self.callback(items)
@@ -122,7 +125,8 @@ class Hint:
       idx = 0
       for sH in self.namedTuples: 
          # probably will need to change this inside of Qgis        
-         if sH.name.lower() in unicode(currentText).lower():
+         #if sH.name.lower() in unicode(currentText).lower():
+         if sH.name.lower() in currentText.lower():
             break
          idx += 1         
       return idx
@@ -132,19 +136,30 @@ class Hint:
       noChars = len(text)
       if text == '':
          self.combo.clear()
+         self.combo.clearEditText()
          if self.callback is not None:
-            self.callback([SpeciesSearchResult('', '', '','')])
+            self.callback([SpeciesSearchResult('', '', '','','')])
       if noChars >= 3:
          
          if text.count(" ") > 1:
-            
             currText = self.combo.currentText()
             idx = self.getIdxFromTuples(currText)
             self.combo.setCurrentIndex(idx) 
-            
             return
-         
+         if ' ' in text:
+            text.replace(' ','%20')
          self.searchOccSets(text)
+         
+class SolrSearchResult(object):
+   """
+   @summary: Data structure for species search results (occurrence sets)
+   """
+   # .........................................
+   def __init__(self, displayName, occObj, models):
+      
+      self.displayName = displayName
+      self.occurrenceSetId = occObj.id  
+   
 
 class SpeciesSearchResult(object):
    """
