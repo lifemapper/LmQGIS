@@ -81,7 +81,7 @@ class BrowserTreeModel(QAbstractItemModel):
    # ----------  end change data
    
    # ---------- new update data, Sept 14, 2015
-   def updateList(self,newList):
+   def updateList(self,newList): #deprecated
       
       self.beginInsertRows(QModelIndex(), 0, len(newList))
       self.data = newList
@@ -270,13 +270,13 @@ class LMTreeView(QTreeView):
       # will need to get type
       childRowIdx = index.row()
       downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
-      hit,lmId,parentName = self.getDataFromDoubleClick(index)
+      hit,lmId,parentName,leafName = self.getDataFromDoubleClick(index)
       if downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE: 
-         if hit and lmId:
-            self.downloadShpFile(lmId, hit=hit, parentName=parentName)
+         #if hit and lmId:
+         self.downloadShpFile(lmId, hit=hit, parentName=parentName)
       if downloadType == ARCHIVE_DWL_TYPE.PROJ:
-         if hit and lmId:
-            self.downLoadProjectionTiff(lmId,parentName)
+         #if hit and lmId:
+         self.downLoadProjectionTiff(lmId,parentName,scenName=leafName)
       
 # ..............................................................  
    def getDataFromDoubleClick(self, itemIdx):
@@ -287,16 +287,71 @@ class LMTreeView(QTreeView):
       lmId = False
       childRowIdx = itemIdx.row()
       lmId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
+      leafName = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).name
       hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
       parentName = self.model().nodeFromIndex(itemIdx.parent()).name
-      if hit is None:
-         hit = True  # this is temporary, to handle hit when still using them
-      return hit, lmId, parentName
+      #if hit is None:
+      #   hit = True  # this is temporary, to handle hit when still using them
+      return hit, lmId, parentName, leafName
+
+#............................................................
+   def makeColorList(self):
+      i = []
+   
+      i.append(QgsColorRampShader.ColorRampItem(0, QColor("#2b83ba"), "0"))
+      i.append(QgsColorRampShader.ColorRampItem(25, QColor("#abdda4"), "25"))
+      i.append(QgsColorRampShader.ColorRampItem(50, QColor("#ffffbf"), "50"))
+      i.append(QgsColorRampShader.ColorRampItem(75, QColor("#fdae61"), "75"))
+      i.append(QgsColorRampShader.ColorRampItem(100, QColor("#d7191c"), "100"))
+      
+      return i
+
+   def makeRenderer(self ,rasterLayer):
+      
+      try:
+         fcn = QgsColorRampShader()
+         fcn.setColorRampType(QgsColorRampShader.INTERPOLATED)
+         #lst = [ QgsColorRampShader.ColorRampItem(0, QColor(200,220,255)), \
+         #QgsColorRampShader.ColorRampItem(100, QColor(255,0,0)) ]
+         lst = self.makeColorList()
+         fcn.setColorRampItemList(lst)
+         shader = QgsRasterShader()
+         shader.setRasterShaderFunction(fcn)
+      except Exception, e:
+         print "except in shader ",str(e)
+         shader = None
+       
+      if shader is not None:
+         try:
+            renderer = QgsSingleBandPseudoColorRenderer(rasterLayer.dataProvider(), 1, shader)
+            rasterLayer.setRenderer(renderer)
+         except:
+            pass
+      
 
 # ..............................................................
    def addTiffToCanvas(self, path, tocName):
       
+      try:
+         fcn = QgsColorRampShader()
+         fcn.setColorRampType(QgsColorRampShader.INTERPOLATED)
+         #lst = [ QgsColorRampShader.ColorRampItem(0, QColor(200,220,255)), \
+         #QgsColorRampShader.ColorRampItem(100, QColor(255,0,0)) ]
+         lst = self.makeColorList()
+         fcn.setColorRampItemList(lst)
+         shader = QgsRasterShader()
+         shader.setRasterShaderFunction(fcn)
+      except Exception, e:
+         print "except in shader ",str(e)
+         shader = None
+      
       rasterLayer = QgsRasterLayer(path,tocName)  
+      if shader is not None:
+         try:
+            renderer = QgsSingleBandPseudoColorRenderer(rasterLayer.dataProvider(), 1, shader)
+            rasterLayer.setRenderer(renderer)
+         except Exception, e:
+            print "excepti in renderer ",str(e)
       if not rasterLayer.isValid():
          QMessageBox.warning(self,"status: ",
            "not a valid layer")           
@@ -315,7 +370,7 @@ class LMTreeView(QTreeView):
       else:
          
          QgsMapLayerRegistry.instance().addMapLayer(vectorLayer)
-         #self.iface.zoomFull()
+         
    # ........................................       
 
    def downloadShpFile(self, occId, hit = None, parentName=''):
@@ -332,7 +387,7 @@ class LMTreeView(QTreeView):
                if hit is not None:
                   self.client.sdm.getShapefileFromOccurrencesHint(hit,tmpDir,instanceName = self.provider, overwrite=True)
                else:
-                  self.client.sdm.getOccurrenceSetShapefile(self, occId, filename=tmpDir, overwrite=True)
+                  self.client.sdm.getOccurrenceSetShapefile(occId, filename=tmpDir, overwrite=True)
             except Exception, e:
                print str(e)
             else:
@@ -351,27 +406,35 @@ class LMTreeView(QTreeView):
 
 # ..............................................................
 
-   def downLoadProjectionTiff(self ,lmId, parentName):
+   def downLoadProjectionTiff(self ,lmId, parentName,scenName=''):
       """
       @summary: called from viewDownloadProjection, gets projection id from the 
       table model, opens a file dialog to get a filename and calls getProjecctionTiff
       in the sdm client library
       """
-      pass  # also put the whole in try except like shapefile
-#      tocName = '%s_%s' % (self.provider,parentName)
-#      
-#      if self.tmpDir is not None:
-#         tmpDir = os.path.join(self.tmpDir,"%s.shp" % (tocName))
-#         try:
-#            self.client.sdm.getProjectionTiff(prjId,filename=filename)
-#         except Exception,e:
-#            QMessageBox.warning(self,"Error: ",
-#           "Problem with the Tiff service "+str(e)) 
-#         else:
-#            self.addTiffToCanvas(filename, tocName)
-#      else:
-#         message = "No tmp directory set in Environment variable, try setting TMPDIR"
-#         QMessageBox.warning(self,"status: ",message) 
+      print "proj id",lmId
+      try:
+         tocName = '%s_%s_%s' % (self.provider,parentName,scenName)
+         if self.tmpDir is not None:
+            tmpDir = os.path.join(self.tmpDir,"%s.tif" % (tocName))
+            try:
+               self.client.sdm.getProjectionTiff(lmId,filename=tmpDir)
+            except Exception,e:
+               QMessageBox.warning(self,"Error: ",
+              "Problem with the Tiff service "+str(e)) 
+            else:
+               try:
+                  self.addTiffToCanvas(tmpDir, tocName)
+               except Exception, e:
+                  message = "couldn't add shp file to canvas "+str(e)
+                  QMessageBox.warning(self,"status: ", message)
+         else:
+            message = "No tmp directory set in Environment variable, try setting TMPDIR"
+            QMessageBox.warning(self,"status: ",message) 
+    
+      except Exception, e:
+         message = str(e)
+         QMessageBox.warning(self,"status: ",message)
 # ..............................................................      
    def startDrag(self, *args, **kwargs):
       """
@@ -382,42 +445,50 @@ class LMTreeView(QTreeView):
       # row - itemIdx.row()
       # row of parent - itemIdx.parent().row()
       # parent node - self.model().nodeFromIndex(itemIdx.parent())
-      # selected data - elf.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData
-      itemIdx = self.selectionModel().selectedIndexes()[0]
-      childRowIdx = itemIdx.row()
-      lmId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
-      displayName = self.model().nodeFromIndex(itemIdx.parent()).name
-      hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
-      downloadType = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).type
-      
-      if downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE:
-         fn = "Lifemapper_%s.shp" % (toUnicode(displayName).encode('utf-8')) # provider is hardcoded here
-      if downloadType == ARCHIVE_DWL_TYPE.PROJ:
-         fn = "Lifemapper_%s.tif" % (toUnicode(displayName).encode('utf-8'))
-      fullPath = os.path.join(self.tmpDir,fn)
-      
-      
-      dlThread = QThread()
-      dlw = DownLoadWorker(lmId=lmId,hit=hit,path=fullPath,client=self.client,
-                           downloadType = downloadType,provider=self.provider)
-      dlw.moveToThread(dlThread)
-      dlw.finished.connect(dlThread.quit)
-      dlThread.started.connect(dlw.downloadProcess)
-      #dlThread.finished.connect(self.threadFinished) #maybe
-      dlThread.start()
-      dlw.deleteLater()
-      
-       
-      drag = QDrag(self)  
-      mimeData = QMimeData()
-      #mimeData.setData("text/uri-list","/home/jcavner/USAdminBoundaries/Lower_48_Bison_Dissolved.shp")
-      mimeData.setData("text/uri-list",fullPath)
-      
-      drag.setMimeData(mimeData)   
-      pixmap = QPixmap()
-      pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
-      drag.setPixmap(pixmap)
-      result = drag.start(Qt.MoveAction)
+      # selected data - self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData
+      if self.tmpDir is not None:
+         itemIdx = self.selectionModel().selectedIndexes()[0]
+         childRowIdx = itemIdx.row()
+         lmId = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
+         displayName = self.model().nodeFromIndex(itemIdx.parent()).name
+         hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
+         downloadType = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).type
+         parentName = self.model().nodeFromIndex(itemIdx.parent()).name
+         scenName = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).name
+         
+         if downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE:
+            fn = "Lifemapper_%s.shp" % (toUnicode(displayName).encode('utf-8')) # provider is hardcoded here
+         if downloadType == ARCHIVE_DWL_TYPE.PROJ:
+            #fn = "Lifemapper_%s.tif" % (toUnicode(displayName).encode('utf-8'))
+            fn = '%s_%s_%s' % (self.provider,parentName,scenName)
+         fullPath = os.path.join(self.tmpDir,fn)
+         
+         
+         dlThread = QThread()
+         dlw = DownLoadWorker(lmId=lmId,hit=hit,path=fullPath,client=self.client,
+                              downloadType = downloadType,provider=self.provider)
+         dlw.moveToThread(dlThread)
+         dlw.finished.connect(dlThread.quit)
+         dlThread.started.connect(dlw.downloadProcess)
+         #dlThread.finished.connect(self.threadFinished) #maybe
+         dlThread.start()
+         dlw.deleteLater()
+         
+          
+         drag = QDrag(self)  
+         mimeData = QMimeData()
+         #mimeData.setData("text/uri-list","/home/jcavner/USAdminBoundaries/Lower_48_Bison_Dissolved.shp")
+         mimeData.setData("text/uri-list",fullPath)
+         
+         drag.setMimeData(mimeData)   
+         pixmap = QPixmap()
+         pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
+         drag.setPixmap(pixmap)
+         result = drag.start(Qt.MoveAction)
+         print "drag result object ",result
+      else:
+         message = "No tmp directory set in Environment variable, try setting TMPDIR"
+         QMessageBox.warning(self,"status: ",message)
       
 class DownLoadWorker(QObject):
    
@@ -437,12 +508,11 @@ class DownLoadWorker(QObject):
       
       if self.downloadType == ARCHIVE_DWL_TYPE.OCCURRENCE:
          try:
-            
             if self.hit is not None:
                self.client.sdm.getShapefileFromOccurrencesHint(self.hit,self.tmpDir,instanceName = self.provider, 
                                                               overwrite=True)
             else:
-               self.client.sdm.getOccurrenceSetShapefile(self, self.lmId, filename=self.tmpDir, overwrite=True)
+               self.client.sdm.getOccurrenceSetShapefile(self.lmId, filename=self.tmpDir, overwrite=True)
          except Exception, e:
             pass
       if self.downloadType == ARCHIVE_DWL_TYPE.PROJ:
@@ -534,27 +604,35 @@ class Ui_Dock(object):
       @param items: list of hit items
       """
       
-      
       if items[0].displayName == '':
-         
+      #if len(items)  == 0:
          self.treeModel.beginRemoveRows(self.treeModel.index(0,0,QModelIndex()), 0, self.treeModel.provider.childCount()-1)
          self.treeModel.provider.childItems = []
          self.treeModel.endRemoveRows()
-   
       else:
          row = 0
          self.treeModel.provider.childItems = []
          for sps in items:
+            #nameFolder = TreeItem(sps.displayName,sps.displayName,self.treeModel.provider)
+            #occSetName = "occurrence set (%s points)" % sps.numPoints
+            #occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,hit=sps,
+            #                      type=ARCHIVE_DWL_TYPE.OCCURRENCE)
+            #maxentFolder = TreeItem('MaxEnt','MaxEnt',nameFolder)
+            #rs = str(random.randint(1000, 123545))
+            #rs2 = str(random.randint(1000, 123545))
+            #someProj =  TreeItem(rs,rs,maxentFolder,type=ARCHIVE_DWL_TYPE.PROJ,hit=sps)
+            #someProj2 = TreeItem(rs2,rs2,maxentFolder,type=ARCHIVE_DWL_TYPE.PROJ,hit=sps)
+            #self.treeModel.insertRow(row, QModelIndex())
             nameFolder = TreeItem(sps.displayName,sps.displayName,self.treeModel.provider)
             occSetName = "occurrence set (%s points)" % sps.numPoints
-            occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,hit=sps,
+            occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,
                                   type=ARCHIVE_DWL_TYPE.OCCURRENCE)
-            maxentFolder = TreeItem('MaxEnt','MaxEnt',nameFolder)
-            rs = str(random.randint(1000, 123545))
-            rs2 = str(random.randint(1000, 123545))
-            someProj =  TreeItem(rs,rs,maxentFolder,type=ARCHIVE_DWL_TYPE.PROJ,hit=sps)
-            someProj2 = TreeItem(rs2,rs2,maxentFolder,type=ARCHIVE_DWL_TYPE.PROJ,hit=sps)
-            self.treeModel.insertRow(row, QModelIndex())
+            
+            for m in sps.models:
+               mF = TreeItem(m.algorithmCode,m.algorithmCode,nameFolder)
+               for p in m.projections:
+                  TreeItem(p.projectionId,p.projectionScenarioCode,mF,type=ARCHIVE_DWL_TYPE.PROJ)
+            self.treeModel.insertRow(row, QModelIndex())      
             row = row + 1
             
                      
@@ -577,19 +655,6 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       self.setupUi(self)
 
 
- # ..............................................................  
-   def getDataFromSelection(self, occSet=False):
-      """
-      @summary: gets data from tree model from selection in view
-      """
-      sis = self.treeView.selectionModel().selectedIndexes()
-      itemIdx = sis[0]
-      childRowIdx = itemIdx.row()
-      occSetId = self.treeModel.nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
-      if occSet:
-         hit = self.treeModel.nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
-      
-   
    # ..............................................................     
    def showHideBrowseDock(self):
       """
