@@ -100,21 +100,26 @@ class Hint:
       """
       root = self.serviceRoot
       try:
-         self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),
-                                                 maxReturned=60,serviceRoot=root)         
+         #self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),
+         #                                        maxReturned=60,serviceRoot=root)   
+         self.namedTuples = self.client.sdm.searchArchive(toUnicode(searchText).encode('utf-8'))    
       except Exception, e:
          #print "or is throwing except ", e 
          pass
       else:
          items = []
-         if len(self.namedTuples) > 0:
-            for species in self.namedTuples:
-               
-               items.append(SpeciesSearchResult(species.name,species.id,
-                                                numPoints=species.numPoints, numModels=species.numModels,
-                                                downloadUrl=species.downloadUrl))
+         if self.namedTuples is not None:
+            if len(self.namedTuples) > 0:
+               for species in self.namedTuples:
+                  
+                  items.append(SpeciesSearchResult(species.displayName,species.occurrenceSetId,
+                                                   numPoints=species.numPoints,models=species.models
+                                                   )) 
+                  # species.name,species.id, downloadUrl=species.downloadUrl, numModels=species.numModels
+                  #items.append(species)
          else:
-            items.append(SpeciesSearchResult('', '', '','',''))
+            items.append(SpeciesSearchResult('', '', '',''))
+            
          self.model.updateList(items)
          if self.callback is not None:
             self.callback(items)
@@ -126,7 +131,8 @@ class Hint:
       for sH in self.namedTuples: 
          # probably will need to change this inside of Qgis        
          #if sH.name.lower() in unicode(currentText).lower():
-         if sH.name.lower() in currentText.lower():
+         #if sH.name.lower() in currentText.lower():
+         if sH.displayName.lower() in currentText.lower():
             break
          idx += 1         
       return idx
@@ -139,6 +145,7 @@ class Hint:
          self.combo.clearEditText()
          if self.callback is not None:
             self.callback([SpeciesSearchResult('', '', '','','')])
+            #self.callback([])
       if noChars >= 3:
          
          if text.count(" ") > 1:
@@ -159,6 +166,17 @@ class SolrSearchResult(object):
       
       self.displayName = displayName
       self.occurrenceSetId = occObj.id  
+      self.numPoints = occObj.numPoints
+      self.models = models
+      
+   # .........................................
+   def customData(self):
+      """
+      @summary: Creates a string representation of the SpeciesSearchResult 
+                   object
+      """
+      
+      return "%s (%s points)" % (self.displayName, self.numPoints)
    
 
 class SpeciesSearchResult(object):
@@ -166,7 +184,8 @@ class SpeciesSearchResult(object):
    @summary: Data structure for species search results (occurrence sets)
    """
    # .........................................
-   def __init__(self, displayName, occurrenceSetId, numPoints=None, numModels=None, downloadUrl=None):
+   def __init__(self, displayName, occurrenceSetId, numPoints=None, 
+                numModels=None, downloadUrl=None,models=None):
       """
       @summary: Constructor for SpeciesSearchResult object
       @param displayName: The display name for the occurrence set
@@ -178,6 +197,7 @@ class SpeciesSearchResult(object):
       self.numPoints = numPoints
       self.numModels = numModels
       self.downloadUrl = downloadUrl
+      self.models = models
 
    # .........................................
    def customData(self):
