@@ -72,7 +72,8 @@ class LmListModel(QAbstractListModel):
       @return: The number of items in the list
       @rtype: Integer
       """
-      return len(self.listData)
+      
+      return len(self.listData) 
    
    # .........................................
    def updateList(self, newList):
@@ -81,8 +82,10 @@ class LmListModel(QAbstractListModel):
       @param newList: A list of items to use for the new list
       @note: The provided list will replace the old list 
       """
-      #print "its at update list ",newList
-      self.beginInsertRows(QModelIndex(), 0, len(newList))
+      self.beginRemoveRows(QModelIndex(),0,len(self.listData)-1) # optional
+      self.listData = [] # optional
+      self.endRemoveRows() # optional
+      self.beginInsertRows(QModelIndex(), 0, len(newList)-1) #just len makes auto with setIndex work better
       self.listData = newList
       
       self.endInsertRows()
