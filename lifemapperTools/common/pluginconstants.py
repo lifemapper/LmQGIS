@@ -28,6 +28,10 @@
 
 SIGNUPURL = "http://Lifemapper.org/signup"
 
+class ARCHIVE_DWL_TYPE:
+   
+   PROJ = 'projection'
+   OCCURRENCE = 'occurrencset'
 
 class Messages:
    
