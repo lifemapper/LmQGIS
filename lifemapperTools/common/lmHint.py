@@ -27,11 +27,11 @@ def fromUnicode(uItem, encoding="utf-8"):
    return uItem.encode("utf-8")
 
 class LmCombo(QComboBox):
-   # subclassed this to override pop up
-   def __init__(self, hit):
-      
-      self.hit = hit
-      QComboBox.__init__(self)
+   # maybe init was causing seg fault
+   #def __init__(self, hit):
+   #   
+   #   self.hit = hit
+   #   QComboBox.__init__(self)
       
    def showPopup(self, *args, **kwargs):
       return None
@@ -72,7 +72,8 @@ class Hint:
       self.parent = parent
       self.model = None
       ######## combo #######
-      self.combo = LmCombo(self)
+      self.combo = LmCombo()
+      #self.combo = QLineEdit()
       #self.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
       #                           QComboBox::down-arrow {image: url(noimg);}""")
       self.combo.setAutoCompletion(True)
@@ -116,11 +117,10 @@ class Hint:
                                                    numPoints=species.numPoints,models=species.models
                                                    )) 
                   # species.name,species.id, downloadUrl=species.downloadUrl, numModels=species.numModels
-                  #items.append(species)
          else:
             items.append(SpeciesSearchResult('', '', '',''))
             
-         self.model.updateList(items)
+         self.model.updateList(items) #uncomment when gong back to combo
          if self.callback is not None:
             self.callback(items)
          
@@ -128,16 +128,36 @@ class Hint:
    def getIdxFromTuples(self,currentText):
       
       idx = 0
-      for sH in self.namedTuples: 
-         # probably will need to change this inside of Qgis        
-         #if sH.name.lower() in unicode(currentText).lower():
-         #if sH.name.lower() in currentText.lower():
-         if sH.displayName.lower() in currentText.lower():
-            break
-         idx += 1         
+      if self.namedTuples is not None:
+         for sH in self.namedTuples: 
+            # probably will need to change this inside of Qgis        
+            #if sH.name.lower() in unicode(currentText).lower():
+            #if sH.name.lower() in currentText.lower():
+            if sH.displayName.lower() in currentText.lower():
+               break
+            idx += 1         
       return idx
    
-   def onTextChange(self, text):
+   def onTextChange(self, text): # no set index, would work for lineEdit too, try with model indexes (beginRemove (-1)
+      
+      noChars = len(text)
+      if noChars >= 3:
+         if text.count(" ") > 1:
+            # just rely on built-in autocompleter on combo
+            return
+         if ' ' in text:
+               text.replace(' ','%20')
+         self.searchOccSets(text)
+   
+   #def onTextChange_LineEdit(self, text):  # line edit might need the return like above
+   #   
+   #   noChars = len(text)
+   #   if noChars >= 3:
+   #      if ' ' in text:
+   #            text.replace(' ','%20')
+   #      self.searchOccSets(text)
+   
+   def onTextChange_combo(self, text):
       
       noChars = len(text)
       if text == '':
@@ -145,7 +165,7 @@ class Hint:
          self.combo.clearEditText()
          if self.callback is not None:
             self.callback([SpeciesSearchResult('', '', '','','')])
-            #self.callback([])
+            
       if noChars >= 3:
          
          if text.count(" ") > 1:
@@ -157,7 +177,7 @@ class Hint:
             text.replace(' ','%20')
          self.searchOccSets(text)
          
-class SolrSearchResult(object):
+class SolrSearchResult(object): # deprecated
    """
    @summary: Data structure for species search results (occurrence sets)
    """
@@ -181,7 +201,7 @@ class SolrSearchResult(object):
 
 class SpeciesSearchResult(object):
    """
-   @summary: Data structure for species search results (occurrence sets)
+   @summary: Data structure for species search results (Solr prj objects)
    """
    # .........................................
    def __init__(self, displayName, occurrenceSetId, numPoints=None, 
