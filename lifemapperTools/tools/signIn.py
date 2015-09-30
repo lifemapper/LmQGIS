@@ -47,9 +47,12 @@ from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.common.workspace import Workspace
-from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject, SIGNUPURL
+from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject
 from LmClient.lmClientLib import LMClient, OutOfDateException
-#from lifemapperTools.common.lmClientLib import LMClient, OutOfDateException
+from LmCommon.common.localconstants import  WEBSERVICES_ROOT
+
+
+SIGNUPURL = os.path.join(WEBSERVICES_ROOT,'signup')
 
 
 class Ui_SubDialog(object):
