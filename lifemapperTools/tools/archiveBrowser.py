@@ -96,7 +96,8 @@ class BrowserTreeModel(QAbstractItemModel):
    def flags(self, index):
       defaultFlags = QAbstractItemModel.flags(self, index)
       if not self.hasChildren(index):
-         return Qt.ItemIsDragEnabled | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+         #return Qt.ItemIsDragEnabled | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable
       return defaultFlags
    
    def index(self, row, column, parentIndex):
@@ -153,6 +154,7 @@ class BrowserTreeModel(QAbstractItemModel):
    def rowCount(self, parent):
       node = self.nodeFromIndex(parent)
       if node is None:
+         print "Returning 0 in rowCount in Tree model"
          return 0
       return len(node)
    
@@ -174,6 +176,7 @@ class BrowserTreeModel(QAbstractItemModel):
          try:
             return node.name
          except Exception, e:
+            # might just want to return an empty sting here
             return 
       
 
@@ -207,7 +210,8 @@ class TreeItem(object):
       # get called from index() in model
       try:
          return self.childItems[row]
-      except:
+      except Exception, e:
+         #print "exception in child in TreeItem ",str(e)
          pass
    # ..........................................
    def childCount(self):
@@ -218,7 +222,9 @@ class TreeItem(object):
       # attached to instance of item
       try:
          return self.itemData[column]  # not a list, but could be
-      except IndexError:
+      #except IndexError:
+      except Exception, e:
+         print "returning None from data in TreeItem ",str(e)
          return None
    
    def getParent(self):  # changed this because "parent" was both a method and attribute
@@ -227,6 +233,7 @@ class TreeItem(object):
    def row(self):
       if self.parentItem:
          return self.parentItem.childItems.index(self)   
+      print "returning zero from row in TreeItem"
       return 0
    # ---------------- end 
    
@@ -238,6 +245,7 @@ class TreeItem(object):
       for i, item in enumerate(self.childItems):
          if item == child:
                return i
+      print "returning -1 from rowOfChild (Tree Item)"
       return -1
    
    def removeChild(self, row):
@@ -245,6 +253,7 @@ class TreeItem(object):
          value = self.childItems[row]
          self.childItems.remove(value)
       except Exception, e:
+         print "in removeChild (Tree Item) except ",str(e)
          pass
    
    def __len__(self):
@@ -260,8 +269,8 @@ class LMTreeView(QTreeView):
       self.tmpDir = tmpDir
       self.header().hide()
       self.doubleClicked.connect(self.handleEvent)
-      self.dragEnabled()
-      self.setDragDropMode(QAbstractItemView.DragOnly)
+      #self.dragEnabled()
+      #self.setDragDropMode(QAbstractItemView.DragOnly)
       self.header().setResizeMode(QHeaderView.ResizeToContents)
 # .................................................................      
    def handleEvent(self, index):
@@ -536,6 +545,20 @@ class ArchiveComboModel(LmListModel):
          return int(self.listData[index.row()])
       else:
          return 
+      
+   def updateList(self, newList):
+      """
+      @summary: Updates the contents of the list
+      @param newList: A list of items to use for the new list
+      @note: The provided list will replace the old list 
+      """
+      self.beginRemoveRows(QModelIndex(),0,len(self.listData)-1) # optional
+      self.listData = [] # optional
+      self.endRemoveRows() # optional
+      
+      self.beginInsertRows(QModelIndex(), 0, len(newList)-1) #just len makes auto with setIndex work better
+      self.listData = newList
+      self.endInsertRows()
 
 class customWidget(QWidget):
    
@@ -610,11 +633,13 @@ class Ui_Dock(object):
             occSetName = "occurrence set (%s points)" % sps.numPoints
             occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,
                                   type=ARCHIVE_DWL_TYPE.OCCURRENCE)
-            
-            for m in sps.models:
-               mF = TreeItem(m.algorithmCode,m.algorithmCode,nameFolder)
-               for p in m.projections:
-                  TreeItem(p.projectionId,p.projectionScenarioCode,mF,type=ARCHIVE_DWL_TYPE.PROJ)
+            try:
+               for m in sps.models:
+                  mF = TreeItem(m.algorithmCode,m.algorithmCode,nameFolder)
+                  for p in m.projections:
+                     TreeItem(p.projectionId,p.projectionScenarioCode,mF,type=ARCHIVE_DWL_TYPE.PROJ)
+            except:
+               pass
             self.treeModel.insertRow(row, QModelIndex())      
             row = row + 1
             
