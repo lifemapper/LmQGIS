@@ -260,7 +260,7 @@ class Ui_Dialog(object):
       self.maskLayout.addLayout(horiz3)
       
       self.maskGroup.setLayout(ly)
-      self.points_envLayout.addWidget(self.maskGroup,2,0,1,1)
+      #self.points_envLayout.addWidget(self.maskGroup,2,0,1,1)
       
       ############ 3rd input group SCENARIOS #######################################
       
