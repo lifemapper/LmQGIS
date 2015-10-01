@@ -30,7 +30,8 @@ from PyQt4.QtGui import *
 from qgis.core import *
 import os, sys
 from urllib2 import HTTPError
-from lifemapperTools.tools.browseOccProviders import BrowseOccProviderDock
+#from lifemapperTools.tools.browseOccProviders import BrowseOccProviderDock
+from lifemapperTools.tools.archiveBrowser import archiveBrowserDock as BrowseOccProviderDock
 from lifemapperTools.tools.signIn import SignInDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
@@ -143,7 +144,7 @@ class MetoolsPlugin:
       
       # Browse Occurrence Set Action for Icon  ################333
       self.browseIconAction = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"), \
-            "Browse Occurrence Sets", self.iface.mainWindow())
+            "Browse Lifemapper Archive", self.iface.mainWindow())
       #self.browseIconAction.triggered.connect(self.showHideBrowseDock)
       ##################################################################
       #   for the menu item for browse dock
@@ -151,7 +152,7 @@ class MetoolsPlugin:
       ##  self.browseOccSetItem.triggered.connect(self.browseOccProv)
       
    def _initUploadEnvLayerAction(self):
-      self.uploadEnvlayerAction =  QAction( QCoreApplication.translate("lifemapperTools", "Upload Layer"),self.iface.mainWindow()) 
+      self.uploadEnvlayerAction =  QAction( QCoreApplication.translate("lifemapperTools", "Upload Environment Layer"),self.iface.mainWindow()) 
       #QObject.connect(self.uploadEnvlayerAction, SIGNAL("triggered()"),self.uploadEnvLayer)
       self.uploadEnvlayerAction.triggered.connect(self.uploadEnvLayer)
       self.uploadEnvlayerAction.setEnabled(False) 
