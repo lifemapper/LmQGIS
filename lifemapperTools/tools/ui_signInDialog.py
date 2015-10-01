@@ -22,10 +22,8 @@
           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
           02110-1301, USA.
 """
-from PyQt4 import QtCore, QtGui
 
-#from lifemapperTools.common.pluginconstants import KUNHM_GC_DESCRIBE_PROCESS_URL, \
-#  STATUS_ACCEPTED, STATUS_FAILED, STATUS_SUCCEEDED, STATUS_STARTED, FIND_STATUS
+from PyQt4 import QtCore, QtGui
 
 
 class Ui_Dialog(object):
