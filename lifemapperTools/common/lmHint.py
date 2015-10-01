@@ -117,10 +117,12 @@ class Hint:
                                                    numPoints=species.numPoints,models=species.models
                                                    )) 
                   # species.name,species.id, downloadUrl=species.downloadUrl, numModels=species.numModels
-         else:
+            else:  # added this Sept. 29
+               items.append(SpeciesSearchResult('', '', '',''))
+         else:  
             items.append(SpeciesSearchResult('', '', '',''))
             
-         self.model.updateList(items) #uncomment when gong back to combo
+         self.model.updateList(items) #uncomment when gong back to combo from lineEdit
          if self.callback is not None:
             self.callback(items)
          
@@ -138,26 +140,19 @@ class Hint:
             idx += 1         
       return idx
    
-   def onTextChange(self, text): # no set index, would work for lineEdit too, try with model indexes (beginRemove (-1)
+   def onTextChange_try(self, text): # no set index, would work for lineEdit too, try with model indexes (beginRemove (-1)
       
       noChars = len(text)
       if noChars >= 3:
-         if text.count(" ") > 1:
+         if text.count(" ") == 1:
             # just rely on built-in autocompleter on combo
             return
          if ' ' in text:
                text.replace(' ','%20')
          self.searchOccSets(text)
    
-   #def onTextChange_LineEdit(self, text):  # line edit might need the return like above
-   #   
-   #   noChars = len(text)
-   #   if noChars >= 3:
-   #      if ' ' in text:
-   #            text.replace(' ','%20')
-   #      self.searchOccSets(text)
-   
-   def onTextChange_combo(self, text):
+
+   def onTextChange(self, text):
       
       noChars = len(text)
       if text == '':
@@ -166,9 +161,10 @@ class Hint:
          if self.callback is not None:
             self.callback([SpeciesSearchResult('', '', '','','')])
             
+            
       if noChars >= 3:
          
-         if text.count(" ") > 1:
+         if text.count(" ") == 1:
             currText = self.combo.currentText()
             idx = self.getIdxFromTuples(currText)
             self.combo.setCurrentIndex(idx) 
