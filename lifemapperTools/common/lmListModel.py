@@ -82,10 +82,10 @@ class LmListModel(QAbstractListModel):
       @param newList: A list of items to use for the new list
       @note: The provided list will replace the old list 
       """
-      self.beginRemoveRows(QModelIndex(),0,len(self.listData)-1) # optional
-      self.listData = [] # optional
-      self.endRemoveRows() # optional
-      self.beginInsertRows(QModelIndex(), 0, len(newList)-1) #just len makes auto with setIndex work better
+      #self.beginRemoveRows(QModelIndex(),0,len(self.listData)-1) # optional
+      #self.listData = [] # optional
+      #self.endRemoveRows() # optional
+      self.beginInsertRows(QModelIndex(), 0, len(newList)) #just len makes auto with setIndex work better
       self.listData = newList
       
       self.endInsertRows()
