@@ -755,7 +755,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       @param index: current index (not Qindex obj) from the model scenario combo
       """
       # get the model Scen Id using the index
-      #print index
+      # print index
       # what happens if there are no matching scenarios?
       if index != 0 and index != 1:
          modelScenId = self.modelScenCombo.itemData(index, role=Qt.UserRole)
@@ -763,7 +763,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
             publicmatchingScens = []
             usermatchingScens = []
             if self.epsgCode == 4326 or self.epsgCode == 2163:
-               publicmatchingScens =self.client.sdm.listScenarios(matchingScenario=modelScenId,public=True)
+               publicmatchingScens = self.client.sdm.listScenarios(matchingScenario=modelScenId,public=True)
                usermatchingScens = self.client.sdm.listScenarios(matchingScenario=modelScenId,public=False)
             else:
                usermatchingScens = self.client.sdm.listScenarios(matchingScenario=modelScenId,public=False)
