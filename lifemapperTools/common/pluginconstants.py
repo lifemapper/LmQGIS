@@ -26,7 +26,7 @@
           02110-1301, USA.
 """
 
-SIGNUPURL = "http://Lifemapper.org/signup"
+
 
 class ARCHIVE_DWL_TYPE:
    
