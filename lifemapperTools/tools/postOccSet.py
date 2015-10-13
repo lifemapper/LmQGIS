@@ -66,7 +66,7 @@ class UploadOccSetDialog(QDialog, Ui_Dialog):
          try:
             response = self.client.sdm.postOccurrenceSet(self.displayName,self.fileType,
                                                          self.fileName,epsgCode=self.epsgCode)
-         except:
+         except Exception, e:
             msgBox = QMessageBox.information(self,
                                                "Problem...",
                                                "Problem with the post occurrence set service",
