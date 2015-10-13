@@ -538,8 +538,6 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
             pass
          else:
             self.bucketId = index.model().data[index.row()][1]
-            #gridLyr = self.addtoCanvas()  # not sure why this was in there
-            #self.bucketId = index.model().data[index.row()][1]
             stagestring = index.model().data[index.row()][2]
             stage = self.getStageCode(stagestring)
             status = int(index.model().data[index.row()][5])
