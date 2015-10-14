@@ -587,7 +587,11 @@ class MetoolsPlugin:
             #if self._comparePathToId(): # this may be way wrong, check on Monday
             #print "comarePathToId True in unload"
             s.setValue("RADExpProj_"+str(currentExpId), filename)
-      s.remove("currentExpID")      
+      s.remove("currentExpID")    
+      
+       
+      self.iface.removeToolBarIcon(self.browseIconAction) 
+      self.iface.removeDockWidget(self.occSetBrowseDock)
 
    def onSaveSaveAs(self,domproject):
       # called on every save or save as, after the actual save
