@@ -171,6 +171,9 @@ class ListBucketsDialog(_Controller,QDialog, Ui_Dialog):
       
 # ..............................................................................    
    def listPamSums(self):
+      """
+      @summary: opens pamSumStats dialog
+      """
       selectedrowindex = self.bucketTableView.tableView.selectionModel().currentIndex().row()
       selModel = self.bucketTableView.tableView.selectionModel()
       if selectedrowindex == -1 or not(selModel.hasSelection()):
