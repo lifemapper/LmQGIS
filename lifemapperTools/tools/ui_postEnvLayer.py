@@ -589,10 +589,12 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
                   t.element.setStyleSheet("background-color: #F5693B") 
          elif t.type == 'typeCode':
             currentIdx = t.element.currentIndex()
-            if not self.fromMaskinSDM:
-               if currentIdx == 0 or currentIdx == 1:
-                  valid = False
-                  t.element.setStyleSheet("background-color: #F5693B")
+            envLayerType = str(self.selectTypeCode.itemData(currentIdx,role=QtCore.Qt.UserRole))
+            if envLayerType != MASK_TYPECODE:
+               if not self.fromMaskinSDM:
+                  if currentIdx == 0 or currentIdx == 1:
+                     valid = False
+                     t.element.setStyleSheet("background-color: #F5693B")
             
                                           
       return valid                 
