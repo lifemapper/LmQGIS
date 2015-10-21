@@ -114,7 +114,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       # build initial models and delegates
       self.scenProjListModel = LmListModel([], self)
       self.scenModelListModel = LmListModel([],self, model=True)
-      self.maskListModel = LmListModel([],self)
+      self.maskListModel = LmListModel([MaskSearchResult('','')],self)
       #####################################
       self.projDelegate = SDMDelegate()
       self.modelDelegate = SDMDelegate()
@@ -157,7 +157,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       @param epsgCode: epsgCode [integer] to filter on
       @return: list of tuples (title, id)
       """
-      layers = []
+      #layers = []
       try:
          userMaskLyrs = self.client.sdm.listLayers(public=False,typeCode=typeCode,
                                                  epsgCode=epsgCode,fullObjects=getFull)         
@@ -165,9 +165,10 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          print "EXCEPTION IN GET MASKS ",str(e)
       else:
          if len(userMaskLyrs) > 0:
+            data = list(self.maskListModel.listData)
             for lyr in userMaskLyrs:
-               layers.append(MaskSearchResult(lyr.name,lyr.id))
-            self.maskListModel.updateList(layers)
+               data.append(MaskSearchResult(lyr.name,lyr.id))
+            self.maskListModel.updateList(data)
          self.maskGroup.setEnabled(True)
 # .....................................................................................
    def setCombosToNewMask(self,newLyrName,id):
@@ -291,6 +292,11 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       algoCode = self.getAlgoCode()
       expName = self.expName.text()
       desc = self.expDesc.text()
+      mdlMaskId, projMaskId = self.getMaskIds()
+      if algoCode == 'ATT_MAXENT' and (bool(mdlMaskId) ^ bool(projMaskId)):
+         message = """For Maxent to use a mask you must use both 
+                   a model mask and a projection mask"""
+         valid = False   
       if len(expName) == 0:
          message = "You must provide an experiment name"
          valid = False
@@ -319,9 +325,9 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
                valid = False       
       
       if valid: 
-         postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email,'name':expName,'description':desc}
+         postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,
+                          'email':self.email,'name':expName,'description':desc, 'mdlMask':mdlMaskId, 'prjMask':projMaskId}
          
-         #postSDMParams = {'algorithm':self.algCopy,'mdlScn':mdlScn,'occSetId':occSetId,'prjScns':prjScns,'email':self.email}
          self.startThread(GENERIC_REQUEST,outputfunc = self.newExperimentCallBack, 
                           requestfunc=self.client.sdm.postExperiment, client=self.client,
                           inputs=postSDMParams)
@@ -445,6 +451,26 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       for idx in rowIdxs:
          prjScns.append(self.scenProjListModel.listData[idx].scenId) 
       return prjScns
+   
+   def getMaskIds(self):
+      """
+      @summary: gets current mask ids
+      """
+      currentMdlIdx = self.modelMaskCombo.currentIndex()
+      if currentMdlIdx != -1 and currentMdlIdx != 0:
+         mdlId = int(self.maskListModel.listData[currentMdlIdx])
+      else:
+         mdlId = None
+         
+      currentProjIdx = self.projectionMaskCombo.currentIndex()
+      if currentProjIdx != -1 and currentMdlIdx != 0:
+         prjId = int(self.maskListModel.listData[currentProjIdx])
+      else:
+         prjId = None
+      
+      return mdlId,prjId
+         
+      
 # ..............................................................................
    def setExpValues(self,occSetId,displayName,epsgCode):
       """
@@ -787,7 +813,8 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          self.postScenarioDialog.exec_()          
       else:
          self.scenProjListModel.updateList([ScenarioSearchResult('','')]) 
-      
+
+
 # .............................................................................. 
    def populateAlgoCombo(self):
       """
@@ -1262,8 +1289,8 @@ class MaskSearchResult(object):
       return "%s" % (self.name)
    
    def __int__(self):
-      
-      return self.maskId
+
+      return int(self.maskId)
    
 class ScenarioSearchResult(object):
    """
@@ -1294,7 +1321,7 @@ class ScenarioSearchResult(object):
 
 if __name__ == "__main__":
 #  
-   import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
+   import_path = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/"
    sys.path.append(os.path.join(import_path, 'LmShared'))
    configPath = os.path.join(import_path, 'config', 'config.ini') 
    os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
