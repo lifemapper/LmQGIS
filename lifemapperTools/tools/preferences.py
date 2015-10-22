@@ -25,10 +25,11 @@
 import sys
 import ConfigParser
 from PyQt4 import QtCore, QtGui
-from qgis.utils import reloadPlugin, unloadPlugin
+#from qgis.utils import reloadPlugin, unloadPlugin
 import lifemapperTools as LM
 from LmCommon.common.localconstants import  WEBSERVICES_ROOT
 from LmClient.lmClientLib import LMClient, OutOfDateException
+from lifemapperTools.common.lmHint import LmListModel
 
 
 ICON_VALUES = {'server':'SERVER'}
@@ -67,8 +68,8 @@ class Ui_Dialog(object):
       
       self.setObjectName("Dialog")
       self.resize(478, 448)
-      self.setMinimumSize(478,448)
-      self.setMaximumSize(478,448)
+      self.setMinimumSize(576,448)
+      self.setMaximumSize(576,448)
       self.setSizeGripEnabled(True)
        
       
@@ -84,7 +85,6 @@ class Ui_Dialog(object):
       self.gridLayout_input.setObjectName("gridLayout_input")
       
       self.gridLayout_input.setRowMinimumHeight(0,20)
-      #self.gridLayout_input.setRowMinimumHeight(1,120)
       self.gridLayout_input.setRowMinimumHeight(1,100)
       self.gridLayout_input.setRowMinimumHeight(2,20)
       self.gridLayout_input.setRowMinimumHeight(3,20)
@@ -114,27 +114,43 @@ class Ui_Dialog(object):
       ####### server group
       
       self.serverChangeGroup = QtGui.QGroupBox(self)
+      
       self.serverChangeGroup.setStyle(self.style)
       self.serverChangeGroup.hide()
       self.changeServLyout = QtGui.QGridLayout(self.serverChangeGroup)
       
-      self.changeServLyout.setColumnMinimumWidth(0,100)
-      self.changeServLyout.setColumnMinimumWidth(1,45)
-      self.changeServLyout.setColumnMinimumWidth(2,100)
+      self.changeServLyout.setColumnMinimumWidth(0,50)
+      self.changeServLyout.setColumnMinimumWidth(1,5)
+      self.changeServLyout.setColumnMinimumWidth(2,150)
       
-      self.changeServLyout.setRowMinimumHeight(0,50)
-      self.changeServLyout.setRowMinimumHeight(1,150)
-      self.changeServLyout.setRowMinimumHeight(2,50)
+      self.changeServLyout.setContentsMargins(0,10,0,10)
+      
+      self.changeServLyout.setRowMinimumHeight(0,10)
+      self.changeServLyout.setRowMinimumHeight(1,30)
+      self.changeServLyout.setRowMinimumHeight(2,230)
+      self.changeServLyout.setRowMinimumHeight(3,30)
       
       self.serverList = self.makeServerListView()
       self.serverRadio = self.makeServerRadio()
-      #self.websiteRoot = QtGui.QLineEdit()
-      #self.websiteRoot.setEnabled(False)
-      #self.websiteRoot.setText(WEBSERVICES_ROOT)
-      self.changeServLyout.addWidget(self.allSettings, 0,0,1,1,QtCore.Qt.AlignTop)
-      self.changeServLyout.addWidget(self.serverList,  1,0,1,1)
-      self.changeServLyout.addLayout(self.serverRadio, 1,2,1,1)
       
+      currentLyOut = QtGui.QGridLayout()
+      currentLyOut.setRowMinimumHeight(0,10)
+      currentLyOut.setRowMinimumHeight(0,10)
+      currentServerTxt = QtGui.QLabel("current server:")
+      serverTxt = QtGui.QLabel("http://svc.lifemappper.org")
+      serverTxt.setMaximumWidth(190)
+      #serverTxt.setWordWrap(True)
+      currentLyOut.addWidget(currentServerTxt,0,0,1,1, QtCore.Qt.AlignBottom)
+      currentLyOut.addWidget(serverTxt,1,0,1,1,QtCore.Qt.AlignTop)
+      
+      self.addNewBut = QtGui.QPushButton("Add New")
+      self.addNewBut.setEnabled(False)
+      
+      self.changeServLyout.addWidget(self.allSettings, 0,0,1,1,QtCore.Qt.AlignTop)
+      self.changeServLyout.addWidget(self.serverList,  1,0,2,1,QtCore.Qt.AlignTop)
+      self.changeServLyout.addLayout(self.serverRadio, 1,2,1,1,QtCore.Qt.AlignTop)
+      self.changeServLyout.addLayout(currentLyOut,     2,2,1,1)#,QtCore.Qt.AlignTop)
+      self.changeServLyout.addWidget(self.addNewBut, 3,0,1,1, QtCore.Qt.AlignBottom)
 
       
       self.gridLayout.addWidget(self.inputGroup, 4,0,4,0)
@@ -143,60 +159,22 @@ class Ui_Dialog(object):
       
       
       
-      #   
-      # 
-      #self.usernamelabel = QtGui.QLabel(self.inputGroup)
-      #self.usernamelabel.setGeometry(QtCore.QRect(10, 105, 113, 20))
-      #self.usernamelabel.setObjectName("usernamelabel")
-      #self.usernamelabel.setText("User Name")
-      #self.usernameEdit = QtGui.QLineEdit(self.inputGroup)
-      #self.usernameEdit.setGeometry(QtCore.QRect(10, 125, 213, 25))
-      #self.usernameEdit.setObjectName("usernameEdit")
-      # 
-      #self.passlabel = QtGui.QLabel(self.inputGroup)
-      #self.passlabel.setGeometry(QtCore.QRect(10, 170, 213, 20))
-      #self.passlabel.setObjectName("passlabel")
-      #self.passlabel.setText("Password")
-      #self.passEdit = QtGui.QLineEdit(self.inputGroup)
-      #self.passEdit.setEchoMode(QtGui.QLineEdit.Password)
-      #self.passEdit.setGeometry(QtCore.QRect(10, 190, 213, 25))
-      #self.passEdit.setObjectName("passEdit")
+      ########################################
       #
-      #
-      #self.emaillabel = QtGui.QLabel(self.inputGroup)
-      #self.emaillabel.setWordWrap(True)
-      #self.emaillabel.setGeometry(QtCore.QRect(10, 230, 243, 40))
-      #self.emaillabel.setObjectName("emaillabel")
-      #self.emaillabel.setText("Email (optional, job completion notify)")
-      #self.emailEdit = QtGui.QLineEdit(self.inputGroup)
-      #self.emailEdit.setGeometry(QtCore.QRect(10, 270, 213, 25))
-      #self.emailEdit.setObjectName("emailEdit")
-      #
-      #
-      #self.signupLink = QtGui.QLabel(self.inputGroup)
-      #self.signupLink.setText('<a href="signup">sign up</a>')
-      #self.signupLink.setGeometry(QtCore.QRect(10, 310, 243, 40))
-      #self.signupLink.linkActivated.connect(self.signup)
-      #
-      #
-      #
-      #self.helpBut = QtGui.QPushButton("?",self)
-      #self.helpBut.setMaximumSize(30, 30)
+      self.helpBut = QtGui.QPushButton("?",self)
+      self.helpBut.setMaximumSize(30, 30)
       #
       self.acceptBut = QtGui.QPushButton("OK",self)
       self.acceptBut.setDefault(True)
       self.buttonBox = QtGui.QDialogButtonBox(self)
       #
       #
-      #self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
+      self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.acceptBut,QtGui.QDialogButtonBox.ActionRole)
       #
       #
-      #self.buttonBox.setObjectName("buttonBox")
+      self.buttonBox.setObjectName("buttonBox")
       self.gridLayout.addWidget(self.buttonBox, 8, 0 ,7, 3)
-      #      
-      #
-      #self.retranslateUi()
       #
       #self.helpBut.clicked.connect(self.help)
       #self.acceptBut.clicked.connect(self.accept)
@@ -208,6 +186,7 @@ class Ui_Dialog(object):
       self.serverGroup = QtGui.QButtonGroup()
       
       defaultBut = QtGui.QRadioButton("default")
+      defaultBut.setChecked(True)
       other = QtGui.QRadioButton("other")
       self.serverGroup.addButton(defaultBut)
       self.serverGroup.addButton(other)
@@ -217,8 +196,8 @@ class Ui_Dialog(object):
       
       #vertLyOut = QtGui.QVBoxLayout()
       vertLyOut = QtGui.QGridLayout()
-      vertLyOut.setRowMinimumHeight(0,10)
-      vertLyOut.setRowMinimumHeight(1,10)
+      vertLyOut.setRowMinimumHeight(0,20)
+      vertLyOut.setRowMinimumHeight(1,20)
       vertLyOut.addWidget(defaultBut,0,0,1,1)
       vertLyOut.addWidget(other,1,0,1,1)
       
@@ -227,6 +206,9 @@ class Ui_Dialog(object):
    def makeServerListView(self):
       
       serverList = QtGui.QListView()
+      serverList.setEnabled(False)
+      serverList.setMaximumWidth(310)
+      serverList.setMinimumHeight(270)
       serverList.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
       serverList.clicked.connect(self.changeServer)
       serverList.setEnabled(False)
@@ -238,19 +220,23 @@ class Ui_Dialog(object):
 class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
    
    def __init__(self):
+      
       QtGui.QDialog.__init__(self)
-      r = 12/0
       self.client = None
       self.setupUi()
       self.setWindowTitle("Settings")
    
    def radioSeverChanged(self, radioId):
       
-      print "here"
-      print radioId
-      r = 12/0
+      if radioId == 1:
+         self.resetToDefault()
+      else:
+         print "do something else"
+              
+   def resetToDefault(self):
       
-   
+      self.serverList.setEnabled(False)
+      self.addNewBut.setEnabled(False)  
    
    def changeServer(self):
       
@@ -294,12 +280,10 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       except:
          pass
       else:         
-         #self.providerCombo.addItem('Select Provider',userData='None')
-         #
-         #for idx,instance in enumerate(instanceObjs):
-         #   
-         #   self.providerCombo.addItem(instance[0], instance[1])
-         print "populate some control"
+         items = []
+         for server in instanceObjs:
+            items.append(server)
+         self.serverListModel.updateList(items)
    
    def signOut(self):
       pass
@@ -309,10 +293,14 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       
       if self.client == None:
             self.buildClient()
-            self.getInstances()
+      if self.client is not None:
+         
+         self.serverListModel = ServerModel([],self)
+         self.serverList.setModel(self.serverListModel)
+         self.getInstances()
       
-      self.inputGroup.hide()
-      self.serverChangeGroup.show()
+         self.inputGroup.hide()
+         self.serverChangeGroup.show()
       #sec = 'LmCommon - common'
       #k = 'WEBSERVICES_ROOT'
       #cfgPath = "/home/jcavner/ghWorkspace/core.git/config/site.ini"
@@ -330,7 +318,27 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       #   
       #with open(cfgPath, 'wb') as configfile:
       #   cfg.write(configfile)   
-
+class ServerModel(LmListModel):
+   
+   def data(self, index, role):
+      """
+      @summary: Gets data at the selected index
+      @param index: The index to return
+      @param role: The role of the item
+      @return: The requested item
+      @rtype: QtCore.QVariant
+      """
+      if index.isValid() and (role == QtCore.Qt.DisplayRole or role == QtCore.Qt.EditRole):
+         if index.row() == 1 and self.model:
+            return "build new model"
+         else:   
+            try: return self.listData[index.row()][1]
+            except: return self.listData[index.row()]  # probably want to watch this
+           
+      if index.isValid() and role == QtCore.Qt.UserRole:
+         return int(self.listData[index.row()])
+      else:
+         return 
       
 if __name__ == "__main__":
 #  
