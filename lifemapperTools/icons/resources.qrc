@@ -13,5 +13,6 @@
     <file>layerStack.png</file>
     <file>clearTreeSelection.png</file>
     <file>lasso.png</file>
+    <file>server.png</file>
   </qresource>
 </RCC>
