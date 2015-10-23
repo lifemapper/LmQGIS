@@ -294,7 +294,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       desc = self.expDesc.text()
       mdlMaskId, projMaskId = self.getMaskIds()
       if algoCode == 'ATT_MAXENT' and (bool(mdlMaskId) ^ bool(projMaskId)):
-         message = """For Maxent to use a mask you must use both 
+         message = """To use a mask with Maxent you must use both 
                    a model mask and a projection mask"""
          valid = False   
       if len(expName) == 0:
