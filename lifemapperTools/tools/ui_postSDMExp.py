@@ -236,7 +236,7 @@ class Ui_Dialog(object):
       
       horiz1 = QtGui.QHBoxLayout()
       horiz1.addWidget(QLabel("Use Existing Model Mask"))
-      horiz1.addWidget(QLabel("Use Exiiting Projection Mask"))
+      horiz1.addWidget(QLabel("Use Existing Projection Mask"))
       self.maskLayout.addLayout(horiz1)
       
       
@@ -260,7 +260,7 @@ class Ui_Dialog(object):
       self.maskLayout.addLayout(horiz3)
       
       self.maskGroup.setLayout(ly)
-      #self.points_envLayout.addWidget(self.maskGroup,2,0,1,1)
+      self.points_envLayout.addWidget(self.maskGroup,2,0,1,1)
       
       ############ 3rd input group SCENARIOS #######################################
       
