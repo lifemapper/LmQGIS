@@ -68,25 +68,28 @@ class Ui_Dialog(object):
       self.setAllGroup.setStyle(self.style)
       
       
-      self.setAllDirectionsLabel = QtGui.QLabel("Doubleclick on the column header to edit, enter value and then Set Column",
-                                                self.setAllGroup)
-      self.setAllDirectionsLabel.setWordWrap(True)
-      self.setAllDirectionsLabel.setGeometry(QtCore.QRect(10, 30, 250,70))
-      self.ColumnSet = QtGui.QLineEdit(self.setAllGroup)
-      self.ColumnSet.setObjectName("ColumnSet")
-      self.ColumnSet.setGeometry(QtCore.QRect(10, 110, 80, 25))
-      self.ColumnSet.setEnabled(False)
-      self.setAllColumnButton = QtGui.QPushButton(QtGui.QIcon("file.ico"), 
-                                                  "Set Column", self.setAllGroup)
-      self.setAllColumnButton.setObjectName('setAllColumnButton')
-      self.setAllColumnButton.setGeometry(QtCore.QRect(99, 110, 80, 25))
-      self.setAllColumnButton.setEnabled(False)
-      self.currentsection = None
+      #self.setAllDirectionsLabel = QtGui.QLabel("Doubleclick on the column header to edit, enter value and then Set Column",
+      #                                          self.setAllGroup)
+      #self.setAllDirectionsLabel.setWordWrap(True)
+      #self.setAllDirectionsLabel.setGeometry(QtCore.QRect(10, 30, 250,70))
+      #self.ColumnSet = QtGui.QLineEdit(self.setAllGroup)
+      #self.ColumnSet.setObjectName("ColumnSet")
+      #self.ColumnSet.setGeometry(QtCore.QRect(10, 110, 80, 25))
+      #self.ColumnSet.setEnabled(False)
+      #self.setAllColumnButton = QtGui.QPushButton(QtGui.QIcon("file.ico"), 
+      #                                            "Set Column", self.setAllGroup)
+      #self.setAllColumnButton.setObjectName('setAllColumnButton')
+      #self.setAllColumnButton.setGeometry(QtCore.QRect(99, 110, 80, 25))
+      #self.setAllColumnButton.setEnabled(False)
+      #self.currentsection = None
       #self.connect(self.setAllColumnButton, QtCore.SIGNAL("clicked()"), 
       #                                                   lambda : self.setColumn(self.currentsection))
-      self.setAllColumnButton.clicked.connect(lambda : self.setColumn(self.currentsection))
+      #self.setAllColumnButton.clicked.connect(lambda : self.setColumn(self.currentsection))
       
-      
+      #self.deleteSelectedBut = QtGui.QPushButton("Delete Selected Lyrs",self.setAllGroup)
+      #self.deleteSelectedBut.clicked.connect(self.deletePALayers)
+      #self.deleteSelectedBut.setAutoDefault(False)
+      #self.deleteSelectedBut.setGeometry(QtCore.QRect(293,110,145,25))
       
       self.gridLayout.addWidget(self.setAllGroup, 2,0,4,0)
       
@@ -115,12 +118,12 @@ class Ui_Dialog(object):
       self.outputGroup.hide()
 
          
-      self.intersectBut = QtGui.QPushButton("Intersect with Grids",self)
+      #self.intersectBut = QtGui.QPushButton("Intersect with Grids",self)
       self.rejectBut = QtGui.QPushButton("Close",self)
-      self.setParamsBut = QtGui.QPushButton("Set Params",self)
+      #self.setParamsBut = QtGui.QPushButton("Set Params",self)
       
-      self.intersectBut.setEnabled(False)
-      self.setParamsBut.setEnabled(False)
+      #self.intersectBut.setEnabled(False)
+      #self.setParamsBut.setEnabled(False)
       
       self.buttonBox = QtGui.QDialogButtonBox(self)
       self.helpBut = QtGui.QPushButton("?",self)
@@ -131,8 +134,8 @@ class Ui_Dialog(object):
       
       
       self.buttonBox.addButton(self.helpBut, QtGui.QDialogButtonBox.ActionRole)
-      self.buttonBox.addButton(self.setParamsBut, QtGui.QDialogButtonBox.ActionRole)
-      self.buttonBox.addButton(self.intersectBut, QtGui.QDialogButtonBox.ActionRole)
+      #self.buttonBox.addButton(self.setParamsBut, QtGui.QDialogButtonBox.ActionRole)
+      #self.buttonBox.addButton(self.intersectBut, QtGui.QDialogButtonBox.ActionRole)
       self.buttonBox.addButton(self.rejectBut, QtGui.QDialogButtonBox.RejectRole)
       
       
@@ -149,8 +152,8 @@ class Ui_Dialog(object):
       self.retranslateUi()
           
       self.rejectBut.clicked.connect(self.reject)
-      self.intersectBut.clicked.connect(self.intersectPAM)
-      self.setParamsBut.clicked.connect(self.setParams)
+      #self.intersectBut.clicked.connect(self.intersectPAM)
+      #self.setParamsBut.clicked.connect(self.setParams)
       
    def setColumn(self, section):
       """
