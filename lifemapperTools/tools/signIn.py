@@ -118,7 +118,7 @@ class SignInDialog(QDialog, Ui_Dialog):
 # .............................................................................
    def __init__(self, iface, resumeItem=None,newExperimentItem=None,
                 signInItem=None, signOutItem=None, radMenu=None, sdmMenu=None,
-                uploadEnvLayerItem=None,saveSlot=None,openSlot=None,changeWSItem=None):
+                uploadEnvLayerItem=None,saveSlot=None,openSlot=None,changeWSItem=None,preferencesAction=None):
       QDialog.__init__(self)
       #self.setWindowFlags(self.windowFlags() & Qt.WindowMinimizeButtonHint)
       self.setupUi()
@@ -131,6 +131,7 @@ class SignInDialog(QDialog, Ui_Dialog):
       self.signInAction = signInItem
       self.signOutAction = signOutItem
       self.uploadEnvlayerAction = uploadEnvLayerItem
+      self.preferencesAction = preferencesAction
       self.changeWSAction = changeWSItem
       self.saveProjAction = saveSlot
       self.openProjAction = openSlot
@@ -184,6 +185,7 @@ class SignInDialog(QDialog, Ui_Dialog):
                self.workspace = Workspace(self.interface,self.client)
                workspace = self.checkCreateWorkSpace(username)
                if workspace:
+                  self.preferencesAction.setEnabled(False)
                   self.signInAction.setEnabled(False)
                   self.radMenu.setEnabled(True)
                   self.sdmMenu.setEnabled(True)
