@@ -60,19 +60,71 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
       if resume:
          self.interface.addProject(resume)
       cc = self.rejectBut
-      bok = self.intersectBut
+      bok = QWidget()
       self.inputs = inputs
       
       _Controller.__init__(self, iface, BASE_URL=ListExperiments.BASE_URL, 
                            STATUS_URL=ListExperiments.STATUS_URL, 
                            REST_URL=ListExperiments.REST_URL,
-                           cancel_close=cc, okayButton=bok, ids=RADids,
+                           cancel_close=cc, ids=RADids, okayButton=bok,
                            initializeWithData=True,outputfunc=self.showTable,
                            requestfunc=self.client.rad.getPALayers, inputs=inputs,
                            client=client)
+      #try:
+      #   items = self.listPALayers(inputs)
+      #except:
+      #   message = "There is a problem with the presense absence listing service"
+      #   msgBox = QMessageBox.information(self,
+      #                                       "Problem...",
+      #                                       message,
+      #                                       QMessageBox.Ok)
+      #else:
+      #      self.showTable(items)
+      
+      
       # this may need to list layers outside of the controller also
       self.expEPSG = epsg
       self.mapunits = mapunits
+      
+# ..........................................................................
+   def listPALayers(self,inputs):
+      """
+      @summary: lists rad experiments
+      @return: returns a list of experiment atoms
+      """
+      items = None
+      try:
+         items = self.client.rad.getPALayers(**inputs)
+      except:
+         items = None
+         message = "There is a problem with the presence absence listing service"
+         messageBox = QMessageBox.warning(self,
+                                 "Problem...",
+                                 message,
+                                 QMessageBox.Ok)      
+      return items    
+# ..........................................................................
+   def deletePALayers(self):
+      # get the selection model
+      
+      selModel = self.table.tableView.selectionModel()
+      
+      if not(selModel.hasSelection()):
+         QMessageBox.warning(self,"status: ",
+                         "Please select one experiment")
+         return 
+           
+      rowIdxs = [row.row() for row in selModel.selectedRows()]
+      paLyrIds = [self.table.tableView.model().data[idx][1] for idx in rowIdxs]
+      for paLyrId in paLyrIds:
+         try:
+            print self.inputs['expId']," ",paLyrId
+            r = self.client.rad.removePALayerFromExperiment(self.inputs['expId'],paLyrId)
+         except Exception,e:
+            print str(e)
+      
+      lyrs = self.listPALayers(self.inputs)
+      self.showTable(lyrs)
 # ...........................................................................       
    def intersectPAM(self):
       
@@ -135,13 +187,15 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
          headerList = ['Layer title', 'Lyr id', 'Attr Presence','min Presence','max Presence',
                        'Percent Presence']
          self.tableview = self.table.createTable(headerList,editsIndexList=[999])
+         self.tableview.setSelectionBehavior(QAbstractItemView.SelectRows)
+         self.tableview.setSelectionMode(QAbstractItemView.MultiSelection)
          self.holderGroup.hide()     
          self.gridLayout.addWidget(self.tableview,1,1,1,1) 
          header = self.tableview.horizontalHeader()
          
-         self.ColumnSet.setEnabled(False)
-         self.setAllColumnButton.setEnabled(False) 
-         self.setParamsBut.setEnabled(False)
+         #self.ColumnSet.setEnabled(False)
+         #self.setAllColumnButton.setEnabled(False) 
+         #self.setParamsBut.setEnabled(False)
       except Exception, e:
          
          self.loadTabelLabel.setText("No layers to view")
@@ -204,5 +258,19 @@ class ListPALayersDialog(_Controller,QDialog, Ui_Dialog):
       self.help.show() 
              
 
-      
+if __name__ == "__main__":
+#  
+   import sys
+   import_path = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/"
+   sys.path.append(os.path.join(import_path, 'LmShared'))
+   configPath = os.path.join(import_path, 'config', 'config.ini') 
+   os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
+   from LmClient.lmClientLib import LMClient
+   client =  LMClient()
+   client.login(userId='', pwd='')
+   qApp = QApplication(sys.argv)
+   d = ListPALayersDialog(None,inputs={'expId':1055},client=client)
+   #d = AdvancedAlgo()
+   d.show()
+   sys.exit(qApp.exec_())      
       
