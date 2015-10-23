@@ -33,6 +33,7 @@ from urllib2 import HTTPError
 #from lifemapperTools.tools.browseOccProviders import BrowseOccProviderDock
 from lifemapperTools.tools.archiveBrowser import archiveBrowserDock as BrowseOccProviderDock
 from lifemapperTools.tools.signIn import SignInDialog
+from lifemapperTools.tools.preferences import PreferencesDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
 from lifemapperTools.tools.listPALayers import ListPALayersDialog
@@ -77,6 +78,7 @@ class MetoolsPlugin:
       self.menu.setObjectName('lifemapper')
       
       self._initSignInOutActions()
+      self._initPrefsActions()
       self._initUploadEnvLayerAction()
       self._initRADActions()
       self._initSDMActions()
@@ -91,7 +93,7 @@ class MetoolsPlugin:
       self.sdmMenu.addActions([self.postSDMExpItem,self.postEnvLayerSetItem,self.listSDMExpsItem]) #,probably not here, #self.browseOccSetItem
       
       
-      self.menu.addActions([self.signInItem, self.signOutItem,self.changeWSAction])
+      self.menu.addActions([self.signInItem, self.signOutItem,self.changeWSAction,self.preferencesAction])
       self.menu.insertMenu(self.signOutItem,self.radMenu)
       self.menu.insertMenu(self.signOutItem, self.sdmMenu)
       self.menu.insertAction(self.signOutItem,self.uploadEnvlayerAction)
@@ -170,6 +172,12 @@ class MetoolsPlugin:
       self.signOutItem.triggered.connect(self.signOut)
       self.signOutItem.setEnabled(False)
 # ..............................................................................        
+   def _initPrefsActions(self):
+      
+      self.preferencesAction = QAction( QCoreApplication.translate("lifemapperTools", "Preferences"),self.iface.mainWindow())
+      self.preferencesAction.setEnabled(True)
+      self.preferencesAction.triggered.connect(self.preferencesDialog)
+# ..............................................................................
    def _initRADActions(self):
       
       # these action go under the rad menu
@@ -490,6 +498,7 @@ class MetoolsPlugin:
       self.checkExperiments()
       user = self.signInDialog.client._cl.userId
       del self.signInDialog.client
+      self.preferencesAction.setEnabled(True)
       self.signInItem.setEnabled(True)
       self.ResumeItem.setEnabled(False)
       self.newExperimentItem.setEnabled(False)
@@ -589,9 +598,9 @@ class MetoolsPlugin:
             s.setValue("RADExpProj_"+str(currentExpId), filename)
       s.remove("currentExpID")    
       
-       
       self.iface.removeToolBarIcon(self.browseIconAction) 
       self.iface.removeDockWidget(self.occSetBrowseDock)
+
 
    def onSaveSaveAs(self,domproject):
       # called on every save or save as, after the actual save
@@ -669,8 +678,15 @@ class MetoolsPlugin:
             self.listExpDialog.exec_()        
       else:
          print "no client"
+# .............................................................................
+   def preferencesDialog(self):
+      
+      preferences = PreferencesDialog()
+      preferences.exec_()
+      
 # ..............................................................................                      
    def signIn(self):
+      
       
       s = QSettings()
       s.remove("currentExpID")
@@ -680,7 +696,8 @@ class MetoolsPlugin:
                                        sdmMenu=self.sdmMenu, signOutItem=self.signOutItem,
                                        uploadEnvLayerItem=self.uploadEnvlayerAction,
                                        changeWSItem=self.changeWSAction,
-                                       saveSlot=self.onSaveSaveAs,openSlot=self.onReadProject)
+                                       saveSlot=self.onSaveSaveAs,openSlot=self.onReadProject,
+                                       preferencesAction=self.preferencesAction)
       result = self.signInDialog.exec_()
 # ..............................................................................     
    def newExperiment(self):
