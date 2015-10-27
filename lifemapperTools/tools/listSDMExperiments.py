@@ -40,6 +40,7 @@ from lifemapperTools.tools.radTable import RADTable
 from lifemapperTools.icons import icons
 from lifemapperTools.common.communicate import Communicate
 from LmCommon.common.lmconstants import JobStatus
+from lifemapperTools.common.classifyQgisLyr import Classify
 from lifemapperTools.common.pluginconstants import STATUSLOOKUP,QGISProject,\
                                                    PER_PAGE,Messages
 
@@ -342,10 +343,8 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
             statusDisplay = "running"
          expAlgoCode = experiment.model.algorithmCode 
          try:
-            print "EXPERIMENT.PROJECTIONS RIGHT OFF OF OBJECT ",experiment.projections
             self.projections = list(experiment.projections)
          except:
-            print "SETTING PROJECTIONS TO NONE"
             self.projections = None
          self.displayName.setText(expDisplayName)
          self.status.setText(statusDisplay)
@@ -425,7 +424,8 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       
       fileInfo = QFileInfo(path)
       baseName = fileInfo.baseName()
-      rasterLayer = QgsRasterLayer(path,tocName)  
+      rasterLayer = QgsRasterLayer(path,tocName) 
+      #Classify.makeRenderer(rasterLayer) 
       if not rasterLayer.isValid():
          QMessageBox.warning(self,"status: ",
            "not a valid layer")           
