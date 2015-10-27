@@ -23,6 +23,7 @@
           02110-1301, USA.
 """
 import sys
+import os
 import ConfigParser
 from PyQt4 import QtCore, QtGui
 #from qgis.utils import reloadPlugin, unloadPlugin
@@ -33,7 +34,7 @@ from lifemapperTools.common.lmHint import LmListModel
 
 
 ICON_VALUES = {'server':'SERVER'}
-
+CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
 
 class ClickableLabel(QtGui.QLabel):
    
@@ -43,8 +44,8 @@ class ClickableLabel(QtGui.QLabel):
       
       QtGui.QLabel.__init__(self)
       #super(ClickableLabel, self).__init__()
-      #pixmap = QtGui.QPixmap(":/plugins/lifemapperTools/icons/server.png") # in QGIS
-      pixmap = QtGui.QPixmap("../icons/server.png") # in eclipse
+      pixmap = QtGui.QPixmap(":/plugins/lifemapperTools/icons/server.png") # in QGIS
+      #pixmap = QtGui.QPixmap("../icons/server.png") # in eclipse
       self.setPixmap(pixmap)
       self.setObjectName(ICON_VALUES['server'])
    
@@ -127,9 +128,14 @@ class Ui_Dialog(object):
       self.changeServLyout.setContentsMargins(0,10,0,10)
       
       self.changeServLyout.setRowMinimumHeight(0,10)
-      self.changeServLyout.setRowMinimumHeight(1,30)
-      self.changeServLyout.setRowMinimumHeight(2,230)
-      self.changeServLyout.setRowMinimumHeight(3,30)
+      self.changeServLyout.setRowMinimumHeight(1,20)
+      self.changeServLyout.setRowMinimumHeight(2,30)
+      self.changeServLyout.setRowMinimumHeight(3,230)
+      self.changeServLyout.setRowMinimumHeight(4,30)
+      
+      
+      
+      stableLmInstances = QtGui.QLabel("Stable Lifemapper Instances")
       
       self.serverList = self.makeServerListView()
       self.serverRadio = self.makeServerRadio()
@@ -149,10 +155,11 @@ class Ui_Dialog(object):
       self.addNewBut.setEnabled(False)
       
       self.changeServLyout.addWidget(self.allSettings, 0,0,1,1,QtCore.Qt.AlignTop)
-      self.changeServLyout.addWidget(self.serverList,  1,0,2,1,QtCore.Qt.AlignTop)
-      self.changeServLyout.addLayout(self.serverRadio, 1,2,1,1,QtCore.Qt.AlignTop)
-      self.changeServLyout.addLayout(currentLyOut,     2,2,1,1)#,QtCore.Qt.AlignTop)
-      self.changeServLyout.addWidget(self.addNewBut, 3,0,1,1, QtCore.Qt.AlignBottom)
+      self.changeServLyout.addWidget(stableLmInstances,1,0,1,1,QtCore.Qt.AlignTop)
+      self.changeServLyout.addWidget(self.serverList,  2,0,2,1,QtCore.Qt.AlignTop)
+      self.changeServLyout.addLayout(self.serverRadio, 2,2,1,1,QtCore.Qt.AlignTop)
+      self.changeServLyout.addLayout(currentLyOut,     3,2,1,1)#,QtCore.Qt.AlignTop)
+      self.changeServLyout.addWidget(self.addNewBut, 4,0,1,1, QtCore.Qt.AlignBottom)
 
       
       self.gridLayout.addWidget(self.inputGroup, 4,0,4,0)
@@ -167,6 +174,7 @@ class Ui_Dialog(object):
       self.helpBut.setMaximumSize(30, 30)
       #
       self.acceptBut = QtGui.QPushButton("Save Changes",self)
+      self.acceptBut.clicked.connect(self.writeInit)
       self.acceptBut.setEnabled(False)
       self.acceptBut.setDefault(True)
       self.buttonBox = QtGui.QDialogButtonBox(self)
@@ -189,7 +197,7 @@ class Ui_Dialog(object):
       self.serverGroup = QtGui.QButtonGroup()
       
       self.defaultBut = QtGui.QRadioButton("Restore Defaults")
-      self.defaultBut.setChecked(True)
+      #self.defaultBut.setChecked(True)
       self.other = QtGui.QRadioButton("Change")
       self.serverGroup.addButton(self.defaultBut)
       self.serverGroup.addButton(self.other)
@@ -270,9 +278,15 @@ class NewUrlSubDialog(QtGui.QDialog):
                                           message,
                                           QtGui.QMessageBox.Ok)
          else:
-            self.parent.newUrl = newUrl
+            
             self.parent.setCurrentUrlTxt(newUrl)
-            self.parent.acceptBut.setEnabled(True)
+            if newUrl != WEBSERVICES_ROOT:
+               self.parent.newUrl = newUrl
+               self.parent.acceptBut.setEnabled(True)
+               self.parent.acceptBut.setFocus(True)
+            else:
+               self.parent.newUrl = None
+               self.parent.acceptBut.setEnabled(False)
             self.close()
       elif newUrl == '':
          self.close()
@@ -323,6 +337,15 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          serverIdx = lifemapperUrlList[0]
          self.serverList.setCurrentIndex(serverIdx)
          
+         newUrl = self.serverListModel.listData[serverIdx.row()][1]
+         self.setCurrentUrlTxt(newUrl)
+         if newUrl != WEBSERVICES_ROOT:
+            self.acceptBut.setEnabled(True)
+            self.newUrl = newUrl
+         else:
+            self.newUrl = None
+            self.acceptBut.setEnabled(False)
+         
       self.serverList.setEnabled(False)
       self.addNewBut.setEnabled(False)  
    
@@ -332,10 +355,14 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       """
       newUrl = self.serverListModel.listData[index.row()][1]
       self.setCurrentUrlTxt(newUrl)
-      if self.newUrl != WEBSERVICES_ROOT:
+      if newUrl != WEBSERVICES_ROOT:
          self.acceptBut.setEnabled(True)
+         self.acceptBut.setFocus(True)
          self.newUrl = newUrl
-   
+      else:
+         self.newUrl = None
+         self.acceptBut.setEnabled(False)
+         
    def goToAll(self, groupToHide=None):
       
       self.signOut()  # might not need
@@ -371,32 +398,40 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
                                              message,
                                              QtGui.QMessageBox.Ok)
    def getInstances(self):
+      
+      currentInInstances = False
       try:
          instanceObjs = self.client.sdm.getAvailableInstances()
       except:
          pass
       else:         
          items = []
+         
          for server in instanceObjs:
             items.append(server)
-         # add a few more for test
-         items = items + [(x,str(x+10)) for x in range(0,4)]
-         #print items
+            if server[1] == WEBSERVICES_ROOT:
+               currentInInstances = True      
          self.serverListModel.updateList(items)
+      return currentInInstances
    
    def signOut(self):
       pass
    
-   def initialUrlGroupSettings(self):
+   def initialUrlGroupSettings(self, currentInInstances):
       """
-      MIGHT NEED TO RESET
+      @summary: resets everything
       """
+      if not currentInInstances:
+         self.defaultBut.setChecked(False)
+      else:
+         self.defaultBut.setChecked(True)
+      
       self.serverList.setEnabled(False)
-      self.defaultBut.setChecked(True)
       self.addNewBut.setEnabled(False)  
       self.acceptBut.setEnabled(False) 
       self.setCurrentUrlTxt(WEBSERVICES_ROOT)
       
+      # sets list to WEBSERVICES_ROOT
       currentUrlIdxList = self.serverListModel.match(self.serverListModel.index(0),
                                                      QtCore.Qt.DisplayRole ,WEBSERVICES_ROOT)
       if len(currentUrlIdxList) > 0:
@@ -414,12 +449,12 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       if self.client is not None:
          self.serverListModel = ServerModel([],self)
          self.serverList.setModel(self.serverListModel)
-         self.getInstances()
-         self.initialUrlGroupSettings()
+         currentInInstances = self.getInstances()
+         self.initialUrlGroupSettings(currentInInstances)
          self.inputGroup.hide()
          self.serverChangeGroup.show()
          
-      elif self.client is None:  # this is if they somehow have a bad url
+      elif self.client is None:  # this is if they somehow have a bad url so that signIn doesn't work
          
          self.defaultBut.setEnabled(False)
          self.serverList.setEnabled(False)
@@ -432,34 +467,30 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       """
       @summary: make changes to WEBSERVICES_ROOT in ini file
       """
-      try:
-         sec = 'LmCommon - common'
-         k = 'WEBSERVICES_ROOT'
-         cfgPath = "/home/jcavner/ghWorkspace/core.git/config/site.ini"
-         #print changeType
-         cfg = ConfigParser.SafeConfigParser()
-         cfg.read(cfgPath)
-         
-         ######### GET RID OF THIS FLIP !!!!!!!
-         if WEBSERVICES_ROOT == 'http://svc.lifemapper.org':
-            print "flip to yeti"
-            url = "http://yeti.lifemapper.org"
-            cfg.set(sec,k,url)
+      if self.newUrl is not None and CONFIG is not None:
+         try:
+            url = str(self.newUrl)
+            sec = 'LmCommon - common'
+            k = 'WEBSERVICES_ROOT'
+            cfgPath = "/home/jcavner/ghWorkspace/core.git/config/site.ini" # CONFIG # inisde qgis with plugin as pacakge
+            cfg = ConfigParser.SafeConfigParser()
+            cfg.read(cfgPath)
+            cfg.set(sec,k,url)   
+            with open(cfgPath, 'wb') as configfile:
+               cfg.write(configfile)   
+         except Exception, e:
+            message = "Could not save changes "+str(e)
+            msgBox = QtGui.QMessageBox.warning(self,
+                                                "Problem...",
+                                                message,
+                                                QtGui.QMessageBox.Ok)
          else:
-            print "flip to lifemapper"
-            url = "http://svc.lifemapper.org"
-            cfg.set(sec,k,url)
-            
-         with open(cfgPath, 'wb') as configfile:
-            cfg.write(configfile)   
-      except Exception, e:
-         message = "Could not save changes "+str(e)
-         msgBox = QtGui.QMessageBox.warning(self,
-                                             "Problem...",
-                                             message,
-                                             QtGui.QMessageBox.Ok)
-      else:
-         message = "You will need to restart QGIS for the changes to take effect."
+            self.acceptBut.setEnabled(False)
+            message = "You will need to restart QGIS for the changes to take effect."
+            QtGui.QMessageBox.information(self,
+                                          "Changed services URL",
+                                          message,
+                                          QtGui.QMessageBox.Ok)
          
          
 class ServerModel(LmListModel):
