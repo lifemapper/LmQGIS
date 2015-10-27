@@ -272,7 +272,7 @@ class LMTreeView(QTreeView):
       #self.dragEnabled()
       #self.setDragDropMode(QAbstractItemView.DragOnly)
       self.header().setResizeMode(QHeaderView.ResizeToContents)
-# .................................................................      
+   # .................................................................      
    def handleEvent(self, index):
       
       # will need to get type
@@ -286,7 +286,7 @@ class LMTreeView(QTreeView):
          #if hit and lmId:
          self.downLoadProjectionTiff(lmId, parentName, grandparent, scenName=leafName)
       
-# ..............................................................  
+   # ..............................................................  
    def getDataFromDoubleClick(self, itemIdx):
       """
       @summary: gets data from tree model from selection in view
@@ -305,7 +305,7 @@ class LMTreeView(QTreeView):
       #   hit = True  # this is temporary, to handle hit when still using them
       return hit, lmId, parentName, leafName, grandparent
 
-#............................................................
+   #............................................................
    def makeColorList(self):
       i = []
    
@@ -316,7 +316,7 @@ class LMTreeView(QTreeView):
       i.append(QgsColorRampShader.ColorRampItem(100, QColor("#d7191c"), "100"))
       
       return i
-
+   #............................................................
    def makeRenderer(self ,rasterLayer):
       
       try:
@@ -338,7 +338,7 @@ class LMTreeView(QTreeView):
             pass
       
 
-# ..............................................................
+   # ..............................................................
    def addTiffToCanvas(self, path, tocName):
       
           
@@ -352,7 +352,7 @@ class LMTreeView(QTreeView):
          
          QgsMapLayerRegistry.instance().addMapLayer(rasterLayer)  
      
-# .............................................................. 
+   # .............................................................. 
    def addShpToCanvas(self, vectorpath, shapename):
      
       vectorLayer = QgsVectorLayer(vectorpath,shapename,'ogr')
@@ -397,7 +397,7 @@ class LMTreeView(QTreeView):
             message = str(e)
             QMessageBox.warning(self,"status: ",message) 
 
-# ..............................................................
+   # ..............................................................
 
    def downLoadProjectionTiff(self ,lmId, algoName, displayName, scenName=''):
       """
@@ -428,7 +428,7 @@ class LMTreeView(QTreeView):
       except Exception, e:
          message = str(e)
          QMessageBox.warning(self,"status: ",message)
-# ..............................................................      
+   # ..............................................................      
    def startDrag(self, *args, **kwargs):
       """
       @summary: drag event calls this but only for leaves in tree
@@ -594,7 +594,7 @@ class Ui_Dock(object):
       
       
       dockWidget.setWidget(self.centralwidget)
-# ..............................................................    
+   # ..............................................................    
    def setUpHintService(self):
       """
       @summary: sets up the hint service and sets hint attribute
@@ -612,7 +612,7 @@ class Ui_Dock(object):
       self.hint.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
                                    QComboBox::down-arrow {image: url(noimg);}""")
       
-# .............................................................. 
+   # .............................................................. 
    def callBack(self, items):
       """
       @summary: call back from hint class, where items are used to populate tree
@@ -738,11 +738,11 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
             else:
                self._tmpDir = None
                            
-# .......................................           
+   # .......................................           
    @property
    def tmpDir(self):
       return self._tmpDir
-# .......................................
+   # .......................................
 
 
                 
