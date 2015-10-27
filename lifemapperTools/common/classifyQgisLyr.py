@@ -51,12 +51,51 @@ class Classify(object):
       """
       basic class for different types of classification
       """
+      
+      @classmethod
+      def makeColorList(self):
+         
+         i = []
+         i.append(QgsColorRampShader.ColorRampItem(0, QColor("#2b83ba"), "0"))
+         i.append(QgsColorRampShader.ColorRampItem(25, QColor("#abdda4"), "25"))
+         i.append(QgsColorRampShader.ColorRampItem(50, QColor("#ffffbf"), "50"))
+         i.append(QgsColorRampShader.ColorRampItem(75, QColor("#fdae61"), "75"))
+         i.append(QgsColorRampShader.ColorRampItem(100, QColor("#d7191c"), "100"))
+         
+         return i
+      
+      
+      @classmethod
+      def makeRenderer(cls ,rasterLayer):
+         
+         try:
+            fcn = QgsColorRampShader()
+            fcn.setColorRampType(QgsColorRampShader.INTERPOLATED)
+            lst = cls.makeColorList()
+            fcn.setColorRampItemList(lst)
+            shader = QgsRasterShader()
+            shader.setRasterShaderFunction(fcn)
+         except Exception, e:
+            print "exception in shader ",str(e)
+            shader = None
+          
+         if shader is not None:
+            try:
+               renderer = QgsSingleBandPseudoColorRenderer(rasterLayer.dataProvider(), 1, shader)
+               rasterLayer.setRenderer(renderer)
+            except:
+               pass
+         
+      
+      
       def __init__(self,layer):
          
          self.layer = layer
          self.typeRenderer = Renderers.GRADUATED
          self._noClasses = None
          self._colormap   = None
+         
+         
 # .......................................................................................          
       @property
       def noClasses(self):
