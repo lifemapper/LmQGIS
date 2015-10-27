@@ -453,7 +453,8 @@ class PostScenarioDialog(QtGui.QDialog, Ui_Dialog):
             try:
                scenario = self.client.sdm.postScenario(layerIds, scenarioCode, epsgCode, units,
                                                       title=scenarioTitle,keywords=self.keywords)
-            except:
+            except Exception, e:
+               
                self.postSucceeded = False
                self.progressbar.reset()
                self.progressbar.hide()
