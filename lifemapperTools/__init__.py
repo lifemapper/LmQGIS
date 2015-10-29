@@ -21,14 +21,13 @@
           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
           02110-1301, USA.
 """
-
 import os, sys
-
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'LmShared'))
 configPath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'config.ini')
-# 
+
 # # Set the LIFEMAPPER_CONFIG_FILE environment variable
 os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
+
 
 def name():
    return "Lifemapper Macroecology Tools"
@@ -37,7 +36,7 @@ def description():
    return "Lifemapper web services-based presence absence matrix tools"
 
 def version():
-   return "Version 2.2.0"
+   return "Version 2.2.1"
 
 def qgisMinimumVersion(): 
    return "2.6"
@@ -49,5 +48,6 @@ def email():
    return "lifemapper@ku.edu"
 
 def classFactory(iface):
+    
    from lifemapperTools.common.metools import MetoolsPlugin
    return MetoolsPlugin(iface)
