@@ -480,7 +480,7 @@ class MetoolsPlugin:
                                               mapunits=mapunits,resume=projPath)
                self.listBuckets.exec_()
             else:
-               message = "There are no Grids for this experiment, use Construct Grid from the menu"
+               message = "There are no Grids for this experiment, use Construct Grid from the current experiment menu"
                msgBox = QMessageBox.information(QWidget(),
                                              "Info...",
                                              message,
