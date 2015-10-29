@@ -94,19 +94,19 @@ class Ui_Dialog(object):
       self.gridRadio.setChecked(True)
       buttonList.append((self.gridRadio,"Grid"))
       
-      self.addLocalSpeciesRadio = QtGui.QPushButton('Add Local Species Layers',self.inputGroup)
+      self.addLocalSpeciesRadio = QtGui.QPushButton('Add Species Input Files',self.inputGroup)
       self.addLocalSpeciesRadio.setGeometry(QtCore.QRect(343, 80, 255, 25))
       self.addLocalSpeciesRadio.setObjectName('speciesRadio')
       buttonList.append((self.addLocalSpeciesRadio,"Local"))
       
-      self.treesLyrsRadio =  QtGui.QPushButton('Add Tree and Local Species',self.inputGroup)
+      self.treesLyrsRadio =  QtGui.QPushButton('Add Tree and Species Layers',self.inputGroup)
       self.treesLyrsRadio.setToolTip("Begin an experiment with Newick phylo tree and supporting lyrs")
       self.treesLyrsRadio.setGeometry(QtCore.QRect(343,130,255,25))
       self.treesLyrsRadio.setObjectName("treeRadio")
       buttonList.append((self.treesLyrsRadio,"Tree"))
       #130,180,230,280
       
-      self.addSDMLayerRadio = QtGui.QPushButton('Add LM species distribution model',self.inputGroup)
+      self.addSDMLayerRadio = QtGui.QPushButton('Add LM species distribution models',self.inputGroup)
       self.addSDMLayerRadio.setToolTip('Serach for and add Species Distribution Model from Lifemapper')
       self.addSDMLayerRadio.setGeometry(QtCore.QRect(343, 180, 255, 25))
       self.addSDMLayerRadio.setObjectName("addlayer") 
