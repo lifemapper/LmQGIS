@@ -140,7 +140,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
                                mapunits=mapunits)
                d.exec_()
             else:
-               message = "There are no Grids for this experiment, use Construct Grid from the menu"
+               message = "There are no Grids for this experiment, use Construct Grid from the current experiment menu"
                msgBox = QMessageBox.information(QWidget(),
                                              "Info...",
                                              message,
