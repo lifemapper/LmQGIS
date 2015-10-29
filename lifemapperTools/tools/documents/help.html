@@ -130,13 +130,16 @@
        		the completion of jobs on your experiments.
        		</p>
        		<p>
-       		3.) There are four options that can be chosen before clicking 'OK'.  Choosing one of these
-       		options determines the next step that you will be taken to after your experiment is initialized.
+       		3.) You can start an experiment by clicking on any of the options on the right.  Choosing one of these
+       		options starts the experiment with that input.  An experiment only requires two basic inputs, a grid
+       		covering the area of interest and a group of species range or distribution GIS layers, these are called presence/absence
+       		layers (PA Layers) in the sytem. An experiment can be started in any order.  Most of the options are variations on the way you can 
+       		add the species layers.
        		</p>
        		<ul>
                <li>Define Input Grid</li>
                <p><a href="#constructGrid">Construct Grid</a></p>
-               <li>Add Local Species Layers</li>
+               <li>Add Species Input Files</li>
                <p><a href="#uploadLayers">Add Layers</a></p>       
                <li>Drive an experiment with a tree and layers for species in the tree.<li>
                <p><a href="#uploadLayersTrees">Upload Tree/Lyrs</a></p>
@@ -146,10 +149,7 @@
                <p>An empty experiment initializes a blank experiment. You can come back to it at any time and continue
                to add inputs.</p>
             </ul>
-            <p>
-            Choose an option from the radio buttons on the right side of the dialog and click 'OK'.  This will
-            initialize your experiment and take you to the input option that you have chosen. 
-            </p>
+           
        
      
        <h2><a name="listRADExperiments">List Experiments</a></h2>
@@ -158,13 +158,12 @@
 	        </p>
 	        <p>
 	        The List Experiments dialog will show a listing of your experiments. You can access every aspect
-	        of an experiment from this dialog by choosing a radio button option and cliking 'OK'. You 
+	        of an experiment from this dialog by choosing a  button option. You 
 	        add elements and perform functions on your experiments through these options. By selecting an experiment 
-	        in the listing, selecting any option from the radio buttons and clicking 'OK', that experiment becomes the
-	        'current' experiment and gives you access to the dialog for that option.
-	        All of these functions are also available for your current experiment from the Lifemapper/Range and Diversity 
+	        in the listing that experiment becomes the 'current' experiment.
+	        All of the functions for an experiment are also available for your current experiment from the Lifemapper/Range and Diversity 
 	        plugin menu.  Opening an experiment other than the currently visible experiment closes the current experiment
-	        and may ask you to save that experiment as a QGIS project and opens the layers for the experiment you wish to resume.
+	        and opens the GIS layers for the experiment you wish to resume.
 	        </p>
 	        <ul>
 	            <li>Get Grids</li>
