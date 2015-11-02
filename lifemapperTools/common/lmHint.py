@@ -71,6 +71,7 @@ class Hint:
       self.serviceRoot = serviceRoot
       self.parent = parent
       self.model = None
+      self.namedTuples = None
       ######## combo #######
       self.combo = LmCombo()
       #self.combo = QLineEdit()
