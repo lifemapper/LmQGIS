@@ -609,9 +609,9 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
             t.element.setCurrentIndex(0)
             
    def getDataFormat(self,extension):
-      if extension == "asc":
+      if extension == ".asc":
          extension = 'AAIGrid'
-      elif extension == 'tif':
+      elif extension == '.tif':
          extension = 'GTiff'
       return extension
 # ...................................................................................                       
@@ -631,7 +631,7 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
             fileName = str(self.fileEdit.text())
             description = str(self.layerDesc.toPlainText())
             #     GTiff 
-            extension = os.path.basename(fileName).split(".")[1]
+            extension = os.path.splitext(fileName)[1]
             dataFormat = self.getDataFormat(extension)
             obj = self.client.sdm.postLayer(name, epsgCode, envLayerType, 
                                             units, dataFormat, title=title,
