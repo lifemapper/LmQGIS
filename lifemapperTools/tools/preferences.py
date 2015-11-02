@@ -30,7 +30,7 @@ from PyQt4 import QtCore, QtGui
 import lifemapperTools as LM
 from LmCommon.common.localconstants import  WEBSERVICES_ROOT
 from LmClient.lmClientLib import LMClient, OutOfDateException
-from lifemapperTools.common.lmHint import LmListModel
+from lifemapperTools.common.lmListModel import LmListModel
 
 
 ICON_VALUES = {'server':'SERVER'}
@@ -472,7 +472,8 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
             url = str(self.newUrl)
             sec = 'LmCommon - common'
             k = 'WEBSERVICES_ROOT'
-            cfgPath = "/home/jcavner/ghWorkspace/core.git/config/site.ini" # CONFIG # inisde qgis with plugin as pacakge
+            #cfgPath = "/home/jcavner/ghWorkspace/core.git/config/site.ini" # CONFIG # inisde qgis with plugin as pacakge
+            cfgPath = CONFIG
             cfg = ConfigParser.SafeConfigParser()
             cfg.read(cfgPath)
             cfg.set(sec,k,url)   
