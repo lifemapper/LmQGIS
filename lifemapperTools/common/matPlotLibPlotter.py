@@ -710,6 +710,7 @@ class LassoManager(object):
       
         
 class PlotWindow(QtGui.QDialog):
+   
    def __init__(self, xvector, yvector, xlegend, ylegend, title, saveDir, ids=[], activeLyr=None, typePlot=None):
       QtGui.QDialog.__init__(self)
       self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -728,14 +729,13 @@ class PlotWindow(QtGui.QDialog):
       bar = RadNavigationToolBar(sc,self,saveDir,lman)
       self.bar = bar
       l.addWidget(bar) 
-      
+      Communicate.instance().setPlotExist.emit(self)  # emits signal to metools and sends dialog instance
       
    def featuresSelectedInMap(self,selected,deselected,clearAndSelect):
       #print 'selected ',selected," delselected ",deselected," CS ",clearAndSelect
       if not clearAndSelect:      
          self.canvas.ctrl = True
       else:
-         "is it getting in here from just plot select?"
          self.canvas.ctrl = False
       # features select in map, so select them in plot if not from plot (self.fromPlot = True)
       if not self.bar.fromPlot:
