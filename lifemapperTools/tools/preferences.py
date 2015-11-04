@@ -35,6 +35,20 @@ from lifemapperTools.common.lmListModel import LmListModel
 
 ICON_VALUES = {'server':'SERVER'}
 CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
+CONFIG = "/home/jcavner/ghWorkspace/core.git/config/site.ini" # comment out when in qgis
+SECTION = 'LmCommon - common'
+ITEM = 'WEBSERVICES_ROOT'
+
+def getURLFromConfig():
+
+   try:
+      cfg = ConfigParser.SafeConfigParser()
+      cfg.read(CONFIG)
+      url = cfg.get(SECTION,ITEM)
+   except:
+      url = None
+   return url
+
 
 class ClickableLabel(QtGui.QLabel):
    
@@ -51,7 +65,6 @@ class ClickableLabel(QtGui.QLabel):
    
    def mousePressEvent(self, event):
       self.clicked.emit(self.objectName())
-
 
 
 
@@ -280,7 +293,7 @@ class NewUrlSubDialog(QtGui.QDialog):
          else:
             
             self.parent.setCurrentUrlTxt(newUrl)
-            if newUrl != WEBSERVICES_ROOT:
+            if newUrl != getURLFromConfig():
                self.parent.newUrl = newUrl
                self.parent.acceptBut.setEnabled(True)
                self.parent.acceptBut.setFocus(True)
@@ -339,7 +352,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          
          newUrl = self.serverListModel.listData[serverIdx.row()][1]
          self.setCurrentUrlTxt(newUrl)
-         if newUrl != WEBSERVICES_ROOT:
+         if newUrl != getURLFromConfig():
             self.acceptBut.setEnabled(True)
             self.newUrl = newUrl
          else:
@@ -355,7 +368,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       """
       newUrl = self.serverListModel.listData[index.row()][1]
       self.setCurrentUrlTxt(newUrl)
-      if newUrl != WEBSERVICES_ROOT:
+      if newUrl != getURLFromConfig():
          self.acceptBut.setEnabled(True)
          self.acceptBut.setFocus(True)
          self.newUrl = newUrl
@@ -410,7 +423,9 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          for server in instanceObjs:
             items.append(server)
             if server[1] == WEBSERVICES_ROOT:
-               currentInInstances = True      
+               currentInInstances = True 
+         #items.extend([(x,str(x)+"_server") for x in range(0,4)])
+         #items.extend([('http://yeti.lifemapper.org','http://yeti.lifemapper.org')])     
          self.serverListModel.updateList(items)
       return currentInInstances
    
@@ -470,13 +485,14 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       if self.newUrl is not None and CONFIG is not None:
          try:
             url = str(self.newUrl)
-            sec = 'LmCommon - common'
-            k = 'WEBSERVICES_ROOT'
-            #cfgPath = "/home/jcavner/ghWorkspace/core.git/config/site.ini" # CONFIG # inisde qgis with plugin as pacakge
+            
             cfgPath = CONFIG
+            sec = SECTION
+            k = ITEM
             cfg = ConfigParser.SafeConfigParser()
             cfg.read(cfgPath)
-            cfg.set(sec,k,url)   
+            cfg.set(sec,k,url) 
+            cfg.set(sec,"OGC_SERVICE_URL",os.path.join(url,"ogc"))  
             with open(cfgPath, 'wb') as configfile:
                cfg.write(configfile)   
          except Exception, e:
