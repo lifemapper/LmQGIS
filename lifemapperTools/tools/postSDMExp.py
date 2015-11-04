@@ -165,9 +165,11 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          print "EXCEPTION IN GET MASKS ",str(e)
       else:
          if len(userMaskLyrs) > 0:
+            check = [int(x) for x in self.maskListModel.listData[1:]]
             data = list(self.maskListModel.listData)
             for lyr in userMaskLyrs:
-               data.append(MaskSearchResult(lyr.name,lyr.id))
+               if int(lyr.id) not in check:
+                  data.append(MaskSearchResult(lyr.name,lyr.id))
             self.maskListModel.updateList(data)
          self.maskGroup.setEnabled(True)
 # .....................................................................................
@@ -458,13 +460,19 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
       """
       currentMdlIdx = self.modelMaskCombo.currentIndex()
       if currentMdlIdx != -1 and currentMdlIdx != 0:
-         mdlId = int(self.maskListModel.listData[currentMdlIdx])
+         try:
+            mdlId = int(self.maskListModel.listData[currentMdlIdx])
+         except:
+            mdlId = None
       else:
          mdlId = None
          
       currentProjIdx = self.projectionMaskCombo.currentIndex()
       if currentProjIdx != -1 and currentMdlIdx != 0:
-         prjId = int(self.maskListModel.listData[currentProjIdx])
+         try:
+            prjId = int(self.maskListModel.listData[currentProjIdx])
+         except:
+            prjId = None
       else:
          prjId = None
       
