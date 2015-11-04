@@ -123,19 +123,27 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
       # if self.linked layer doesn't exist in contents, get again
       if self.checkShowLinked:
          if self.activeLyr:
-            linkedLyr = self.activeLyr
-            legend = self.interface.legendInterface()
-            drawingOrderByName = [lyr.id() for lyr in legend.layers()]         
-            if linkedLyr.id() in drawingOrderByName:            
-               if drawingOrderByName.index(linkedLyr.id()) != 0:               
-                  mvdLyr = self.moveLyrToTop(linkedLyr)
-                  self.activeLyr = mvdLyr
-            else:
+            try:
+               linkedLyr = self.activeLyr
+               legend = self.interface.legendInterface()
+               drawingOrderByName = [lyr.id() for lyr in legend.layers()]         
+               if linkedLyr.id() in drawingOrderByName:            
+                  if drawingOrderByName.index(linkedLyr.id()) != 0:               
+                     mvdLyr = self.moveLyrToTop(linkedLyr)
+                     self.activeLyr = mvdLyr
+               else:
+                  linkedLyr = self.findLinkLyr()
+                  if linkedLyr:
+                     self.activeLyr = linkedLyr
+                  else:
+                     self.activeLyr = self.getGrid()
+            except Exception, e:
                linkedLyr = self.findLinkLyr()
                if linkedLyr:
                   self.activeLyr = linkedLyr
                else:
                   self.activeLyr = self.getGrid()
+               
             
 # ..............................................................................
    def buildStatsLookup(self):
@@ -732,7 +740,13 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          
          sgFc = int(self.shpGrd.featureCount)
          
-         sgres = float(self.shpGrd.resolution)
+         try:
+            sgres = float(self.shpGrd.resolution)
+         except:
+            try:
+               sgres = float(self.shpGrd.cellsize)
+            except:
+               return False
          n = float(self.shpGrd.cellsides)
          
          if n == 6:
@@ -782,6 +796,7 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
 # ..............................................................................
    def findLinkLyr(self):
       
+      
       linkLyr = False
       mLRi = QgsMapLayerRegistry.instance() 
       possibleLyrs = ['linked layer','Species Richness','Mean Proportional Range Size',
@@ -792,6 +807,7 @@ class PamSumsStatsDialog(_Controller, QDialog, Ui_Dialog):
          statLyr = mLRi.mapLayersByName(lyrName) # returns a list
          statsList.extend(statLyr) 
       if len(statsList) > 0:
+            
             matchedLyr = self.matchLnkWithShpGrd(statsList)
             if matchedLyr:
                if matchedLyr.name() != 'linked layer':          
