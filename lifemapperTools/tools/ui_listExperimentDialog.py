@@ -35,7 +35,7 @@ class Ui_Dialog(object):
    def setupUi(self):
       self.setObjectName("Dialog")
       self.resize(725, 548)
-      self.setMinimumSize(725,548)
+      self.setMinimumSize(795,548)
       self.setMaximumSize(1695,1548)
       self.setSizeGripEnabled(True)
        
