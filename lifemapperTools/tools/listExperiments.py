@@ -61,10 +61,12 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
 # .............................................................................
 # Constructor
 # .............................................................................
-   def __init__(self, iface, RADids=None, inputs=None, client=None, items=None):
+   def __init__(self, iface, RADids=None, inputs=None, client=None, items=None, plot=None, pamsumDialog=None):
       
       QDialog.__init__(self) 
       self.setupUi()
+      self.plotDialog = plot
+      self.pamSumDialog = pamsumDialog
       self.interface = iface
       self.client = client
       self.workspace = Workspace(self.interface,self.client)
@@ -86,6 +88,23 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
             self.showTable(items)     
       elif items is not None:
          self.showTable(items)
+# ........................................................
+   def checkForDialogs(self):
+      """
+      @summary: checks for plot or pamsum dialogs and if not none and visible, close
+      """     
+      try: 
+         if self.plotDialog is not None:
+            if self.plotDialog.isVisible():
+               self.plotDialog.close()
+      except:
+         pass
+      try:
+         if self.pamSumDialog is not None:
+            if self.pamSumDialog.isVisible():
+               self.pamSumDialog.close()
+      except:
+         pass
    
 # ..............................................................................
    def getMapUnitsForEPSG(self,epsg):
@@ -101,6 +120,7 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       return mapunits
    
    def openOnDoubleClick(self,index):
+      self.checkForDialogs()
       expId = index.model().data[index.row()][1]
       self._compareExpId(expId)
 # ..............................................................................
@@ -113,7 +133,8 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       return count
 # ..............................................................................      
    def accept(self, action):
-      
+
+      self.checkForDialogs()
 
       selectedrowindex = self.tableview.tableView.selectionModel().currentIndex().row()
       selModel = self.tableview.tableView.selectionModel()
