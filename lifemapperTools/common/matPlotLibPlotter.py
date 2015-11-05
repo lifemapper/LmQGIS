@@ -731,8 +731,14 @@ class PlotWindow(QtGui.QDialog):
       l.addWidget(bar) 
       Communicate.instance().setPlotExist.emit(self)  # emits signal to metools and sends dialog instance
       
-   def featuresSelectedInMap(self,selected,deselected,clearAndSelect):
-      #print 'selected ',selected," delselected ",deselected," CS ",clearAndSelect
+   def featuresSelectedInMap(self,*args):
+      # selected,deselected,clearAndSelect
+      if len(args) > 0:
+         selected = args[0]
+         deselected = args[1]
+         clearAndSelect = args[2]
+      else:
+         return
       if not clearAndSelect:      
          self.canvas.ctrl = True
       else:
