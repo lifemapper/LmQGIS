@@ -36,6 +36,7 @@ _instance = None
 class Communicate(QObject):
    
    setPamSumExist = pyqtSignal(QDialog)
+   setPlotExist = pyqtSignal(QDialog)
    
    activateSDMExp = pyqtSignal(str)
    activateRADExp = pyqtSignal(int,str,str)
