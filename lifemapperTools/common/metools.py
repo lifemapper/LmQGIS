@@ -70,6 +70,7 @@ class MetoolsPlugin:
       self.expRADmapUnits = None
       self.expRADexpId = None
       self.pamSumDialog = None
+      self.plotDialog = None
       
    def initGui(self):
       self.signInDialog = None
@@ -123,6 +124,7 @@ class MetoolsPlugin:
       Communicate.instance().activateRADExp.connect(self.currentExperiment)
       Communicate.instance().activateGrid.connect(self.currentGrid)
       Communicate.instance().setPamSumExist.connect(self.setPamSumDialog)
+      Communicate.instance().setPlotExist.connect(self.setPlotDialog)
       
 
       
@@ -252,6 +254,10 @@ class MetoolsPlugin:
    def setPamSumDialog(self,pamsumDialog):
       
       self.pamSumDialog = pamsumDialog
+      
+   def setPlotDialog(self, plotDialog):
+      
+      self.plotDialog = plotDialog
 # ..............................................................................        
    def currentGrid(self, expId, bucketId, stage, status, expEPSG, gridName, shpGrd):
       
@@ -674,7 +680,8 @@ class MetoolsPlugin:
          items = self._getRADExps()
          if items is not None:
             self.listExpDialog = ListExperimentDialog(self.iface,client=self.signInDialog.client,
-                                                      items = items)
+                                                      items = items, plot=self.plotDialog,
+                                                      pamsumDialog=self.pamSumDialog)
             self.listExpDialog.exec_()        
       else:
          print "no client"
@@ -701,6 +708,28 @@ class MetoolsPlugin:
       result = self.signInDialog.exec_()
 # ..............................................................................     
    def newExperiment(self):
+      
+      try:
+         self.bucketMenu = None
+      except:
+         pass
+      try:
+         self.experimentMenu = None
+      except:
+         pass      
+      try: 
+         if self.plotDialog is not None:
+            if self.plotDialog.isVisible():
+               self.plotDialog.close()
+      except:
+         pass
+      try:
+         if self.pamSumDialog is not None:
+            if self.pamSumDialog.isVisible():
+               self.pamSumDialog.close()
+      except:
+         pass
+      
       if self.signInDialog.client is not None:
          if self.signInDialog.email is not None:
             d = NewExperimentDialog(self.iface,client=self.signInDialog.client,
