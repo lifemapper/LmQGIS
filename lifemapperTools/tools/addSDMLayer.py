@@ -599,6 +599,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
 if __name__ == "__main__":
 #  
    client =  LMClient(userId='blank', pwd='blank')
+   # just a comment
    qApp = QApplication(sys.argv)
    d = UploadSDMDialog(None, inputs={'expId':447}, client=client, epsg='4326',
                        experimentname='',mapunits='dd')
