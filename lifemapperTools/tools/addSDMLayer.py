@@ -527,7 +527,7 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
          projObj = self.client.sdm.getProjection(projid) 
          
          guid = self.client.sdm.getOgcEndpoint(projObj)
-        
+         
       except Exception, e:
          guid = None
       return guid
@@ -541,73 +541,40 @@ class UploadSDMDialog( _Controller, QDialog, Ui_Dialog):
          projid = index.model().data[index.row()][1] 
          
          guid = self.getGuid(projid)
-         print "GUID ",guid
-         if guid is not None:
-                                     
+         
+         if guid is not None:                                        
+            # try new style 
+            # "http://sporks.nhm.ku.edu/services/sdm/projections/702191/ogc?layers=prj_702191&request=GetMap&version=1.1.0&service=WMS&srs=EPSG:4326&TRANSPARENT=true&format=image/png&srs=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=-400&HEIGHT=400"            
+            # guid should be http://sporks.nhm.ku.edu/services/sdm/projections/702191/ogc?layers=prj_702191
             try:
-               params = []
-        
+               params = [] 
                requestserviceversion = "request=GetMap&service=WMS&version=1.1.0&TRANSPARENT=true"
-               params.append(requestserviceversion)
-               ################
-               # section for new key values
-               #######################
-               urlWithLyrs = guid.replace("&amp;","&")   # this should have the GetMap behind the ?, replacing
-               # encoding for &amp, since this is a string now, it will also have the layers key/value pair
-               url = urlWithLyrs.split('&')[0]
-               params.append("url="+url)
-               
-               lyrs = urlWithLyrs.split('&')[1]
-               params.append(lyrs)
-               
+               params.append(requestserviceversion) 
+               params.append("url=%s" % (guid.split("?")[0]))     
+               lyrs = guid.split('?')[1]
+               params.append(lyrs) 
                imgformat = 'format=image/png'
-               params.append(imgformat)
-               
+               params.append(imgformat) 
                crs = 'crs=EPSG:%s' % self.expEPSG
-               params.append(crs)
-               
+               params.append(crs)               
                styles = 'styles=default'  # need to see if this is plural or singular???
                params.append(styles)
-               
-               basename = lyrs.split("=")[1]
-               # # !!!!! CHECK HERE http://lists.osgeo.org/pipermail/qgis-developer/2013-October/028756.html
-               
+               basename = lyrs.split("=")[1] 
                url = '&'.join(params)
             except:
-               # try new style 
-               # "http://sporks.nhm.ku.edu/services/sdm/projections/702191/ogc?layers=prj_702191&request=GetMap&version=1.1.0&service=WMS&srs=EPSG:4326&TRANSPARENT=true&format=image/png&srs=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=-400&HEIGHT=400"            
-               # guid should be http://sporks.nhm.ku.edu/services/sdm/projections/702191/ogc?layers=prj_702191
-               if 'projections' in guid:
-                  try:
-                     params = [] 
-                     requestserviceversion = "request=GetMap&service=WMS&version=1.1.0&TRANSPARENT=true"
-                     params.append(requestserviceversion) 
-                     params.append("url=%s" % (guid.split("?")[0]))     
-                     lyrs = guid.split('?')[1]
-                     params.append(lyrs) 
-                     imgformat = 'format=image/png'
-                     params.append(imgformat) 
-                     crs = 'crs=EPSG:%s' % self.expEPSG
-                     params.append(crs)               
-                     styles = 'styles=default'  # need to see if this is plural or singular???
-                     params.append(styles)
-                     basename = lyrs.split("=")[1] 
-                     url = '&'.join(params)
-                  except:
-                     url = ''
-                     basname = ''
-               else:
-                  # punt
-                  url = ''
-                  basename = ''
-            
+               url = ''
+               basname = ''
+            print "URL ",url
             try:
                rlayer = QgsRasterLayer(url, basename,'wms')
                if not rlayer.isValid():
+                  print "not valid"
                   pass
+               print "valid"
                QgsMapLayerRegistry.instance().addMapLayer(rlayer)
             except Exception,e:
-               print str(e)
+               print "EXCEPT ",str(e)
+               
 # ..............................................................................         
           
    def help(self):
