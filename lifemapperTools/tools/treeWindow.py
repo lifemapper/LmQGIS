@@ -138,7 +138,7 @@ class TreeWindow(QMainWindow):
    def __init__(self, pamsumDialog, iface=None, client=None, expId=None, bucketId = None, treePath=None, 
                 activeLyr=None,renderer=None,registry=None, expEPSG=None, pamLyr=None):
       super(TreeWindow, self).__init__()
-      
+      Communicate.instance().setTreeExist.emit(self)
       ##############
       self.paths = []
       self.ids = []
