@@ -26,7 +26,7 @@
 """
 from PyQt4.QtCore import pyqtSignal
 from PyQt4.QtCore import QObject
-from PyQt4.QtGui import QDialog
+from PyQt4.QtGui import QDialog, QMainWindow
 from qgis.core import QgsVectorLayer
 from LmCommon.common.lmAttObject import LmAttObj 
 import numpy
@@ -37,6 +37,7 @@ class Communicate(QObject):
    
    setPamSumExist = pyqtSignal(QDialog)
    setPlotExist = pyqtSignal(QDialog)
+   setTreeExist = pyqtSignal(QMainWindow)
    
    activateSDMExp = pyqtSignal(str)
    activateRADExp = pyqtSignal(int,str,str)
