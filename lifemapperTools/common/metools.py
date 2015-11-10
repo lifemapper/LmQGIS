@@ -71,6 +71,7 @@ class MetoolsPlugin:
       self.expRADexpId = None
       self.pamSumDialog = None
       self.plotDialog = None
+      self.treeWindow = None
       
    def initGui(self):
       self.signInDialog = None
@@ -125,6 +126,7 @@ class MetoolsPlugin:
       Communicate.instance().activateGrid.connect(self.currentGrid)
       Communicate.instance().setPamSumExist.connect(self.setPamSumDialog)
       Communicate.instance().setPlotExist.connect(self.setPlotDialog)
+      Communicate.instance().setTreeExist.connect(self.setTreeWindow)
       
 
       
@@ -230,6 +232,10 @@ class MetoolsPlugin:
 # ..............................................................................
          
    def postSDMExp(self):
+      """
+      @summary: called from new SDM experiment action in menu
+      """
+      self.closeRADPSPlotDialogs()
       if self.signInDialog is not None:
          if self.signInDialog.client is not None:
             if self.signInDialog.email is not None:
@@ -246,6 +252,7 @@ class MetoolsPlugin:
       self.postSDMExpDialog.exec_()
 # ..............................................................................     
    def listSDMExp(self):
+      self.closeRADPSPlotDialogs()
       if self.signInDialog is not None:
          self.listSDMExpsDialog = ListSDMExpDialog(self.iface,
                                                    client=self.signInDialog.client)
@@ -258,6 +265,10 @@ class MetoolsPlugin:
    def setPlotDialog(self, plotDialog):
       
       self.plotDialog = plotDialog
+      
+   def setTreeWindow(self, treeWindow):
+      
+      self.treeWindow = treeWindow
 # ..............................................................................        
    def currentGrid(self, expId, bucketId, stage, status, expEPSG, gridName, shpGrd):
       
@@ -284,10 +295,13 @@ class MetoolsPlugin:
 # ..............................................................................     
    def openStats(self,expId, bucketId, expEPSG, gridName, shpGrd):
       
+      currentExpStr = str(self.retrieveCurrentExpId())
       if self.pamSumDialog is None:
          inputs = {'expId':expId,'bucketId':bucketId}
-         if str(self.retrieveCurrentExpId()) != str(expId):
+         if currentExpStr != str(expId):
             projPath = self._retrieveRADExpProjPath(expId)
+            if projPath == QGISProject.NOPROJECT:
+               projPath = False
          else:
             projPath = False
          self.PamSumStats = PamSumsStatsDialog(self.iface,
@@ -297,10 +311,19 @@ class MetoolsPlugin:
          self.PamSumStats.exec_()
       else:
          if not self.pamSumDialog.isVisible():
-            self.pamSumDialog.checkShowLinked = True
-            self.pamSumDialog.show()
+            if currentExpStr != str(expId):  # want to clean this
+               projPath = self._retrieveRADExpProjPath(expId)
+               if projPath != QGISProject.NOPROJECT:
+                  self.pamSumDialog = None
+                  self.openStats(expId, bucketId, expEPSG, gridName, shpGrd)
+            else:
+               self.pamSumDialog.checkShowLinked = True
+               self.pamSumDialog.show()
 # ..............................................................................        
    def openSpatialStats(self,expId, bucketId):  
+      """
+      @summary: called on resume current grid/stats/plots action
+      """
       inputs = {'expId':expId,'bucketId':bucketId}
       if str(self.retrieveCurrentExpId()) != str(expId):
          projPath = self._retrieveRADExpProjPath(expId)
@@ -322,6 +345,8 @@ class MetoolsPlugin:
       
       
    def resumeSDMExp(self):
+      
+      self.closeRADPSPlotDialogs()
       if self.signInDialog.client is not None:
          self.resumeSDMExpDialog = ListSDMExpDialog(self.iface,
                                                    client=self.signInDialog.client,
@@ -471,6 +496,7 @@ class MetoolsPlugin:
 # ..............................................................................        
    def resumeBuckets(self,currentExpId,expEPSG, mapunits):
       #currentExpId = self.retrieveCurrentExpId()
+      self.closeRADPSPlotDialogs()
       if self.signInDialog.client is not None:
          if str(self.retrieveCurrentExpId()) != str(currentExpId):
             projPath = self._retrieveRADExpProjPath(currentExpId)
@@ -681,7 +707,7 @@ class MetoolsPlugin:
          if items is not None:
             self.listExpDialog = ListExperimentDialog(self.iface,client=self.signInDialog.client,
                                                       items = items, plot=self.plotDialog,
-                                                      pamsumDialog=self.pamSumDialog)
+                                                      pamsumDialog=self.pamSumDialog,treeWindow=self.treeWindow)
             self.listExpDialog.exec_()        
       else:
          print "no client"
@@ -706,17 +732,11 @@ class MetoolsPlugin:
                                        saveSlot=self.onSaveSaveAs,openSlot=self.onReadProject,
                                        preferencesAction=self.preferencesAction)
       result = self.signInDialog.exec_()
-# ..............................................................................     
-   def newExperiment(self):
       
-      try:
-         self.bucketMenu = None
-      except:
-         pass
-      try:
-         self.experimentMenu = None
-      except:
-         pass      
+# ..............................................................................      
+
+   def closeRADPSPlotDialogs(self):
+      
       try: 
          if self.plotDialog is not None:
             if self.plotDialog.isVisible():
@@ -729,6 +749,24 @@ class MetoolsPlugin:
                self.pamSumDialog.close()
       except:
          pass
+      try:
+         if self.treeWindow is not None:
+            if self.treeWindow.isVisible():
+               self.treeWindow.close()
+      except:
+         pass
+# ..............................................................................     
+   def newExperiment(self):
+      
+      try:
+         self.bucketMenu = None
+      except:
+         pass
+      try:
+         self.experimentMenu = None
+      except:
+         pass      
+      self.closeRADPSPlotDialogs()
       
       if self.signInDialog.client is not None:
          if self.signInDialog.email is not None:
