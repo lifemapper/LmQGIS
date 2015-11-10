@@ -61,12 +61,13 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
 # .............................................................................
 # Constructor
 # .............................................................................
-   def __init__(self, iface, RADids=None, inputs=None, client=None, items=None, plot=None, pamsumDialog=None):
+   def __init__(self, iface, RADids=None, inputs=None, client=None, items=None, plot=None, pamsumDialog=None, treeWindow=None):
       
       QDialog.__init__(self) 
       self.setupUi()
       self.plotDialog = plot
       self.pamSumDialog = pamsumDialog
+      self.treeWindow = treeWindow
       self.interface = iface
       self.client = client
       self.workspace = Workspace(self.interface,self.client)
@@ -103,6 +104,12 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
          if self.pamSumDialog is not None:
             if self.pamSumDialog.isVisible():
                self.pamSumDialog.close()
+      except:
+         pass
+      try:
+         if self.treeWindow is not None:
+            if self.treeWindow.isVisible():
+               self.treeWindow.close()
       except:
          pass
    
