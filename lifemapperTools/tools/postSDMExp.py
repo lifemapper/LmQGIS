@@ -162,7 +162,8 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          userMaskLyrs = self.client.sdm.listLayers(public=False,typeCode=typeCode,
                                                  epsgCode=epsgCode,fullObjects=getFull)         
       except Exception, e:
-         print "EXCEPTION IN GET MASKS ",str(e)
+         pass
+         #print "EXCEPTION IN GET MASKS ",str(e)
       else:
          if len(userMaskLyrs) > 0:
             check = [int(x) for x in self.maskListModel.listData[1:]]
@@ -468,10 +469,10 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          mdlId = None
          
       currentProjIdx = self.projectionMaskCombo.currentIndex()
-      if currentProjIdx != -1 and currentMdlIdx != 0:
+      if currentProjIdx != -1 and currentProjIdx != 0:
          try:
             prjId = int(self.maskListModel.listData[currentProjIdx])
-         except:
+         except Exception, e:
             prjId = None
       else:
          prjId = None
@@ -539,9 +540,7 @@ class PostSDMExpDialog( _Controller, QDialog, Ui_Dialog):
          if e == '.shp':
             shapename = name
          z.extract(name,str(zippath))
-      print "HERE"
       vectorpath = os.path.join(zippath,toUnicode(shapename))
-      print "VECTOR PATH ",vectorpath
       vectorLayer = QgsVectorLayer(vectorpath,toUnicode(shapename.replace('.shp','')),'ogr')
       warningname = shapename    
       if not vectorLayer.isValid():
