@@ -54,6 +54,9 @@ class Parser(object):
    
    def __init__(self, handle):
       self.handle = handle
+      # parents Dict get built with keys(pathId) for all nodes other than
+      # root, since it doesn't have a parent. Node id's value is that node's parent clade 
+      # and the entire sub tree from that parent to it's tips 
       self.parentDicts = {}
    
    @classmethod
@@ -110,7 +113,7 @@ class Parser(object):
       newCladeDict = self.newCladeDict
       cladeId  = 0          
       ######## JSON ###########
-      rootDict = {"pathId":0,"path":'0',"children":[]} 
+      rootDict = {"pathId":'0',"path":'0',"children":[]} 
       #########################
       
       cladeId +=1
@@ -156,7 +159,7 @@ class Parser(object):
                print "is it getting in here for F(A,B,(C,D)E); Answer: No"
                rootDict = newCladeDict(id=cladeId)
                cladeId +=1
-               self.parentDicts[currentCladeDict["pathId"]] = rootDict      
+               self.parentDicts[str(currentCladeDict["pathId"])] = rootDict      
             # start a new child clade at the same level as the current clade
             ########### JSON ############
             parentDict = self.getParentDict(currentCladeDict)
