@@ -3,8 +3,86 @@ import simplejson as json
 import numpy as np
 import operator
 
+class Omega:
+   
+   def __init__(self,pam):
+      """
+      @param pam: numpy matrix of the PAM, compressed
+      """
+      self.pam = pam
+      
+   def hardWay(self):
+      X = self.pam
+      omegaMtx = np.dot(X.T,X)
+      return omegaMtx
 
+def makeInputsForTest():
+   # PAM and PIC from text
+   I = np.array([[1, 0, 0, 1, 0, 0],
+                 [0, 0, 1, 1, 0, 0],
+                 [1, 0, 0, 1, 0, 1],
+                 [0, 0, 1, 1, 0, 1],
+                 [0, 1, 0, 1, 0, 1],
+                 [0, 0, 0, 0, 1, 0],
+                 [1, 0, 0, 0, 1, 0],
+                 [0, 1, 0, 0, 1, 0]])
+   
+   P = np.array([[-1.   , -0.5  , -0.25 , -0.125,  0.   ],
+                 [ 1.   , -0.5  , -0.25 , -0.125,  0.   ],
+                 [ 0.   ,  1.   , -0.5  , -0.25 ,  0.   ],
+                 [ 0.   ,  0.   ,  1.   , -0.5  ,  0.   ],
+                 [ 0.   ,  0.   ,  0.   ,  0.5  , -1.   ],
+                 [ 0.   ,  0.   ,  0.   ,  0.5  ,  1.   ]])
+   
+   Psig = np.dot(I,P)
+   OmegaMtrx = np.dot(I.T,I)
+   
+   return OmegaMtrx,P,I
+   
+   
+def standardizePIC(O=None,P=None,I=None):
+   
+   O,P,I = makeInputsForTest()
+   k1Col = np.array([np.ones(I.shape[1])]).T
+   
+   recipFill = 1.0/O.trace()
+   PoverFill  = P * recipFill
+   fillMinusOne = O.trace() -1
+   recipFillMinusOne = 1.0/fillMinusOne
+   
+   print recipFill * recipFillMinusOne  # we will use this
+   
+   try:
+      num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill)
+      print "m 1 s ",num1.shape
+   except Exception,e:
+      print "m 1 e ",str(e)
+   try:
+      num2 = P - np.dot(k1Col*k1Col.T*O,PoverFill)
+      print "m 2 s ",num2.shape
+   except Exception,e:
+      print "m 2 e ",str(e)
+   try:
+      num = P - k1Col*k1Col.T*O*PoverFill
+      print "m 3 s ",num.shape
+   except Exception,e:
+      print "m 3 e ",str(e)   
+   try:
+      num = P - np.dot(k1Col*k1Col.T,O)*PoverFill
+      print "m 4 s ",num.shape
+   except Exception,e:
+      print "m 4 e ",str(e)   
+   
+   
+   OneOmegaP = np.dot(np.dot(k1Col.T, O),P)
+   print OneOmegaP
+   
+   
+   return num1,num2
 
+   
+   
+      
 def loadJSON(path):
    
    with open(path,'r') as f:
@@ -63,14 +141,16 @@ def negs(clade):
          sL.append(int(clade["pathId"]))
    getNegIds(clade)
    return sL
-   
+# ..........................................   
 def initMatrix(rowCnt,colCnt):
    return np.empty((rowCnt,colCnt))
 
-
+# ..........................................
 
 def getIds(tipsDictList):
-   
+   """
+   @summary: get tip ids and internal ids
+   """
    tipIds = [int(tp["pathId"]) for tp in tipsDictList ]
    total = (len(tipIds) * 2) - 1
    allIds = [x for x in range(0,total)]
@@ -78,7 +158,7 @@ def getIds(tipsDictList):
    return tipIds,internalIds
    
 
-def buildMatrix(emptyMtx,internalIds, tipsDictList, whichSide):
+def buildMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
    #negs = {'0': [1,2,3,4,5,6,7], '2': [3, 4, 5], '1':[2,3,4,5,6],
    #        '3':[4],'8':[9]}
    
@@ -97,10 +177,7 @@ def buildMatrix(emptyMtx,internalIds, tipsDictList, whichSide):
    
    return emptyMtx      
    
-   
-
-
-
+ 
 
 
 if __name__ == "__main__":
@@ -114,8 +191,8 @@ if __name__ == "__main__":
    tipIds,internalIds = getIds(tips)
    matrix = initMatrix(len(tipIds),len(internalIds))
    m = buildMatrix(matrix,internalIds,tips, negsDict)
-   print
-   print 
-   print m
+   n1, n2 = standardizePIC()
+   #print m
+   
 
    
