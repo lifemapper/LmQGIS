@@ -34,54 +34,144 @@ def makeInputsForTest():
                  [ 0.   ,  0.   ,  0.   ,  0.5  , -1.   ],
                  [ 0.   ,  0.   ,  0.   ,  0.5  ,  1.   ]])
    
+   
+   E = np.array([[1.3,  13.0, 100.0], 
+                 [.78,  12.4, 121.0], 
+                 [.85,  1.2,  99.0], 
+                 [1.0,  0.98, 1.2], 
+                 [4.8,  .45,  .23], 
+                 [3.89,  .99,  .11], 
+                 [3.97, 1.2,  .01], 
+                 [3.23, 1.0,  .12] ])
+   
+   
    Psig = np.dot(I,P)
-   OmegaMtrx = np.dot(I.T,I)
+   OmegaMtx = np.dot(I.T,I)
+   AlphaMtx = np.dot(I,I.T)
    
-   return OmegaMtrx,P,I
+   return OmegaMtx,P,I,E,AlphaMtx
    
    
-def standardizePIC(O=None,P=None,I=None):
-   
-   O,P,I = makeInputsForTest()
-   k1Col = np.array([np.ones(I.shape[1])]).T
-   
+def standardizePIC(O=None,P=None,I=None,Ones=None):
+   if O is None:
+      O,P,I, E, A = makeInputsForTest()
+      k1Col = np.array([np.ones(I.shape[1])]).T
+   else:
+      k1Col = Ones
    recipFill = 1.0/O.trace()
    PoverFill  = P * recipFill
    fillMinusOne = O.trace() -1
    recipFillMinusOne = 1.0/fillMinusOne
    
-   print recipFill * recipFillMinusOne  # we will use this
+   #print recipFill * recipFillMinusOne  # we will use this
+   #print np.dot(recipFill,recipFillMinusOne) # same thing
    
    try:
-      num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill)
+      num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill) # good
       print "m 1 s ",num1.shape
    except Exception,e:
       print "m 1 e ",str(e)
-   try:
-      num2 = P - np.dot(k1Col*k1Col.T*O,PoverFill)
-      print "m 2 s ",num2.shape
-   except Exception,e:
-      print "m 2 e ",str(e)
-   try:
-      num = P - k1Col*k1Col.T*O*PoverFill
-      print "m 3 s ",num.shape
-   except Exception,e:
-      print "m 3 e ",str(e)   
-   try:
-      num = P - np.dot(k1Col*k1Col.T,O)*PoverFill
-      print "m 4 s ",num.shape
-   except Exception,e:
-      print "m 4 e ",str(e)   
+   #try:
+   #   num2 = P - np.dot(k1Col*k1Col.T*O,PoverFill) # second best
+   #   print "m 2 s ",num2.shape
+   #except Exception,e:
+   #   print "m 2 e ",str(e)
+   #try:
+   #   num = P - k1Col*k1Col.T*O*PoverFill # bad
+   #   print "m 3 s ",num.shape
+   #except Exception,e:
+   #   print "m 3 e ",str(e)   
+   #try:
+   #   num = P - np.dot(k1Col*k1Col.T,O)*PoverFill # bad
+   #   print "m 4 s ",num.shape
+   #except Exception,e:
+   #   print "m 4 e ",str(e)   
+      
+   ################
+   print
+   OneOmegaP1 = np.dot(k1Col.T* O,P)  # returns a matrix
+   #print "1 ",OneOmegaP1
+   OneOmegaP2 = np.dot(np.dot(k1Col.T, O),P) # returns a vector
+   #print
+   #print "2 ",OneOmegaP2
+   ####################
    
+   OneWPP1 = np.dot(np.dot(k1Col.T,O),(P*P)) # vector
+   #print OneWPP1
+   OneWPP2 = np.dot(k1Col.T*O,(P*P)) # matrix
+   #print OneWPP2
    
-   OneOmegaP = np.dot(np.dot(k1Col.T, O),P)
-   print OneOmegaP
-   
-   
-   return num1,num2
+   ####################
+   # can rule out 2 - (1*1), division by zero
+   # that leaves, 2 - (2*2) (bad), 1 - (1*1) (bad), 1 - (2*2)
+   den = OneWPP1 - np.dot((OneOmegaP2 * OneOmegaP2),np.dot(recipFill,recipFillMinusOne)) 
+   sqrtden = den**.5
+   maybeden = np.dot(k1Col,sqrtden)
 
    
    
+   std = num1 / maybeden
+   print 
+   print std
+   print
+   #print np.dot(I,std)
+   return std
+
+def BetaE_regression(PsigStd,Estd,Alpha):
+   
+   # all
+   recip = np.reciprocal(np.dot(np.dot(Estd.T,Alpha),Estd))
+   print "shape Alpha ",Alpha.shape
+   rightHand = np.dot(np.dot(Estd.T,Alpha),PsigStd)
+   BetaEjAll = np.dot(recip,rightHand)
+   print BetaEjAll
+   
+   print
+   # for just i
+   iEstd = Estd[:,0]
+   recip = np.reciprocal(np.dot(np.dot(iEstd.T,Alpha),iEstd))
+   rightHand = np.dot(np.dot(iEstd.T,Alpha),PsigStd)
+   BetaEji = np.dot(recip,rightHand)
+   print "BetaEji"
+   print BetaEji
+   print
+   # minus i
+   miEstd = Estd[:,[1,2]]
+   recip = np.reciprocal(np.dot(np.dot(miEstd.T,Alpha),miEstd))
+   rightHand = np.dot(np.dot(miEstd.T,Alpha),PsigStd)
+   BetaEjMinusi = np.dot(recip,rightHand)
+   print BetaEjMinusi
+   
+   YjAll = np.dot(Estd,BetaEjAll)
+   YjminusI = np.dot(miEstd,BetaEjMinusi)
+   
+   
+   undersqrLeft = np.trace(np.dot(YjAll.T,YjAll))/np.trace(PsigStd.T*PsigStd.T)
+   undersqrRight = np.trace(np.dot(YjminusI.T,YjminusI))/np.trace(PsigStd.T*PsigStd.T)
+   num = np.dot(BetaEji,(undersqrLeft-undersqrRight)**.5)
+   print
+   print "num ",num
+   print
+   print "DF ",(undersqrLeft-undersqrRight)**.5
+   Pji = num/np.absolute(BetaEji)
+   print
+   print "absolute ",np.absolute(BetaEji)
+   print
+   print "dSFdSFHP:SDF:DSF"
+   print Pji
+   
+def startHere():
+   
+   O,P,I,E,A = makeInputsForTest()
+   # std P
+   Ones = np.array([np.ones(I.shape[1])]).T # column vector
+   Pstd = standardizePIC(O, P, I, Ones)
+   PsigStd = np.dot(I,Pstd)
+   # std E
+   Ones = np.array([np.ones(I.shape[0])]).T
+   Estd = standardizePIC(A, E, I, Ones)
+   
+   BetaE_regression(PsigStd,Estd,A)
       
 def loadJSON(path):
    
@@ -191,8 +281,8 @@ if __name__ == "__main__":
    tipIds,internalIds = getIds(tips)
    matrix = initMatrix(len(tipIds),len(internalIds))
    m = buildMatrix(matrix,internalIds,tips, negsDict)
-   n1, n2 = standardizePIC()
-   #print m
+   standardizePIC()
+   startHere()
    
 
    
