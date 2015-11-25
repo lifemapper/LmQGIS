@@ -2,6 +2,7 @@ import os, sys
 import simplejson as json
 import numpy as np
 import operator
+from _ast import Num
 
 class Omega:
    
@@ -38,60 +39,87 @@ def makeInputsForTest():
    E = np.array([[1.3,  13.0, 100.0], 
                  [.78,  12.4, 121.0], 
                  [.85,  1.2,  99.0], 
-                 [1.0,  0.98, 1.2], 
-                 [4.8,  .45,  .23], 
-                 [3.89,  .99,  .11], 
-                 [3.97, 1.2,  .01], 
-                 [3.23, 1.0,  .12] ])
+                 [1.0,  0.98, 11.2], 
+                 [4.8,  0.45,  21.23], 
+                 [3.89, 0.99,  21.11], 
+                 [3.97, 1.2,  12.01], 
+                 [3.23, 1.0,  10.12] ])
+   ########### experimental masks ###############
    
+   PMask = np.array([[ 1.   , 1.   , 1. , 1.,  0.   ],
+                     [ 1.   , 1.   , 1. , 1.,  0.   ],
+                     [ 0.   , 1.   , 1. , 1.,  0.   ],
+                     [ 0.   , 0.   , 1. , 1.,  0.   ],
+                     [ 0.   , 0.   , 0. , 1. , 1.   ],
+                     [ 0.   , 0.   , 0. , 1. , 1.   ]])
    
-   Psig = np.dot(I,P)
-   OmegaMtx = np.dot(I.T,I)
-   AlphaMtx = np.dot(I,I.T)
+   PsigMask = np.array([[1,    1,    1,  1,  0   ],
+                        [0,    1.,   1 , 1,  0   ],
+                        [1,    1,    1,  1,  1   ],
+                        [0,    1 ,   1 , 1 , 1   ],
+                        [1,    1,    1,  1,  1   ],
+                        [0,    0,    0,  1,  1   ],
+                        [1,    1,    1,  1,  1   ],
+                        [1,    1,    1,  1,  1   ]])
    
-   return OmegaMtx,P,I,E,AlphaMtx
+   def calculateMarginals():
+      
+      siteCount = float(I.shape[0])
+      siteVector = np.ones(siteCount)
+      speciesCount = float(I.shape[1])
+      speciesVector = np.ones(speciesCount)
+      # range size of each species
+      omega = np.dot(siteVector, I)
+      # species richness of each site
+      alpha = np.dot(I, speciesVector)
+      
+      Wk = np.diag(omega)
+      
+      Wn = np.diag(alpha)
+      
+      return Wk,Wn
+      
+   OmegaMtx, AlphaMtx = calculateMarginals()  # should call these something else
+   
+   #OmegaMtx = np.dot(I.T,I) # sites shared by species
+   
+   #AlphaMtx = np.dot(I,I.T) # species shared by sites
+   
+   return OmegaMtx,P,I,E,AlphaMtx,PsigMask,PMask
    
    
 def standardizePIC(O=None,P=None,I=None,Ones=None):
+   
    if O is None:
+      print "not coming in here"
       O,P,I, E, A = makeInputsForTest()
       k1Col = np.array([np.ones(I.shape[1])]).T
    else:
       k1Col = Ones
+   
    recipFill = 1.0/O.trace()
    PoverFill  = P * recipFill
-   fillMinusOne = O.trace() -1
+   fillMinusOne = O.trace() - 1.0
    recipFillMinusOne = 1.0/fillMinusOne
    
    #print recipFill * recipFillMinusOne  # we will use this
    #print np.dot(recipFill,recipFillMinusOne) # same thing
    
    try:
-      num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill) # good
-      print "m 1 s ",num1.shape
+      #num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill) # good
+      num1 = np.dot(np.dot(k1Col*k1Col.T,O),PoverFill)
+      
+      #num1 = P - np.dot(k1Col*k1Col.T*O,PoverFill) # second best
+      #print "m 1 s ",num1.shape
    except Exception,e:
       print "m 1 e ",str(e)
-   #try:
-   #   num2 = P - np.dot(k1Col*k1Col.T*O,PoverFill) # second best
-   #   print "m 2 s ",num2.shape
-   #except Exception,e:
-   #   print "m 2 e ",str(e)
-   #try:
-   #   num = P - k1Col*k1Col.T*O*PoverFill # bad
-   #   print "m 3 s ",num.shape
-   #except Exception,e:
-   #   print "m 3 e ",str(e)   
-   #try:
-   #   num = P - np.dot(k1Col*k1Col.T,O)*PoverFill # bad
-   #   print "m 4 s ",num.shape
-   #except Exception,e:
-   #   print "m 4 e ",str(e)   
-      
+   
    ################
    print
-   OneOmegaP1 = np.dot(k1Col.T* O,P)  # returns a matrix
+   OneOmegaP1 = np.dot(k1Col.T * O,P)  # returns a matrix
    #print "1 ",OneOmegaP1
    OneOmegaP2 = np.dot(np.dot(k1Col.T, O),P) # returns a vector
+   
    #print
    #print "2 ",OneOmegaP2
    ####################
@@ -104,69 +132,92 @@ def standardizePIC(O=None,P=None,I=None,Ones=None):
    ####################
    # can rule out 2 - (1*1), division by zero
    # that leaves, 2 - (2*2) (bad), 1 - (1*1) (bad), 1 - (2*2)
-   den = OneWPP1 - np.dot((OneOmegaP2 * OneOmegaP2),np.dot(recipFill,recipFillMinusOne)) 
+   den = OneWPP1 - (np.dot((OneOmegaP2*OneOmegaP2),np.dot(recipFill,recipFillMinusOne))) 
    sqrtden = den**.5
+   
    maybeden = np.dot(k1Col,sqrtden)
 
+   #print "maybeden ",maybeden
+   
+   std = P - (num1 / maybeden)
    
    
-   std = num1 / maybeden
-   print 
-   print std
-   print
-   #print np.dot(I,std)
    return std
+
+
+def models(PsigStd,Estd,Alpha):
+   
+   
+   def i(myEstd, myPsigStd=None):
+      
+      if myPsigStd is None:
+         myPsigStd = PsigStd
+      recip = np.reciprocal(np.dot(np.dot(myEstd.T,Alpha),myEstd))
+      rightHand = np.dot(np.dot(myEstd.T,Alpha),myPsigStd)
+      return np.dot(recip,rightHand)
+   
+   
+   def i_dep(myEstd):
+      
+      recip = np.reciprocal(np.dot(np.dot(myEstd.T,Alpha),myEstd))
+      rightHand = np.dot(np.dot(myEstd.T,Alpha),PsigStd)
+      return np.dot(recip,rightHand)
+   
+    
+   BetaEjAll = i(Estd,PsigStd[:,0])  # all   shape - (3,5)
+   #print "all ",BetaEjAll
+   BetaEji = i(Estd[:,0],PsigStd[:,0]) # just i, shape - (1,5)
+   #print "just i ",BetaEji
+   BetaEjMinusi = i(Estd[:,[1,2]],PsigStd[:,0]) # minus i, (2,5)
+   #print "minus i ",BetaEjMinusi
+   
+  
+   
+   return BetaEjAll, BetaEji, BetaEjMinusi
 
 def BetaE_regression(PsigStd,Estd,Alpha):
    
-   # all
-   recip = np.reciprocal(np.dot(np.dot(Estd.T,Alpha),Estd))
-   print "shape Alpha ",Alpha.shape
-   rightHand = np.dot(np.dot(Estd.T,Alpha),PsigStd)
-   BetaEjAll = np.dot(recip,rightHand)
-   print BetaEjAll
    
-   print
-   # for just i
-   iEstd = Estd[:,0]
-   recip = np.reciprocal(np.dot(np.dot(iEstd.T,Alpha),iEstd))
-   rightHand = np.dot(np.dot(iEstd.T,Alpha),PsigStd)
-   BetaEji = np.dot(recip,rightHand)
-   print "BetaEji"
-   print BetaEji
-   print
-   # minus i
+   BetaEjAll, BetaEji, BetaEjMinusi = models(PsigStd, Estd, Alpha)
+   
    miEstd = Estd[:,[1,2]]
-   recip = np.reciprocal(np.dot(np.dot(miEstd.T,Alpha),miEstd))
-   rightHand = np.dot(np.dot(miEstd.T,Alpha),PsigStd)
-   BetaEjMinusi = np.dot(recip,rightHand)
-   print BetaEjMinusi
    
+   
+   #BallColL = [[x] for x in BetaEjAll]
+   #BetaEjAll = np.array(BallColL)
+   print BetaEjAll
    YjAll = np.dot(Estd,BetaEjAll)
+   print YjAll
+   
+   #BminusColL = [[x] for x in BetaEjMinusi]
+   #BetaEjMinusi = np.array(BminusColL)
    YjminusI = np.dot(miEstd,BetaEjMinusi)
    
    
-   undersqrLeft = np.trace(np.dot(YjAll.T,YjAll))/np.trace(PsigStd.T*PsigStd.T)
-   undersqrRight = np.trace(np.dot(YjminusI.T,YjminusI))/np.trace(PsigStd.T*PsigStd.T)
-   num = np.dot(BetaEji,(undersqrLeft-undersqrRight)**.5)
-   print
-   print "num ",num
-   print
-   print "DF ",(undersqrLeft-undersqrRight)**.5
+   #RsqrAll = np.trace(np.dot(YjAll.T,YjAll))/np.trace(PsigStd.T*PsigStd.T)
+   
+   #RsqrMinusI = np.trace(np.dot(YjminusI.T,YjminusI))/np.trace(PsigStd.T*PsigStd.T)
+   numDiffRsqr = np.trace(np.outer(YjAll.T,YjAll)) - np.trace(np.outer(YjminusI.T,YjminusI))
+   diffRSqr = numDiffRsqr /  np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
+   #num = BetaEji*((RsqrAll-RsqrMinusI)**.5)
+   num =  BetaEji*((diffRSqr)**.5)
+   
    Pji = num/np.absolute(BetaEji)
-   print
-   print "absolute ",np.absolute(BetaEji)
-   print
-   print "dSFdSFHP:SDF:DSF"
+   
+   print "P(j,i)"
    print Pji
    
 def startHere():
    
-   O,P,I,E,A = makeInputsForTest()
+   O,P,I,E,A,PsigMask,PMask = makeInputsForTest()  # may or may not use these masks
    # std P
    Ones = np.array([np.ones(I.shape[1])]).T # column vector
+   # using  masks (need to think about)
    Pstd = standardizePIC(O, P, I, Ones)
+   #Pstd = PstdunMasked * PMask
    PsigStd = np.dot(I,Pstd)
+   
+   
    # std E
    Ones = np.array([np.ones(I.shape[0])]).T
    Estd = standardizePIC(A, E, I, Ones)
@@ -281,7 +332,8 @@ if __name__ == "__main__":
    tipIds,internalIds = getIds(tips)
    matrix = initMatrix(len(tipIds),len(internalIds))
    m = buildMatrix(matrix,internalIds,tips, negsDict)
-   standardizePIC()
+   
+   #standardizePIC()
    startHere()
    
 
