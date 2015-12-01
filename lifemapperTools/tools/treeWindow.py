@@ -191,9 +191,10 @@ class TreeWindow(QMainWindow):
          if pluginOS:    
             #searchJSON = "/home/jcavner/Pooka8/Rodentia_628/tree/tree.json" # Rodentia
             #self.jsonUrl = "file:///home/jcavner/Pooka8/Rodentia_628/tree/tree.json"
-            
-            self.jsonUrl = "file:///home/jcavner/attrTree_1011.json"
-            searchJSON = "/home/jcavner/attrTree_1011.json"
+            #self.jsonUrl = "file:///home/jcavner/attrTree_1011.json"
+            #searchJSON = "/home/jcavner/attrTree_1011.json"
+            self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/Liebold.json"
+            searchJSON = "/home/jcavner/PhyloXM_Examples/Liebold.json"
             
             #filename =   "african_mammal_realDealMX.json"
             #filename  =   "mammalsWithLengthsandMX.json" 
@@ -204,6 +205,7 @@ class TreeWindow(QMainWindow):
             #searchJSON = "/home/jcavner/PhyloXM_Examples/" + filename
             #self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/" + filename
          else:
+            print "this tree"
             searchJSON = 'C:/Users/Jeff Cavner/json/mammals.json'
             self.jsonUrl = 'file:///C:/Users/Jeff Cavner/json/mammals.json'
             
