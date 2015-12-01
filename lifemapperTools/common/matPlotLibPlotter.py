@@ -246,19 +246,6 @@ class RadNavigationToolBar(NavigationToolbar):
       ##############
    
    def lass(self, *args):
-      #"called when lasso button is clicked"
-      #print "_active in lass ", self._active
-      #if self._active == 'LASSOSELECT':
-      #   self._active = None
-      #   #self._select_mode = None  # not sure about this
-      #   #self.canvas.widgetlock.release(self.lman.lasso)
-      #   self.canvas.mpl_disconnect(self.cid)
-      #   self.set_cursor(cursors.POINTER)
-      #else:
-      #   self._active = 'LASSOSELECT'
-      #   self.set_cursor(cursors.SELECT_REGION)
-      #
-      #   self.cid = self.canvas.mpl_connect('button_press_event',self.lman.onpress)
       
       'activate select to rect mode'
       if self._active == 'LASSOSELECT':
@@ -733,7 +720,7 @@ class PlotWindow(QtGui.QDialog):
       
    def featuresSelectedInMap(self,*args):
       # selected,deselected,clearAndSelect
-      if len(args) > 0:
+      if len(args) == 3:
          selected = args[0]
          deselected = args[1]
          clearAndSelect = args[2]
