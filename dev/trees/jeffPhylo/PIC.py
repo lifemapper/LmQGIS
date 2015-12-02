@@ -2,7 +2,6 @@ import os, sys
 import simplejson as json
 import numpy as np
 import operator
-from _ast import Num
 
 class Omega:
    
@@ -35,6 +34,8 @@ def makeInputsForTest():
                  [ 0.   ,  0.   ,  0.   ,  0.5  , -1.   ],
                  [ 0.   ,  0.   ,  0.   ,  0.5  ,  1.   ]])
    
+   #print np.dot(I,P)
+   #print
    
    E = np.array([[1.3,  13.0, 100.0], 
                  [.78,  12.4, 121.0], 
@@ -79,35 +80,29 @@ def makeInputsForTest():
       
       return Wk,Wn
       
-   OmegaMtx, AlphaMtx = calculateMarginals()  # should call these something else
+   Wk, Wn = calculateMarginals()  # should call these something else
    
    #OmegaMtx = np.dot(I.T,I) # sites shared by species
    
    #AlphaMtx = np.dot(I,I.T) # species shared by sites
    
-   return OmegaMtx,P,I,E,AlphaMtx,PsigMask,PMask
+   return Wk,P,I,E,Wn,PsigMask,PMask
    
    
-def standardizePIC(O=None,P=None,I=None,Ones=None):
+def standardizePIC(W=None,P=None,I=None,Ones=None):
    
-   if O is None:
-      print "not coming in here"
-      O,P,I, E, A = makeInputsForTest()
-      k1Col = np.array([np.ones(I.shape[1])]).T
-   else:
-      k1Col = Ones
    
-   recipFill = 1.0/O.trace()
+   k1Col = Ones
+   
+   recipFill = 1.0/W.trace()
    PoverFill  = P * recipFill
-   fillMinusOne = O.trace() - 1.0
+   fillMinusOne = W.trace() - 1.0
    recipFillMinusOne = 1.0/fillMinusOne
    
-   #print recipFill * recipFillMinusOne  # we will use this
-   #print np.dot(recipFill,recipFillMinusOne) # same thing
    
    try:
       #num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill) # good
-      num1 = np.dot(np.dot(k1Col*k1Col.T,O),PoverFill)
+      num1 = np.dot(np.dot(k1Col*k1Col.T,W),PoverFill)
       
       #num1 = P - np.dot(k1Col*k1Col.T*O,PoverFill) # second best
       #print "m 1 s ",num1.shape
@@ -116,113 +111,106 @@ def standardizePIC(O=None,P=None,I=None,Ones=None):
    
    ################
    print
-   OneOmegaP1 = np.dot(k1Col.T * O,P)  # returns a matrix
-   #print "1 ",OneOmegaP1
-   OneOmegaP2 = np.dot(np.dot(k1Col.T, O),P) # returns a vector
+   OneWP1 = np.dot(k1Col.T * W,P)  # returns a matrix
+   #print "1 ",OneWP1
+   OneWP2 = np.dot(np.dot(k1Col.T, W),P) # returns a vector
    
    #print
-   #print "2 ",OneOmegaP2
+   #print "2 ",OneWP2
    ####################
    
-   OneWPP1 = np.dot(np.dot(k1Col.T,O),(P*P)) # vector
+   OneWPP1 = np.dot(np.dot(k1Col.T,W),(P*P)) # vector
    #print OneWPP1
-   OneWPP2 = np.dot(k1Col.T*O,(P*P)) # matrix
+   OneWPP2 = np.dot(k1Col.T*W,(P*P)) # matrix
    #print OneWPP2
    
    ####################
    # can rule out 2 - (1*1), division by zero
    # that leaves, 2 - (2*2) (bad), 1 - (1*1) (bad), 1 - (2*2)
-   den = OneWPP1 - (np.dot((OneOmegaP2*OneOmegaP2),np.dot(recipFill,recipFillMinusOne))) 
+   den = OneWPP1 - (np.dot((OneWP2*OneWP2),np.dot(recipFill,recipFillMinusOne))) 
    sqrtden = den**.5
    
    maybeden = np.dot(k1Col,sqrtden)
 
    #print "maybeden ",maybeden
    
-   std = P - (num1 / maybeden)
+   std = P - (num1 / maybeden)  
    
    
    return std
 
 
-def models(PsigStd,Estd,Alpha):
+def models(PsigStdNode,Estd,Wn):
    
    
-   def i(myEstd, myPsigStd=None):
+   def i(myEstd,PsigStdByNode):
       
-      if myPsigStd is None:
-         myPsigStd = PsigStd
-      recip = np.reciprocal(np.dot(np.dot(myEstd.T,Alpha),myEstd))
-      rightHand = np.dot(np.dot(myEstd.T,Alpha),myPsigStd)
-      return np.dot(recip,rightHand)
-   
-   
-   def i_dep(myEstd):
+      # inverse of a matrix
+      invX = np.linalg.inv(np.dot(np.dot(myEstd.T,Wn),myEstd))
+      rightHand = np.dot(np.dot(myEstd.T,Wn),PsigStdByNode)
       
-      recip = np.reciprocal(np.dot(np.dot(myEstd.T,Alpha),myEstd))
-      rightHand = np.dot(np.dot(myEstd.T,Alpha),PsigStd)
-      return np.dot(recip,rightHand)
+      return np.dot(invX,rightHand)
    
-    
-   BetaEjAll = i(Estd,PsigStd[:,0])  # all   shape - (3,5)
-   #print "all ",BetaEjAll
-   BetaEji = i(Estd[:,0],PsigStd[:,0]) # just i, shape - (1,5)
-   #print "just i ",BetaEji
-   BetaEjMinusi = i(Estd[:,[1,2]],PsigStd[:,0]) # minus i, (2,5)
-   #print "minus i ",BetaEjMinusi
    
-  
+   #PsigStdNode = np.array([PsigStd[:,0]]).T
+   
+   BetaEjAll = i(Estd,PsigStdNode)  # all   shape - (3,5) without controling for one node
+   
+   BetaEji = i(np.array([Estd[:,1]]).T,PsigStdNode) # just i, shape - (1,5) without controling for one node
+   
+   BetaEjMinusi = i(Estd[:,[0,2]],PsigStdNode) # minus i, (2,5) without controling for one node
+   
    
    return BetaEjAll, BetaEji, BetaEjMinusi
 
-def BetaE_regression(PsigStd,Estd,Alpha):
+def BetaE_regression(PsigStd,Estd,Wn):
    
+   for x in range(0,PsigStd.shape[1]):  # go through all the nodes
+      
+      PsigStdNode = np.array([PsigStd[:,x]]).T
+      
+      BetaEjAll, BetaEji, BetaEjMinusi = models(PsigStdNode, Estd, Wn)
    
-   BetaEjAll, BetaEji, BetaEjMinusi = models(PsigStd, Estd, Alpha)
-   
-   miEstd = Estd[:,[1,2]]
-   
-   
-   #BallColL = [[x] for x in BetaEjAll]
-   #BetaEjAll = np.array(BallColL)
-   print BetaEjAll
-   YjAll = np.dot(Estd,BetaEjAll)
-   print YjAll
-   
-   #BminusColL = [[x] for x in BetaEjMinusi]
-   #BetaEjMinusi = np.array(BminusColL)
-   YjminusI = np.dot(miEstd,BetaEjMinusi)
-   
-   
-   #RsqrAll = np.trace(np.dot(YjAll.T,YjAll))/np.trace(PsigStd.T*PsigStd.T)
-   
-   #RsqrMinusI = np.trace(np.dot(YjminusI.T,YjminusI))/np.trace(PsigStd.T*PsigStd.T)
-   numDiffRsqr = np.trace(np.outer(YjAll.T,YjAll)) - np.trace(np.outer(YjminusI.T,YjminusI))
-   diffRSqr = numDiffRsqr /  np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
-   #num = BetaEji*((RsqrAll-RsqrMinusI)**.5)
-   num =  BetaEji*((diffRSqr)**.5)
-   
-   Pji = num/np.absolute(BetaEji)
-   
-   print "P(j,i)"
-   print Pji
+      miEstd = Estd[:,[0,2]]
+      
+      # estimate Y, Y hat
+      
+      YjAll = np.dot(Estd,BetaEjAll)
+      
+      
+      YjminusI = np.dot(miEstd,BetaEjMinusi)
+      
+      
+      print "R^2 All ",np.trace(np.dot(YjAll.T,YjAll))/np.trace(np.outer(PsigStd.T,PsigStd.T))
+      print "R^2 minus i ", np.trace(np.dot(YjminusI.T,YjminusI)) / np.trace(np.outer(PsigStd.T,PsigStd.T))
+      
+      numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
+      
+      diffRSqr = numDiffRsqr /  np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
+      
+      num =  BetaEji*((diffRSqr)**.5)
+      
+      Pji = num/np.absolute(BetaEji)
+      
+      print "P(j,i), j = %s" % (x)
+      print Pji
+      print
    
 def startHere():
    
-   O,P,I,E,A,PsigMask,PMask = makeInputsForTest()  # may or may not use these masks
+   Wk,P,I,E,Wn,PsigMask,PMask = makeInputsForTest()  # may or may not use these masks
+   
    # std P
    Ones = np.array([np.ones(I.shape[1])]).T # column vector
-   # using  masks (need to think about)
-   Pstd = standardizePIC(O, P, I, Ones)
+   Pstd = standardizePIC(Wk, P, I, Ones)
    #Pstd = PstdunMasked * PMask
    PsigStd = np.dot(I,Pstd)
    
-   
    # std E
    Ones = np.array([np.ones(I.shape[0])]).T
-   Estd = standardizePIC(A, E, I, Ones)
+   Estd = standardizePIC(Wn, E, I, Ones)
    
-   BetaE_regression(PsigStd,Estd,A)
+   BetaE_regression(PsigStd,Estd,Wn)
       
 def loadJSON(path):
    
