@@ -30,9 +30,9 @@ class Ui_Dialog(object):
    
    def setupUi(self):
       self.setObjectName("Dialog")
-      self.resize(478, 448)
-      self.setMinimumSize(478,448)
-      self.setMaximumSize(478,448)
+      self.resize(478, 470)
+      self.setMinimumSize(478,470)
+      self.setMaximumSize(478,470)
       self.setSizeGripEnabled(True)
        
        
@@ -78,9 +78,16 @@ class Ui_Dialog(object):
       self.emailEdit.setObjectName("emailEdit")
       
       
+      macNote = QtGui.QLabel(self.inputGroup)
+      macNote.setText("<font color='red'>Until QGIS version &ge; 2.13 is released we recommend that Mac</font>")
+      macNote.setGeometry(QtCore.QRect(10, 35, 415, 20))  
+      macNote2 = QtGui.QLabel(self.inputGroup)
+      macNote2.setText("<font color='red'>users use the plugin with QGIS version &le; 2.8.1</font>")  
+      macNote2.setGeometry(QtCore.QRect(10, 55, 390, 20))
+      
       self.signupLink = QtGui.QLabel(self.inputGroup)
       self.signupLink.setText('<a href="signup">sign up</a>')
-      self.signupLink.setGeometry(QtCore.QRect(10, 310, 243, 40))
+      self.signupLink.setGeometry(QtCore.QRect(10, 305, 243, 40))
       self.signupLink.linkActivated.connect(self.signup)
       
     
