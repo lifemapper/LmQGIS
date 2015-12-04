@@ -34,8 +34,7 @@ def makeInputsForTest():
                  [ 0.   ,  0.   ,  0.   ,  0.5  , -1.   ],
                  [ 0.   ,  0.   ,  0.   ,  0.5  ,  1.   ]])
    
-   #print np.dot(I,P)
-   #print
+   
    
    E = np.array([[1.3,  13.0, 100.0], 
                  [.78,  12.4, 121.0], 
@@ -140,7 +139,7 @@ def standardizePIC(W=None,P=None,I=None,Ones=None):
    return std
 
 
-def models(PsigStdNode,Estd,Wn):
+def models(PsigStdNode,Estd,Wn,Estd_i=None,Estd_mi=None):
    
    
    def i(myEstd,PsigStdByNode):
@@ -153,12 +152,13 @@ def models(PsigStdNode,Estd,Wn):
    
    
    #PsigStdNode = np.array([PsigStd[:,0]]).T
-   
+   # b = (XtX)^-1(Xty)
    BetaEjAll = i(Estd,PsigStdNode)  # all   shape - (3,5) without controling for one node
    
-   BetaEji = i(np.array([Estd[:,1]]).T,PsigStdNode) # just i, shape - (1,5) without controling for one node
+   BetaEji = i(np.array([Estd[:,2]]).T,PsigStdNode) # just i, shape - (1,5) without controling for one node
    
-   BetaEjMinusi = i(Estd[:,[0,2]],PsigStdNode) # minus i, (2,5) without controling for one node
+   BetaEjMinusi = i(Estd[:,[0,1]],PsigStdNode) # minus i, (2,5) without controling for one node
+   
    
    
    return BetaEjAll, BetaEji, BetaEjMinusi
@@ -170,31 +170,35 @@ def BetaE_regression(PsigStd,Estd,Wn):
       PsigStdNode = np.array([PsigStd[:,x]]).T
       
       BetaEjAll, BetaEji, BetaEjMinusi = models(PsigStdNode, Estd, Wn)
-   
-      miEstd = Estd[:,[0,2]]
       
-      # estimate Y, Y hat
+      miEstd = Estd[:,[0,1]]
       
+      #### estimate Y hat ###
       YjAll = np.dot(Estd,BetaEjAll)
-      
-      
       YjminusI = np.dot(miEstd,BetaEjMinusi)
+      ###############
       
       
-      print "R^2 All ",np.trace(np.dot(YjAll.T,YjAll))/np.trace(np.outer(PsigStd.T,PsigStd.T))
-      print "R^2 minus i ", np.trace(np.dot(YjminusI.T,YjminusI)) / np.trace(np.outer(PsigStd.T,PsigStd.T))
+      #print "R^2 All ",np.trace(np.dot(YjAll.T,YjAll))/np.trace(np.outer(PsigStd.T,PsigStd.T))
+      #print "R^2 minus i ", np.trace(np.dot(YjminusI.T,YjminusI)) / np.trace(np.outer(PsigStd.T,PsigStd.T))
       
       numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
       
       diffRSqr = numDiffRsqr /  np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
       
-      num =  BetaEji*((diffRSqr)**.5)
+      if diffRSqr >= 0:
       
-      Pji = num/np.absolute(BetaEji)
+         num =  BetaEji*((diffRSqr)**.5)
       
-      print "P(j,i), j = %s" % (x)
-      print Pji
-      print
+         Pji = num/np.absolute(BetaEji)
+      
+         print "P(j,i), j = %s" % (x)
+         print Pji
+         print
+      
+      else:
+         print "negative R squared, node ",x
+         print 
    
 def startHere():
    
