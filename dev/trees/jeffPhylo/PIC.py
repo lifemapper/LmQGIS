@@ -2,6 +2,11 @@ import os, sys
 import simplejson as json
 import numpy as np
 import operator
+from contextlib import contextmanager
+import time
+
+
+timerDict = {}
 
 class Omega:
    
@@ -181,10 +186,10 @@ def BetaE_regression(PsigStd,Estd,Wn):
       Bji_part = getPartModel(Estd_i)
       Bjminus1_part = getPartModel(Estd_minus_i)
       
-      print "column ",i," i"
-      print
+      #print "column ",i," i"
+      #print
       
-      for x in range(0,PsigStd.shape[1]):  # go through all the nodes
+      for x in range(0,PsigStd.shape[1]):  # go through all the nodes/columns
          
          PsigStdNode = np.array([PsigStd[:,x]]).T
          
@@ -214,13 +219,75 @@ def BetaE_regression(PsigStd,Estd,Wn):
          
             Pji = num/np.absolute(BetaEji)
          
-            print "P(j,i), j = %s" % (x)
-            print Pji
-            print
-         
+            #print "P(j,i), j = %s" % (x)
+            #print Pji
+            #print
+            #
          else:
-            print "negative R squared, node ",x
-            print 
+            pass
+            #print "negative R squared, node ",x
+            #print 
+            
+def vectorize_regression(PsigStd,Estd,Wn):
+   
+   def getR(col):
+      
+      PsigStdNode = np.array([col]).T
+      
+      #BetaEjAll, BetaEji, BetaEjMinusi = models(PsigStdNode, Estd, Wn)
+      BetaEjAll = np.dot(BjAll_part,PsigStdNode)
+      BetaEji = np.dot(Bji_part,PsigStdNode)
+      BetaEjMinusi = np.dot(Bjminus1_part,PsigStdNode)
+      
+      
+      
+      #### estimate Y hat ###
+      YjAll = np.dot(Estd,BetaEjAll)
+      YjminusI = np.dot(Estd_minus_i,BetaEjMinusi)
+      ###############
+      
+      
+      #print "R^2 All ",np.trace(np.dot(YjAll.T,YjAll))/np.trace(np.outer(PsigStd.T,PsigStd.T))
+      #print "R^2 minus i ", np.trace(np.dot(YjminusI.T,YjminusI)) / np.trace(np.outer(PsigStd.T,PsigStd.T))
+      
+      numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
+      
+      diffRSqr = numDiffRsqr /  np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
+      
+      if diffRSqr >= 0:
+      
+         num =  BetaEji*((diffRSqr)**.5)
+      
+         Pji = num/np.absolute(BetaEji)
+      
+         #print "P(j,i)"
+         #print Pji
+         #print
+      
+      else:
+         pass
+         #print "negative R squared, node "
+         #print 
+      return diffRSqr
+   
+   def getPartModel(E):
+      
+      invX = np.linalg.inv(np.dot(np.dot(E.T,Wn),E))
+      rightHand = np.dot(E.T,Wn)
+      return np.dot(invX,rightHand)
+   
+   for i in range(0,Estd.shape[1]):
+   
+      Estd_i = np.array([Estd[:,i]]).T
+      Estd_minus_i = np.delete(Estd,i,1)
+      
+      BjAll_part = getPartModel(Estd)
+      Bji_part = getPartModel(Estd_i)
+      Bjminus1_part = getPartModel(Estd_minus_i)
+      
+      
+      np.apply_along_axis(getR, 0, PsigStd)
+
    
 def startHere():
    
@@ -236,8 +303,23 @@ def startHere():
    Ones = np.array([np.ones(I.shape[0])]).T
    Estd = standardizePIC(Wn, E, I, Ones)
    
-   BetaE_regression(PsigStd,Estd,Wn)
-      
+   st = time.clock()
+   for s in range(0,10000):
+      vectorize_regression(PsigStd,Estd,Wn)
+   end = time.clock()
+   avg = (end - st)/10000
+   print avg
+   #for x in range(0,10000):
+   #   with timer('%s' % x):
+   #      #vectorize_regression(PsigStd,Estd,Wn)
+   #      BetaE_regression(PsigStd,Estd,Wn)
+   #sum = 0
+   #for k in timerDict.keys():
+   #   sum = sum + timerDict[k]
+   #print sum
+   #avg = sum / 10000   
+   #print "AVG ",avg
+   
 def loadJSON(path):
    
    with open(path,'r') as f:
@@ -332,7 +414,15 @@ def buildMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
    
    return emptyMtx      
    
- 
+@contextmanager
+def timer(label):
+   start = time.clock()
+   try:
+      yield
+   finally:
+      end = time.clock()
+      #print ('{} : {}'.format(label, end - start))
+      timerDict[label] = end - start
 
 
 if __name__ == "__main__":
