@@ -21,17 +21,21 @@ class Omega:
       omegaMtx = np.dot(X.T,X)
       return omegaMtx
 
-def makeInputsForTest():
+def makeInputsForTest(pam=None):
    # PAM and PIC from text
-   I = np.array([[1, 0, 0, 1, 0, 0],
-                 [0, 0, 1, 1, 0, 0],
-                 [1, 0, 0, 1, 0, 1],
-                 [0, 0, 1, 1, 0, 1],
-                 [0, 1, 0, 1, 0, 1],
-                 [0, 0, 0, 0, 1, 0],
-                 [1, 0, 0, 0, 1, 0],
-                 [0, 1, 0, 0, 1, 0]])
-   
+   if pam is None:
+      # incidence matrix fromt the text
+      I = np.array([[1, 0, 0, 1, 0, 0],
+                    [0, 0, 1, 1, 0, 0],
+                    [1, 0, 0, 1, 0, 1],
+                    [0, 0, 1, 1, 0, 1],
+                    [0, 1, 0, 1, 0, 1],
+                    [0, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 1, 0],
+                    [0, 1, 0, 0, 1, 0]])
+   else:
+      I = pam
+   # P from the text
    P = np.array([[-1.   , -0.5  , -0.25 , -0.125,  0.   ],
                  [ 1.   , -0.5  , -0.25 , -0.125,  0.   ],
                  [ 0.   ,  1.   , -0.5  , -0.25 ,  0.   ],
@@ -50,7 +54,8 @@ def makeInputsForTest():
                  [3.97, 1.2,  12.01], 
                  [3.23, 1.0,  10.12] ])
    ########### experimental masks ###############
-   
+   # this was based on an idea for zeroing out
+   # changes made by standardization
    PMask = np.array([[ 1.   , 1.   , 1. , 1.,  0.   ],
                      [ 1.   , 1.   , 1. , 1.,  0.   ],
                      [ 0.   , 1.   , 1. , 1.,  0.   ],
@@ -66,7 +71,7 @@ def makeInputsForTest():
                         [0,    0,    0,  1,  1   ],
                         [1,    1,    1,  1,  1   ],
                         [1,    1,    1,  1,  1   ]])
-   
+   ############################
    def calculateMarginals():
       
       siteCount = float(I.shape[0])
@@ -90,7 +95,7 @@ def makeInputsForTest():
    
    #AlphaMtx = np.dot(I,I.T) # species shared by sites
    
-   return Wk,P,I,E,Wn,PsigMask,PMask
+   return Wk,P,I,E,Wn
    
    
 def standardizePIC(W=None,P=None,I=None,Ones=None):
@@ -186,8 +191,8 @@ def BetaE_regression(PsigStd,Estd,Wn):
       Bji_part = getPartModel(Estd_i)
       Bjminus1_part = getPartModel(Estd_minus_i)
       
-      #print "column ",i," i"
-      #print
+      print "column ",i," i"
+      print
       
       for x in range(0,PsigStd.shape[1]):  # go through all the nodes/columns
          
@@ -219,14 +224,14 @@ def BetaE_regression(PsigStd,Estd,Wn):
          
             Pji = num/np.absolute(BetaEji)
          
-            #print "P(j,i), j = %s" % (x)
-            #print Pji
-            #print
+            print "P(j,i), j = %s" % (x)
+            print Pji
+            print
             #
          else:
             pass
-            #print "negative R squared, node ",x
-            #print 
+            print "negative R squared, node ",x
+            print 
             
 def vectorize_regression(PsigStd,Estd,Wn):
    
@@ -289,26 +294,35 @@ def vectorize_regression(PsigStd,Estd,Wn):
       np.apply_along_axis(getR, 0, PsigStd)
 
    
-def startHere():
+def startHere(Phylo=None,Pam=None):
    
-   Wk,P,I,E,Wn,PsigMask,PMask = makeInputsForTest()  # may or may not use these masks
+   Wk,P,I,E,Wn = makeInputsForTest(pam=Pam)  # may or may not use these masks
    
+   if Phylo is not None and Pam is not None:
+      P = Phylo # comment out when not sending PAM from __main__
+      I = Pam   # comment out when not sending PAM from __main__
    # std P
    Ones = np.array([np.ones(I.shape[1])]).T # column vector
    Pstd = standardizePIC(Wk, P, I, Ones)
-   #Pstd = PstdunMasked * PMask
+   
+   print "Psig non standardized"
+   print np.dot(I,P)
+   #Pstd = PstdunMasked * PMask # zeroing out changes made during standardization
+   
    PsigStd = np.dot(I,Pstd)
    
    # std E
    Ones = np.array([np.ones(I.shape[0])]).T
    Estd = standardizePIC(Wn, E, I, Ones)
    
-   st = time.clock()
-   for s in range(0,10000):
-      vectorize_regression(PsigStd,Estd,Wn)
-   end = time.clock()
-   avg = (end - st)/10000
-   print avg
+   BetaE_regression(PsigStd,Estd,Wn)
+   
+   #st = time.clock()
+   #for s in range(0,10000):
+   #   vectorize_regression(PsigStd,Estd,Wn)
+   #end = time.clock()
+   #avg = (end - st)/10000
+   #print avg
    #for x in range(0,10000):
    #   with timer('%s' % x):
    #      #vectorize_regression(PsigStd,Estd,Wn)
@@ -334,21 +348,35 @@ def buildTips(clade):
    unsure how calculations would reflect/change if more tips in tree
    than in PAM.  If it does it needs to check for matrix key
    """ 
+   noMx = {'c':0}
    tips = []
    internal = {}
    def buildLeaves(clade):
       if "children" in clade: 
+         if len(clade["children"]) > 2:
+            print "polytomy ",clade["pathId"]
          internal[clade["pathId"]] = clade["children"][0] 
          for i,child in enumerate(clade["children"]):
             
             buildLeaves(child)
       else: 
-         castClade = clade.copy()
-         castClade["mx"] = int(castClade["mx"]) # if not in PAM, under if statement
-         tips.append(castClade)  # this assumes all tips are in PAM
+         #castClade = clade.copy()
+         #castClade["mx"] = int(castClade["mx"]) # if not in PAM, under if statement
+         #tips.append(castClade)  # this assumes all tips are in PAM
          if "mx" in clade:  ## might want append to tips under this
-            pass
+            castClade = clade.copy()
+            castClade["mx"] = int(castClade["mx"]) # if not in PAM, under if statement
+            tips.append(castClade)
+         else:
+            # pad for tips not in pam
+            #noMx['c'] = noMx['c'] + 1
+            #print '"'+clade['name']+'",'
+            #pass
+            castClade = clade.copy()
+            castClade['mx'] = 999  # some fake number
+            tips.append(castClade)
    buildLeaves(clade)  
+   print noMx
    tips.sort(key=operator.itemgetter('mx'))   # what if mx is string, like 
    # in this case 
    
@@ -357,10 +385,17 @@ def buildTips(clade):
 
 # ...............................
 def oneSide(internal):
+   """
+   @summary: takes dict of interal nodes from one side of the phylogeny
+   returns dict of lists of ids the descend from parent on that branch,
+   key is parent pathId
+   """
    negDict = {}
    for k in internal:
       l = negs(internal[k])
-      negDict[k] = l
+      negDict[str(k)] = l  # cast key to string, Dec. 10, 2015
+      # since looked like conversion to json at one point wasn't converting
+      # pathId 0 at root of tree to string
       
    return negDict
            
@@ -384,14 +419,22 @@ def initMatrix(rowCnt,colCnt):
 
 # ..........................................
 
-def getIds(tipsDictList):
+def getIds(tipsDictList,internalDict=None):
    """
    @summary: get tip ids and internal ids
    """
+   
    tipIds = [int(tp["pathId"]) for tp in tipsDictList ]
-   total = (len(tipIds) * 2) - 1
-   allIds = [x for x in range(0,total)]
-   internalIds = list(set(allIds).difference(set(tipIds)))
+   if internalDict is None:
+      # this wont work because it's based on tips
+      # and the tips come from build tips which is conditioned
+      # on mx and therefore presence in pam
+      total = (len(tipIds) * 2) - 1 # assumes binary tree
+      allIds = [x for x in range(0,total)]
+      internalIds = list(set(allIds).difference(set(tipIds)))
+   else:
+      internalIds = [int(k) for k in internalDict.keys()]
+      internalIds.sort()
    return tipIds,internalIds
    
 
@@ -406,6 +449,7 @@ def buildMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
       tipId = tip["pathId"]
       for i,n in enumerate(pathList):
          m = 1
+         #print n
          if int(tipId) in negs[str(n)]:
             m = -1
          idx = internalIds.index(n)
@@ -428,17 +472,61 @@ def timer(label):
 if __name__ == "__main__":
    
    jsP = "/home/jcavner/PhyloXM_Examples/"
-   fN = "Liebold.json"
+   #jsP = "/home/jcavner/TASHI_PAM/"
+   #fN = "Liebold.json"
+   fN = "Liebold_notEverythinginMatrix.json"
+   #fN = 'tree.json'
    path = os.path.join(jsP,fN)
    d = loadJSON(path)
    tips,whichSide = buildTips(d)
    negsDict = oneSide(whichSide)
-   tipIds,internalIds = getIds(tips)
+   tipIds,internalIds = getIds(tips,internalDict=whichSide)
    matrix = initMatrix(len(tipIds),len(internalIds))
    m = buildMatrix(matrix,internalIds,tips, negsDict)
+   print m.shape
+   # loop through cols.of m and check sum
+   print
+   print m
+   print 
+   count = 0
+   for x in range(0,m.shape[1]):
+      s = m[:,x].sum()
+      if s <> 0:
+         count = count + 1
+         #print "not zero ",m[:,x]
+         #break
+   #print count
+                             # this column holds the key
+   pam = np.array([[1, 0, 0, 0, 0, 0,],
+                   [0, 0, 1, 0, 0, 1,],
+                   [1, 0, 0, 0, 0, 0,],
+                   [0, 0, 1, 0, 0, 1,],
+                   [0, 1, 0, 1, 1, 0,],
+                   [0, 0, 0, 0, 0, 0,],
+                   [1, 0, 0, 0, 0, 0,],
+                   [0, 1, 0, 1, 1, 0,]])
+                                   # did this column too
+                                # didn't do middle column, how is it working? or is it?
+   #[-0.125 -0.25  -0.5    1.     0.   ]
+   #[-0.5    1.     0.     0.     0.   ]
+   #[ 0.5    0.     0.     0.     1.   ]]
    
-   #standardizePIC()
-   startHere()
+   #############
+   #pamPath = os.path.join(jsP,'pam_2462.npy')
+   #pam = np.load(pamPath)
+   
+   #m = [[-0.125, -0.25,  -0.5,   -1.,     0.   ],
+   #     [-0.25 , -0.5 ,   1. ,    0.,     0.   ],
+   #     [ 0.5  ,  0.  ,   0. ,    0.,    -1.   ],
+   #     [-0.125, -0.25,  -0.5,    1.,     0.   ],
+   #     [-0.5  ,  1.  ,   0. ,    0.,     0.   ],
+   #     [ 0.5  ,  0.  ,   0. ,    0.,     1.   ]]
+   
+   P =  np.dot(pam,m)
+   print P
+   #startHere(Phylo=m,Pam=pam)
+   
+   #startHere()
    
 
    
