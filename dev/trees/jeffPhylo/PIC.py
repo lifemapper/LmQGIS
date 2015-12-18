@@ -342,72 +342,108 @@ def loadJSON(path):
 
    
    
-def buildTips(clade): 
+def buildTips(clade, noColPam = None): 
    """
    @summary: flattens to tips and return list of tip clades(dicts)
    unsure how calculations would reflect/change if more tips in tree
    than in PAM.  If it does it needs to check for matrix key
    """ 
-   noMx = {'c':0}
+   if noColPam is not None:
+      noMx = {'c':noColPam}  # needs to start with last sps in pam
+   else:
+      noMx = {'c':0}  # won't have an option here, noColPam won't be opt
    tips = []
+   tipsNotInMatrix = []
    internal = {}
    def buildLeaves(clade):
       if "children" in clade: 
-         if len(clade["children"]) > 2:
-            print "polytomy ",clade["pathId"]
-         internal[clade["pathId"]] = clade["children"][0] 
-         for i,child in enumerate(clade["children"]):
-            
+         #### just a check, probably take out 
+         #if len(clade["children"]) > 2:
+         #   print "polytomy ",clade["pathId"]
+         ############   
+         #internal[clade["pathId"]] = clade["children"][0] 
+         internal[clade["pathId"]] = clade["children"] # both sides
+         for child in clade["children"]:  
             buildLeaves(child)
       else: 
-         #castClade = clade.copy()
-         #castClade["mx"] = int(castClade["mx"]) # if not in PAM, under if statement
-         #tips.append(castClade)  # this assumes all tips are in PAM
-         if "mx" in clade:  ## might want append to tips under this
+         if "mx" in clade:  
             castClade = clade.copy()
-            castClade["mx"] = int(castClade["mx"]) # if not in PAM, under if statement
+            castClade["mx"] = int(castClade["mx"]) 
             tips.append(castClade)
          else:
-            # pad for tips not in pam
-            #noMx['c'] = noMx['c'] + 1
-            #print '"'+clade['name']+'",'
-            #pass
             castClade = clade.copy()
-            castClade['mx'] = 999  # some fake number
+            castClade['mx'] = noMx['c']  # assigns a mx starting at end of pam
             tips.append(castClade)
+            tipsNotInMatrix.append(castClade)
+            noMx['c'] = noMx['c'] + 1
    buildLeaves(clade)  
-   print noMx
-   tips.sort(key=operator.itemgetter('mx'))   # what if mx is string, like 
-   # in this case 
-   
-   return tips, internal
+   tips.sort(key=operator.itemgetter('mx'))   
+   tipsNotInMatrix.sort(key=operator.itemgetter('mx'))
+   return tips, internal, tipsNotInMatrix
 
+
+# ..........................
+def getSiblingsMx(clade):
+   """
+   @summary: gets all tips that are siblings that are in PAM, (have 'mx')
+   """
+   mx = []
+   def getMtxIds(clade):
+      if "children" in clade:
+         for child in clade['children']:
+            getMtxIds(child)
+      else:
+         if "mx" in clade:
+            mx.append(int(clade["mx"]))
+   getMtxIds(clade)
+   return mx
+# ..........................
+def processTipNotInMatrix(tipsNotInMtx,internal):
+   """
+   @param tipsNotInMtx: list of tip dictionaries
+   """     
+   mxMapping = {} 
+   for tip in tipsNotInMtx:
+      parentId = [x for x in tip["path"].split(",")][1]  
+      parentsChildren = internal[parentId]['children']  
+      for sibling in parentsChildren:
+         if tip['pathId'] != sibling['pathId']:
+            # not itself
+            if 'children' in sibling:
+               # recurse unitl it get to tips with 'mx'
+               mxs = getSiblingsMx(sibling)
+               mxMapping[tip['mx']] = mxs
+            else:
+               if "mx" in sibling:
+                  pass
+               else:
+                  print "doesn't have a mx either"
+         
+      
 
 # ...............................
-def oneSide(internal):
+def processInternalNodes(internal):
    """
    @summary: takes dict of interal nodes from one side of the phylogeny
-   returns dict of lists of ids the descend from parent on that branch,
+   returns dict of lists of ids that descend from parent on that branch,
    key is parent pathId
    """
    negDict = {}
    for k in internal:
-      l = negs(internal[k])
+      #l = negs(internal[k])  #for when one side is captured in buildTips
+      l = negs(internal[k][0]) # for when all children are attached to internal
       negDict[str(k)] = l  # cast key to string, Dec. 10, 2015
       # since looked like conversion to json at one point wasn't converting
       # pathId 0 at root of tree to string
-      
    return negDict
-           
+
 # ..........................      
 def negs(clade):
    sL = []
-   def getNegIds(clade):
-      
+   def getNegIds(clade):    
       if "children" in clade:
          sL.append(int(clade["pathId"]))
          for child in clade["children"]:
-            #sL.append(child["pathId"])
             getNegIds(child)
       else:
          sL.append(int(clade["pathId"]))
@@ -471,6 +507,9 @@ def timer(label):
 
 if __name__ == "__main__":
    
+   
+   #### tree #######
+   
    jsP = "/home/jcavner/PhyloXM_Examples/"
    #jsP = "/home/jcavner/TASHI_PAM/"
    #fN = "Liebold.json"
@@ -478,49 +517,38 @@ if __name__ == "__main__":
    #fN = 'tree.json'
    path = os.path.join(jsP,fN)
    d = loadJSON(path)
-   tips,whichSide = buildTips(d)
-   negsDict = oneSide(whichSide)
-   tipIds,internalIds = getIds(tips,internalDict=whichSide)
-   matrix = initMatrix(len(tipIds),len(internalIds))
-   m = buildMatrix(matrix,internalIds,tips, negsDict)
-   print m.shape
-   # loop through cols.of m and check sum
-   print
-   print m
-   print 
-   count = 0
-   for x in range(0,m.shape[1]):
-      s = m[:,x].sum()
-      if s <> 0:
-         count = count + 1
-         #print "not zero ",m[:,x]
-         #break
-   #print count
+   
+   ###### pam ###
+   
                              # this column holds the key
-   pam = np.array([[1, 0, 0, 0, 0, 0,],
-                   [0, 0, 1, 0, 0, 1,],
-                   [1, 0, 0, 0, 0, 0,],
-                   [0, 0, 1, 0, 0, 1,],
-                   [0, 1, 0, 1, 1, 0,],
-                   [0, 0, 0, 0, 0, 0,],
-                   [1, 0, 0, 0, 0, 0,],
-                   [0, 1, 0, 1, 1, 0,]])
+   pam = np.array([[1, 0, 0, 0, 1, 0],
+                   [0, 0, 1, 0, 0, 1],
+                   [1, 0, 0, 0, 1, 0],
+                   [0, 0, 1, 0, 0, 1],
+                   [0, 1, 0, 1, 1, 0],
+                   [0, 0, 0, 0, 0, 0],
+                   [1, 0, 0, 0, 1, 0],
+                   [0, 1, 0, 1, 1, 0]])
                                    # did this column too
                                 # didn't do middle column, how is it working? or is it?
-   #[-0.125 -0.25  -0.5    1.     0.   ]
-   #[-0.5    1.     0.     0.     0.   ]
-   #[ 0.5    0.     0.     0.     1.   ]]
+   
+   #####################
+   
+   tips, internal, tipsNotInMatrix = buildTips(d, noColPam=3)
+   negsDict = processInternalNodes(internal)
+   tipIds,internalIds = getIds(tips,internalDict=internal)
+   matrix = initMatrix(len(tipIds),len(internalIds))
+   m = buildMatrix(matrix,internalIds,tips, negsDict)
+   
+   
+   print m
+   print
    
    #############
    #pamPath = os.path.join(jsP,'pam_2462.npy')
    #pam = np.load(pamPath)
    
-   #m = [[-0.125, -0.25,  -0.5,   -1.,     0.   ],
-   #     [-0.25 , -0.5 ,   1. ,    0.,     0.   ],
-   #     [ 0.5  ,  0.  ,   0. ,    0.,    -1.   ],
-   #     [-0.125, -0.25,  -0.5,    1.,     0.   ],
-   #     [-0.5  ,  1.  ,   0. ,    0.,     0.   ],
-   #     [ 0.5  ,  0.  ,   0. ,    0.,     1.   ]]
+   
    
    P =  np.dot(pam,m)
    print P
