@@ -177,13 +177,16 @@ def models(PsigStdNode,Estd,Wn,Estd_i=None,Estd_mi=None):
 def BetaE_regression(PsigStd,Estd,Wn):
    
    def getPartModel(E):
-      
+      """
+      @summary: since associative can compute these parts
+      without having to repeat across nodes
+      """
       invX = np.linalg.inv(np.dot(np.dot(E.T,Wn),E))
       rightHand = np.dot(E.T,Wn)
       return np.dot(invX,rightHand)
    
    for i in range(0,Estd.shape[1]):
-   
+      # loops through columns in Env mtx
       Estd_i = np.array([Estd[:,i]]).T
       Estd_minus_i = np.delete(Estd,i,1)
       
@@ -221,7 +224,8 @@ def BetaE_regression(PsigStd,Estd,Wn):
          if diffRSqr >= 0:
          
             num =  BetaEji*((diffRSqr)**.5)
-         
+            print "PsigStdNode ",PsigStdNode
+            print "BetaEji ",BetaEji
             Pji = num/np.absolute(BetaEji)
          
             print "P(j,i), j = %s" % (x)
@@ -398,29 +402,37 @@ def getSiblingsMx(clade):
    getMtxIds(clade)
    return mx
 # ..........................
-def processTipNotInMatrix(tipsNotInMtx,internal):
+def processTipNotInMatrix(tipsNotInMtx,internal,pam):
    """
    @param tipsNotInMtx: list of tip dictionaries
    """     
+   
    mxMapping = {} 
    for tip in tipsNotInMtx:
       parentId = [x for x in tip["path"].split(",")][1]  
-      parentsChildren = internal[parentId]['children']  
+      parentsChildren = internal[parentId]#['children']  
       for sibling in parentsChildren:
          if tip['pathId'] != sibling['pathId']:
             # not itself
             if 'children' in sibling:
                # recurse unitl it get to tips with 'mx'
                mxs = getSiblingsMx(sibling)
-               mxMapping[tip['mx']] = mxs
+               mxMapping[int(tip['mx'])] = mxs
             else:
                if "mx" in sibling:
-                  pass
+                  mxMapping[int(tip['mx'])] = [int(sibling['mx'])]
                else:
-                  print "doesn't have a mx either"
-         
-      
-
+                  mxMapping[int(tip['mx'])] = 0
+   la = [] # list of arrays              
+   for k in sorted(mxMapping.keys()):
+      if isinstance(mxMapping[k],list):
+         t = np.take(pam,np.array(mxMapping[k]),axis = 1)
+         b = np.any(t,axis = 1)  #returns bool logical or
+      else:
+         b = np.zeros(pam.shape[0],dtype=np.int)
+      la.append(b)
+   newPam = np.append(pam,np.array(la).T,axis=1)
+   return newPam
 # ...............................
 def processInternalNodes(internal):
    """
@@ -449,6 +461,7 @@ def negs(clade):
          sL.append(int(clade["pathId"]))
    getNegIds(clade)
    return sL
+
 # ..........................................   
 def initMatrix(rowCnt,colCnt):
    return np.empty((rowCnt,colCnt))
@@ -521,26 +534,31 @@ if __name__ == "__main__":
    ###### pam ###
    
                              # this column holds the key
-   pam = np.array([[1, 0, 0, 0, 1, 0],
-                   [0, 0, 1, 0, 0, 1],
-                   [1, 0, 0, 0, 1, 0],
-                   [0, 0, 1, 0, 0, 1],
-                   [0, 1, 0, 1, 1, 0],
-                   [0, 0, 0, 0, 0, 0],
-                   [1, 0, 0, 0, 1, 0],
-                   [0, 1, 0, 1, 1, 0]])
+   pam = np.array([[1, 0, 0],  #0, 1, 0],
+                   [0, 0, 1],  #0, 0, 1],
+                   [1, 0, 0],  #0, 1, 0],
+                   [0, 0, 1],  #0, 0, 1],
+                   [0, 1, 0],  #1, 1, 0],
+                   [0, 0, 0],  #0, 0, 0],
+                   [1, 0, 0],  #0, 1, 0],
+                   [0, 1, 0]]) #1, 1, 0]])
                                    # did this column too
                                 # didn't do middle column, how is it working? or is it?
    
    #####################
    
-   tips, internal, tipsNotInMatrix = buildTips(d, noColPam=3)
+   tips, internal, tipsNotInMtx = buildTips(d, noColPam=3)
    negsDict = processInternalNodes(internal)
    tipIds,internalIds = getIds(tips,internalDict=internal)
    matrix = initMatrix(len(tipIds),len(internalIds))
    m = buildMatrix(matrix,internalIds,tips, negsDict)
    
+   if len(tipsNotInMtx) > 0:
+      s = processTipNotInMatrix(tipsNotInMtx, internal, pam)
    
+      print s
+      print
+      pam = s
    print m
    print
    
@@ -550,9 +568,9 @@ if __name__ == "__main__":
    
    
    
-   P =  np.dot(pam,m)
-   print P
-   #startHere(Phylo=m,Pam=pam)
+   #P =  np.dot(pam,m)
+   #print P
+   startHere(Phylo=m,Pam=pam)
    
    #startHere()
    
