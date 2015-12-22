@@ -8,33 +8,18 @@ import time
 
 timerDict = {}
 
-class Omega:
+def makeInputsForTest():
    
-   def __init__(self,pam):
-      """
-      @param pam: numpy matrix of the PAM, compressed
-      """
-      self.pam = pam
-      
-   def hardWay(self):
-      X = self.pam
-      omegaMtx = np.dot(X.T,X)
-      return omegaMtx
-
-def makeInputsForTest(pam=None):
-   # PAM and PIC from text
-   if pam is None:
-      # incidence matrix fromt the text
-      I = np.array([[1, 0, 0, 1, 0, 0],
-                    [0, 0, 1, 1, 0, 0],
-                    [1, 0, 0, 1, 0, 1],
-                    [0, 0, 1, 1, 0, 1],
-                    [0, 1, 0, 1, 0, 1],
-                    [0, 0, 0, 0, 1, 0],
-                    [1, 0, 0, 0, 1, 0],
-                    [0, 1, 0, 0, 1, 0]])
-   else:
-      I = pam
+   # incidence matrix fromt the text
+   I = np.array([[1, 0, 0, 1, 0, 0],
+                 [0, 0, 1, 1, 0, 0],
+                 [1, 0, 0, 1, 0, 1],
+                 [0, 0, 1, 1, 0, 1],
+                 [0, 1, 0, 1, 0, 1],
+                 [0, 0, 0, 0, 1, 0],
+                 [1, 0, 0, 0, 1, 0],
+                 [0, 1, 0, 0, 1, 0]])
+   
    # P from the text
    P = np.array([[-1.   , -0.5  , -0.25 , -0.125,  0.   ],
                  [ 1.   , -0.5  , -0.25 , -0.125,  0.   ],
@@ -43,8 +28,12 @@ def makeInputsForTest(pam=None):
                  [ 0.   ,  0.   ,  0.   ,  0.5  , -1.   ],
                  [ 0.   ,  0.   ,  0.   ,  0.5  ,  1.   ]])
    
+   ############################
    
-   
+   return P,I,
+
+def getEnvMatrix():
+
    E = np.array([[1.3,  13.0, 100.0], 
                  [.78,  12.4, 121.0], 
                  [.85,  1.2,  99.0], 
@@ -53,97 +42,73 @@ def makeInputsForTest(pam=None):
                  [3.89, 0.99,  21.11], 
                  [3.97, 1.2,  12.01], 
                  [3.23, 1.0,  10.12] ])
-   ########### experimental masks ###############
-   # this was based on an idea for zeroing out
-   # changes made by standardization
-   PMask = np.array([[ 1.   , 1.   , 1. , 1.,  0.   ],
-                     [ 1.   , 1.   , 1. , 1.,  0.   ],
-                     [ 0.   , 1.   , 1. , 1.,  0.   ],
-                     [ 0.   , 0.   , 1. , 1.,  0.   ],
-                     [ 0.   , 0.   , 0. , 1. , 1.   ],
-                     [ 0.   , 0.   , 0. , 1. , 1.   ]])
-   
-   PsigMask = np.array([[1,    1,    1,  1,  0   ],
-                        [0,    1.,   1 , 1,  0   ],
-                        [1,    1,    1,  1,  1   ],
-                        [0,    1 ,   1 , 1 , 1   ],
-                        [1,    1,    1,  1,  1   ],
-                        [0,    0,    0,  1,  1   ],
-                        [1,    1,    1,  1,  1   ],
-                        [1,    1,    1,  1,  1   ]])
-   ############################
-   def calculateMarginals():
+   return E
+
+def calculateMarginals(I):
       
-      siteCount = float(I.shape[0])
-      siteVector = np.ones(siteCount)
-      speciesCount = float(I.shape[1])
-      speciesVector = np.ones(speciesCount)
-      # range size of each species
-      omega = np.dot(siteVector, I)
-      # species richness of each site
-      alpha = np.dot(I, speciesVector)
-      
-      Wk = np.diag(omega)
-      
-      Wn = np.diag(alpha)
-      
-      return Wk,Wn
-      
-   Wk, Wn = calculateMarginals()  # should call these something else
+   siteCount = float(I.shape[0])
+   siteVector = np.ones(siteCount)
+   speciesCount = float(I.shape[1])
+   speciesVector = np.ones(speciesCount)
+   # range size of each species
+   omega = np.dot(siteVector, I)
+   # species richness of each site
+   alpha = np.dot(I, speciesVector)
    
-   #OmegaMtx = np.dot(I.T,I) # sites shared by species
+   Wk = np.diag(omega)
    
-   #AlphaMtx = np.dot(I,I.T) # species shared by sites
+   Wn = np.diag(alpha)
    
-   return Wk,P,I,E,Wn
+   return Wk,Wn
    
    
-def standardizePIC(W=None,P=None,I=None,Ones=None):
+def standardizeMatrix(W=None,M=None,I=None,OnesCol=None):
    
-   
-   k1Col = Ones
+   """
+   @summary: standardizes matrix M (phylo encoding) or Env Mtx
+   @param OnesCol: column vector of ones, either k or n, k=No.Sps,n=No.Sites
+   @param M: phylo encoding mtx or env mtx
+   @param I: incidence matrix, pam
+   @param W: Wk or Wn diag mtx with diag sums
+   """
    
    recipFill = 1.0/W.trace()
-   PoverFill  = P * recipFill
+   PoverFill  = M * recipFill
    fillMinusOne = W.trace() - 1.0
    recipFillMinusOne = 1.0/fillMinusOne
-   
-   
-   try:
-      #num1 = P - np.dot(np.dot(k1Col*k1Col.T,O),PoverFill) # good
-      num1 = np.dot(np.dot(k1Col*k1Col.T,W),PoverFill)
-      
-      #num1 = P - np.dot(k1Col*k1Col.T*O,PoverFill) # second best
-      #print "m 1 s ",num1.shape
-   except Exception,e:
-      print "m 1 e ",str(e)
+   print "starting num"
+   OneByOne = OnesCol*OnesCol.T
+   print "done OneByOne"
+   OneDotW = np.dot(OneByOne,W)
+   print "done OneDotW"
+   #numerator = np.dot(np.dot(OnesCol*OnesCol.T,W),PoverFill)
+   numerator = np.dot(OneDotW,PoverFill)
+   print "num"  
    
    ################
-   print
-   OneWP1 = np.dot(k1Col.T * W,P)  # returns a matrix
-   #print "1 ",OneWP1
-   OneWP2 = np.dot(np.dot(k1Col.T, W),P) # returns a vector
    
-   #print
-   #print "2 ",OneWP2
+   #OneWP1 = np.dot(OnesCol.T * W,M)  # returns a matrix
+   
+   OneWP = np.dot(np.dot(OnesCol.T, W),M) # returns a vector
+   print "OneWP"
+   
    ####################
    
-   OneWPP1 = np.dot(np.dot(k1Col.T,W),(P*P)) # vector
-   #print OneWPP1
-   OneWPP2 = np.dot(k1Col.T*W,(P*P)) # matrix
-   #print OneWPP2
+   OneWPP = np.dot(np.dot(OnesCol.T,W),(M*M)) # vector
+   print "OneWPP"
+   #OneWPP2 = np.dot(OnesCol.T*W,(M*M)) # matrix
+   
    
    ####################
    # can rule out 2 - (1*1), division by zero
    # that leaves, 2 - (2*2) (bad), 1 - (1*1) (bad), 1 - (2*2)
-   den = OneWPP1 - (np.dot((OneWP2*OneWP2),np.dot(recipFill,recipFillMinusOne))) 
+   den = OneWPP - (np.dot((OneWP*OneWP),np.dot(recipFill,recipFillMinusOne))) 
    sqrtden = den**.5
    
-   maybeden = np.dot(k1Col,sqrtden)
+   denominator = np.dot(OnesCol,sqrtden)
 
-   #print "maybeden ",maybeden
    
-   std = P - (num1 / maybeden)  
+   std = M - (numerator / denominator)  
    
    
    return std
@@ -224,10 +189,11 @@ def BetaE_regression(PsigStd,Estd,Wn):
          if diffRSqr >= 0:
          
             num =  BetaEji*((diffRSqr)**.5)
-            print "PsigStdNode ",PsigStdNode
-            print "BetaEji ",BetaEji
-            Pji = num/np.absolute(BetaEji)
-         
+            
+            if BetaEji != 0:
+               Pji = num/np.absolute(BetaEji)
+            else:
+               Pji = 0.
             print "P(j,i), j = %s" % (x)
             print Pji
             print
@@ -236,11 +202,15 @@ def BetaE_regression(PsigStd,Estd,Wn):
             pass
             print "negative R squared, node ",x
             print 
+# ........................................ 
             
-def vectorize_regression(PsigStd,Estd,Wn):
+def semiPartCorrelation(PsigStd,Estd,Wn):
    
-   def getR(col):
-      
+   def getP(col):
+      """
+      @summary: gets applied along columns of PsigStd, each column is a internal node of tree
+      @param col: column (internal node of tree) of PsigStd
+      """
       PsigStdNode = np.array([col]).T
       
       #BetaEjAll, BetaEji, BetaEjMinusi = models(PsigStdNode, Estd, Wn)
@@ -248,16 +218,10 @@ def vectorize_regression(PsigStd,Estd,Wn):
       BetaEji = np.dot(Bji_part,PsigStdNode)
       BetaEjMinusi = np.dot(Bjminus1_part,PsigStdNode)
       
-      
-      
       #### estimate Y hat ###
       YjAll = np.dot(Estd,BetaEjAll)
       YjminusI = np.dot(Estd_minus_i,BetaEjMinusi)
       ###############
-      
-      
-      #print "R^2 All ",np.trace(np.dot(YjAll.T,YjAll))/np.trace(np.outer(PsigStd.T,PsigStd.T))
-      #print "R^2 minus i ", np.trace(np.dot(YjminusI.T,YjminusI)) / np.trace(np.outer(PsigStd.T,PsigStd.T))
       
       numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
       
@@ -266,27 +230,30 @@ def vectorize_regression(PsigStd,Estd,Wn):
       if diffRSqr >= 0:
       
          num =  BetaEji*((diffRSqr)**.5)
-      
-         Pji = num/np.absolute(BetaEji)
-      
-         #print "P(j,i)"
-         #print Pji
-         #print
-      
+         
+         if BetaEji != 0:
+            Pji = num/np.absolute(BetaEji)
+         else:
+            Pji = np.array([[0.0]])
+              
       else:
-         pass
-         #print "negative R squared, node "
-         #print 
-      return diffRSqr
-   
+         Pji = np.array([[0.0]])
+         
+      return Pji
+   #.................
    def getPartModel(E):
-      
+      """
+      @summary: since associative can compute these parts of regression model
+      without having to repeat across nodes
+      """
       invX = np.linalg.inv(np.dot(np.dot(E.T,Wn),E))
       rightHand = np.dot(E.T,Wn)
       return np.dot(invX,rightHand)
-   
+   #.................
+   # main
+   rl = []
    for i in range(0,Estd.shape[1]):
-   
+      # for each variable (column) in Env mtx
       Estd_i = np.array([Estd[:,i]]).T
       Estd_minus_i = np.delete(Estd,i,1)
       
@@ -295,32 +262,18 @@ def vectorize_regression(PsigStd,Estd,Wn):
       Bjminus1_part = getPartModel(Estd_minus_i)
       
       
-      np.apply_along_axis(getR, 0, PsigStd)
-
+      r = np.apply_along_axis(getP, 0, PsigStd)
+      #if isinstance(r[0],np.ndarray):
+      rl.append(r[0])
+      #else:
+      #   rl.append(r)
+      
+   coefMtx = np.array(rl).T
    
-def startHere(Phylo=None,Pam=None):
-   
-   Wk,P,I,E,Wn = makeInputsForTest(pam=Pam)  # may or may not use these masks
-   
-   if Phylo is not None and Pam is not None:
-      P = Phylo # comment out when not sending PAM from __main__
-      I = Pam   # comment out when not sending PAM from __main__
-   # std P
-   Ones = np.array([np.ones(I.shape[1])]).T # column vector
-   Pstd = standardizePIC(Wk, P, I, Ones)
-   
-   print "Psig non standardized"
-   print np.dot(I,P)
-   #Pstd = PstdunMasked * PMask # zeroing out changes made during standardization
-   
-   PsigStd = np.dot(I,Pstd)
-   
-   # std E
-   Ones = np.array([np.ones(I.shape[0])]).T
-   Estd = standardizePIC(Wn, E, I, Ones)
-   
-   BetaE_regression(PsigStd,Estd,Wn)
-   
+   return coefMtx
+# ..................................
+def clock():
+   pass
    #st = time.clock()
    #for s in range(0,10000):
    #   vectorize_regression(PsigStd,Estd,Wn)
@@ -337,29 +290,120 @@ def startHere(Phylo=None,Pam=None):
    #print sum
    #avg = sum / 10000   
    #print "AVG ",avg
+# ........................................
+def makeP(treeDict,I):
+   """
+   @summary: encodes phylogeny into matrix P and checks
+   for sps in tree but not in PAM (I), if not in PAM, returns
+   new PAM (I) in addition to P
+   """
+   ######### make P ###########
+   tips, internal, tipsNotInMtx = buildTips(treeDict,I.shape[1])
+   negsDict = processInternalNodes(internal)
+   tipIds,internalIds = getIds(tips,internalDict=internal)
+   matrix = initMatrix(len(tipIds),len(internalIds))
+   P = buildPMatrix(matrix,internalIds,tips, negsDict)
    
+   if len(tipsNotInMtx) > 0:
+      I = processTipNotInMatrix(tipsNotInMtx, internal, I)
+      
+   return P, I
+# ........................................
+def startHere(testWithInputsFromPaper=False,shiftedTree=False):
+   """
+   @param shiftedTree: this means using a tree with same topology
+   of Liebold example but with tips shifted around according to 
+   how mx's are likely to appear in a real tree
+   """
+      
+   # Env Matrix
+   E = getEnvMatrix()
+   
+   #######################
+   if not testWithInputsFromPaper:
+      #### load tree json ######
+      #jsP = "/home/jcavner/PhyloXM_Examples/"
+      jsP = "/home/jcavner/TASHI_PAM/"
+      #fN = "Liebold_notEverythinginMatrix.json"
+      fN = 'tree.json'
+      path = os.path.join(jsP,fN)
+      d = loadJSON(path)
+      ##############
+      I = np.array([[1, 0, 0], 
+                    [0, 0, 1],  
+                    [1, 0, 0],  
+                    [0, 0, 1],  
+                    [0, 1, 0],  
+                    [0, 0, 0],  
+                    [1, 0, 0],  
+                    [0, 1, 0]])
+      ##### Tashi's pam #####
+      pamPath = os.path.join(jsP,'pam_2462.npy')
+      I = np.load(pamPath)
+      
+      r, c = I.shape[0], 23
+      E = np.random.random_sample((r, c))
+      #######################
+      P,I = makeP(d,I)
+      
+   else:
+      # inputs from Liebold paper
+      P,I = makeInputsForTest()
+     
+      # two ways of  testing Liebold paper ?
+      if shiftedTree:
+         #### load tree json or use paper provided P ######
+         jsP = "/home/jcavner/PhyloXM_Examples/"
+         fN = "Liebold.json"
+         path = os.path.join(jsP,fN)
+         d = loadJSON(path)
+         P,I = makeP(d,I)
+         
+      
+        
+          
+   Wk,Wn = calculateMarginals(I)
+   
+   # std P
+   Ones = np.array([np.ones(I.shape[1])]).T # column vector
+   Pstd = standardizeMatrix(Wk, P, I, Ones)
+   print "done std P"
+   # calc Psig
+   PsigStd = np.dot(I,Pstd)
+   print "done Psig"
+   
+   # std E
+   Ones = np.array([np.ones(I.shape[0])]).T
+   Estd = standardizeMatrix(Wn, E, I, Ones)
+   print "done std E"
+   #BetaE_regression(PsigStd,Estd,Wn)
+   C = semiPartCorrelation(PsigStd,Estd,Wn)
+   print C
+   
+   
+# ........................................   
 def loadJSON(path):
    
    with open(path,'r') as f:
       jsonstr = f.read()
    return json.loads(jsonstr)
 
+# ........................................    
    
-   
-def buildTips(clade, noColPam = None): 
+def buildTips(clade, noColPam ): 
    """
    @summary: flattens to tips and return list of tip clades(dicts)
    unsure how calculations would reflect/change if more tips in tree
    than in PAM.  If it does it needs to check for matrix key
    """ 
-   if noColPam is not None:
-      noMx = {'c':noColPam}  # needs to start with last sps in pam
-   else:
-      noMx = {'c':0}  # won't have an option here, noColPam won't be opt
+   
+   noMx = {'c':noColPam}  # needs to start with last sps in pam
+   
    tips = []
    tipsNotInMatrix = []
    internal = {}
    def buildLeaves(clade):
+   
       if "children" in clade: 
          #### just a check, probably take out 
          #if len(clade["children"]) > 2:
@@ -405,6 +449,7 @@ def getSiblingsMx(clade):
 def processTipNotInMatrix(tipsNotInMtx,internal,pam):
    """
    @param tipsNotInMtx: list of tip dictionaries
+   @param internal: list of internal nodes made in buildTips
    """     
    
    mxMapping = {} 
@@ -487,7 +532,7 @@ def getIds(tipsDictList,internalDict=None):
    return tipIds,internalIds
    
 
-def buildMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
+def buildPMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
    #negs = {'0': [1,2,3,4,5,6,7], '2': [3, 4, 5], '1':[2,3,4,5,6],
    #        '3':[4],'8':[9]}
    
@@ -521,58 +566,7 @@ def timer(label):
 if __name__ == "__main__":
    
    
-   #### tree #######
-   
-   jsP = "/home/jcavner/PhyloXM_Examples/"
-   #jsP = "/home/jcavner/TASHI_PAM/"
-   #fN = "Liebold.json"
-   fN = "Liebold_notEverythinginMatrix.json"
-   #fN = 'tree.json'
-   path = os.path.join(jsP,fN)
-   d = loadJSON(path)
-   
-   ###### pam ###
-   
-                             # this column holds the key
-   pam = np.array([[1, 0, 0],  #0, 1, 0],
-                   [0, 0, 1],  #0, 0, 1],
-                   [1, 0, 0],  #0, 1, 0],
-                   [0, 0, 1],  #0, 0, 1],
-                   [0, 1, 0],  #1, 1, 0],
-                   [0, 0, 0],  #0, 0, 0],
-                   [1, 0, 0],  #0, 1, 0],
-                   [0, 1, 0]]) #1, 1, 0]])
-                                   # did this column too
-                                # didn't do middle column, how is it working? or is it?
-   
-   #####################
-   
-   tips, internal, tipsNotInMtx = buildTips(d, noColPam=3)
-   negsDict = processInternalNodes(internal)
-   tipIds,internalIds = getIds(tips,internalDict=internal)
-   matrix = initMatrix(len(tipIds),len(internalIds))
-   m = buildMatrix(matrix,internalIds,tips, negsDict)
-   
-   if len(tipsNotInMtx) > 0:
-      s = processTipNotInMatrix(tipsNotInMtx, internal, pam)
-   
-      print s
-      print
-      pam = s
-   print m
-   print
-   
-   #############
-   #pamPath = os.path.join(jsP,'pam_2462.npy')
-   #pam = np.load(pamPath)
-   
-   
-   
-   #P =  np.dot(pam,m)
-   #print P
-   startHere(Phylo=m,Pam=pam)
-   
-   #startHere()
+   startHere(testWithInputsFromPaper=False,shiftedTree=False)
    
 
    
