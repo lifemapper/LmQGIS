@@ -62,40 +62,45 @@ def calculateMarginals(I):
    return Wk,Wn
    
    
-def standardizeMatrix(W=None,M=None,I=None,OnesCol=None):
+def standardizeMatrix(W=None,M=None,OnesCol=None):
    
    """
    @summary: standardizes matrix M (phylo encoding) or Env Mtx
    @param OnesCol: column vector of ones, either k or n, k=No.Sps,n=No.Sites
    @param M: phylo encoding mtx or env mtx
-   @param I: incidence matrix, pam
-   @param W: Wk or Wn diag mtx with diag sums
+   @param W: Wk or Wn diag mtx with diag sums from PAM (I)
    """
    
    recipFill = 1.0/W.trace()
    PoverFill  = M * recipFill
    fillMinusOne = W.trace() - 1.0
    recipFillMinusOne = 1.0/fillMinusOne
-   print "starting num"
-   OneByOne = OnesCol*OnesCol.T
-   print "done OneByOne"
-   OneDotW = np.dot(OneByOne,W)
-   print "done OneDotW"
+   
+   #OneByOne = OnesCol*OnesCol.T
+  
+   
+   diagonal = np.diagonal(W)
+   
+   OneDotW = np.repeat(diagonal[np.newaxis,:], M.shape[0], axis = 0) # replaces np.dot(OnesCol*OnesCol.T,W)
+   #OneDotW = np.dot(OneByOne,W)
+  
+   
    #numerator = np.dot(np.dot(OnesCol*OnesCol.T,W),PoverFill)
    numerator = np.dot(OneDotW,PoverFill)
-   print "num"  
+     
    
    ################
    
-   #OneWP1 = np.dot(OnesCol.T * W,M)  # returns a matrix
+   OneW = np.dot(OnesCol.T, W)
    
-   OneWP = np.dot(np.dot(OnesCol.T, W),M) # returns a vector
-   print "OneWP"
+   #OneWP1 = np.dot(OnesCol.T * W,M)  # returns a matrix
+   #OneWP = np.dot(np.dot(OnesCol.T, W),M) # returns a vector
+   OneWP = np.dot(OneW,M) # returns a vector
    
    ####################
    
-   OneWPP = np.dot(np.dot(OnesCol.T,W),(M*M)) # vector
-   print "OneWPP"
+   #OneWPP = np.dot(np.dot(OnesCol.T,W),(M*M)) # vector
+   OneWPP = np.dot(OneW,(M*M)) # vector
    #OneWPP2 = np.dot(OnesCol.T*W,(M*M)) # matrix
    
    
@@ -108,7 +113,7 @@ def standardizeMatrix(W=None,M=None,I=None,OnesCol=None):
    denominator = np.dot(OnesCol,sqrtden)
 
    
-   std = M - (numerator / denominator)  
+   std = M - (numerator * denominator)  # good results with divide, but running into division by zero?
    
    
    return std
@@ -155,6 +160,8 @@ def BetaE_regression(PsigStd,Estd,Wn):
       Estd_i = np.array([Estd[:,i]]).T
       Estd_minus_i = np.delete(Estd,i,1)
       
+      # standard way of calc B in mtx form, # B = (XtX)^-1(XtY)
+      # where Y is response matrix
       BjAll_part = getPartModel(Estd)
       Bji_part = getPartModel(Estd_i)
       Bjminus1_part = getPartModel(Estd_minus_i)
@@ -225,7 +232,7 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       
       numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
       
-      diffRSqr = numDiffRsqr /  np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
+      diffRSqr = numDiffRsqr /  diffRSqrDen# next was unnec. getting repeated -np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
       
       if diffRSqr >= 0:
       
@@ -238,7 +245,7 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
               
       else:
          Pji = np.array([[0.0]])
-         
+      print "done node"   
       return Pji
    #.................
    def getPartModel(E):
@@ -251,6 +258,9 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       return np.dot(invX,rightHand)
    #.................
    # main
+   #diffRSqrDen = np.trace(np.outer(PsigStd.T,PsigStd.T))   # serious memory problems, with anything of any size
+   diffRSqrDen = np.sum(PsigStd**2)
+   print "done diffRSqrDen"
    rl = []
    for i in range(0,Estd.shape[1]):
       # for each variable (column) in Env mtx
@@ -265,11 +275,14 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       r = np.apply_along_axis(getP, 0, PsigStd)
       #if isinstance(r[0],np.ndarray):
       rl.append(r[0])
+      print "done env col ",i
       #else:
       #   rl.append(r)
       
    coefMtx = np.array(rl).T
-   
+   print "min ",coefMtx.min()
+   print "max ",coefMtx.max()
+   print "shape coeffMtx ",coefMtx.shape
    return coefMtx
 # ..................................
 def clock():
@@ -343,6 +356,13 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       
       r, c = I.shape[0], 23
       E = np.random.random_sample((r, c))
+      
+      E1 = np.append(np.random.uniform(3,1300,(5000,4)),np.random.uniform(23,343,(5000,9)),axis=1)
+      E2 = np.append(np.random.uniform(1700,3200,(700,4)),np.random.uniform(111,578,(700,9)),axis=1)
+      E3 = np.append(np.random.uniform(1700,1718,(15058-5700,4)),np.random.uniform(700,1705,(15058-5700,9)),axis=1)
+      Esub = np.append(E1,E2,axis=0)
+      E = np.append(Esub,E3,axis=0)
+      print "new E shape ",E.shape
       #######################
       P,I = makeP(d,I)
       
@@ -366,16 +386,16 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    
    # std P
    Ones = np.array([np.ones(I.shape[1])]).T # column vector
-   Pstd = standardizeMatrix(Wk, P, I, Ones)
-   print "done std P"
+   Pstd = standardizeMatrix(Wk, P, Ones)
+   
    # calc Psig
    PsigStd = np.dot(I,Pstd)
-   print "done Psig"
+   
    
    # std E
    Ones = np.array([np.ones(I.shape[0])]).T
-   Estd = standardizeMatrix(Wn, E, I, Ones)
-   print "done std E"
+   Estd = standardizeMatrix(Wn, E, Ones)
+   
    #BetaE_regression(PsigStd,Estd,Wn)
    C = semiPartCorrelation(PsigStd,Estd,Wn)
    print C
