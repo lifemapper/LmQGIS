@@ -257,7 +257,7 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       rightHand = np.dot(E.T,Wn)
       return np.dot(invX,rightHand)
    #.................
-   # main
+   # main #
    #diffRSqrDen = np.trace(np.outer(PsigStd.T,PsigStd.T))   # serious memory problems, with anything of any size
    diffRSqrDen = np.sum(PsigStd**2)
    print "done diffRSqrDen"
