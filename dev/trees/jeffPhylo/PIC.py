@@ -2,6 +2,7 @@ import os, sys
 import simplejson as json
 import numpy as np
 import operator
+import collections
 from contextlib import contextmanager
 import time
 
@@ -61,6 +62,19 @@ def calculateMarginals(I):
    
    return Wk,Wn
    
+
+def stdMtx(W,M,OnesCol,I):
+   
+   TotalSum = I.sum()
+   SiteWeights = W
+   sPred = np.dot(np.dot(OnesCol.T,SiteWeights),M)
+   sPred2 = np.dot(np.dot(OnesCol.T,SiteWeights),(M*M))
+   MeanWeightedPred = sPred/TotalSum
+   StdDevWeightedPred = ((sPred2-(sPred**2/TotalSum))/(TotalSum))**.5
+   Std = ((np.dot(OnesCol,StdDevWeightedPred))**-1) * (M-np.dot(OnesCol,MeanWeightedPred))
+   
+   
+   return Std
    
 def standardizeMatrix(W=None,M=None,OnesCol=None):
    
@@ -71,23 +85,26 @@ def standardizeMatrix(W=None,M=None,OnesCol=None):
    @param W: Wk or Wn diag mtx with diag sums from PAM (I)
    """
    
-   recipFill = 1.0/W.trace()
-   PoverFill  = M * recipFill
-   fillMinusOne = W.trace() - 1.0
-   recipFillMinusOne = 1.0/fillMinusOne
+   #recipFill = 1.0/W.trace()
+   #PoverFill  = M * recipFill
+   totalSum = W.trace()
+   MeanWeighted  = M / totalSum
+   #fillMinusOne = W.trace() - 1.0
+   #recipFillMinusOne = 1.0/fillMinusOne
    
    #OneByOne = OnesCol*OnesCol.T
   
    
-   diagonal = np.diagonal(W)
+   diagonal = np.diagonal(W)  # what we call alpha for env, omega for phylo
    
-   OneDotW = np.repeat(diagonal[np.newaxis,:], M.shape[0], axis = 0) # replaces np.dot(OnesCol*OnesCol.T,W)
-   #OneDotW = np.dot(OneByOne,W)
+   OneOneTW = np.repeat(diagonal[np.newaxis,:], M.shape[0], axis = 0) # replaces np.dot(OnesCol*OnesCol.T,W)
+   
+   #OneOneTW = np.dot(OneByOne,W)
   
    
    #numerator = np.dot(np.dot(OnesCol*OnesCol.T,W),PoverFill)
-   numerator = np.dot(OneDotW,PoverFill)
-     
+   numerator_part = np.dot(OneOneTW,MeanWeighted)
+   
    
    ################
    
@@ -95,27 +112,39 @@ def standardizeMatrix(W=None,M=None,OnesCol=None):
    
    #OneWP1 = np.dot(OnesCol.T * W,M)  # returns a matrix
    #OneWP = np.dot(np.dot(OnesCol.T, W),M) # returns a vector
-   OneWP = np.dot(OneW,M) # returns a vector
+   OneWM = np.dot(OneW,M) # returns a vector
    
    ####################
    
    #OneWPP = np.dot(np.dot(OnesCol.T,W),(M*M)) # vector
-   OneWPP = np.dot(OneW,(M*M)) # vector
+   OneWMM = np.dot(OneW,(M*M)) # vector
    #OneWPP2 = np.dot(OnesCol.T*W,(M*M)) # matrix
    
    
    ####################
    # can rule out 2 - (1*1), division by zero
    # that leaves, 2 - (2*2) (bad), 1 - (1*1) (bad), 1 - (2*2)
-   den = OneWPP - (np.dot((OneWP*OneWP),np.dot(recipFill,recipFillMinusOne))) 
-   sqrtden = den**.5
-   
-   denominator = np.dot(OnesCol,sqrtden)
-
-   
-   std = M - (numerator * denominator)  # good results with divide, but running into division by zero?
-   
-   
+   #den = OneWPP - (np.dot((OneWP*OneWP),np.dot(recipFill,recipFillMinusOne))) # doesn't match Leibold
+   test = (OneWMM - ((OneWM**2)  / totalSum))
+   print np.where(OneWMM == 0)
+   print np.where(M == 0)
+   print "Cosby"
+   print np.where(OneWM == 0)
+   print (OneWM**2).min()
+   print test.min()
+   StdDevWeighted_Squared = (OneWMM - ((OneWM**2)  / totalSum)) / (totalSum)  # matches Leibold
+   # StdDevWeighted_Squared = (OneWPP - ((OneWP**2)  / totalSum)) / (totalSum -1)  # from equation in non code supplemental
+   print StdDevWeighted_Squared.min()
+   StdDevWeighted = StdDevWeighted_Squared**.5
+   print StdDevWeighted.min()
+   denominator = np.dot(OnesCol,StdDevWeighted)
+   print "min denominator ",denominator.min()
+   denominator_recip = denominator**-1
+   std = denominator_recip * (M - numerator_part)  #running into division by zero for Tashi's data
+   #std = (M - numerator_part) / denominator  # running into division by for Tashi's data
+   #print "my denominator ",denominator
+   #print "my numerator ",(M - numerator)
+  
    return std
 
 
@@ -245,7 +274,7 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
               
       else:
          Pji = np.array([[0.0]])
-      print "done node"   
+      #print "done node"   
       return Pji
    #.................
    def getPartModel(E):
@@ -260,10 +289,11 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
    # main #
    #diffRSqrDen = np.trace(np.outer(PsigStd.T,PsigStd.T))   # serious memory problems, with anything of any size
    diffRSqrDen = np.sum(PsigStd**2)
-   print "done diffRSqrDen"
+   #print "done diffRSqrDen"
    rl = []
    for i in range(0,Estd.shape[1]):
       # for each variable (column) in Env mtx
+      print "env col ",i
       Estd_i = np.array([Estd[:,i]]).T
       Estd_minus_i = np.delete(Estd,i,1)
       
@@ -275,14 +305,14 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       r = np.apply_along_axis(getP, 0, PsigStd)
       #if isinstance(r[0],np.ndarray):
       rl.append(r[0])
-      print "done env col ",i
+      #print "done env col ",i
       #else:
       #   rl.append(r)
       
    coefMtx = np.array(rl).T
-   print "min ",coefMtx.min()
-   print "max ",coefMtx.max()
-   print "shape coeffMtx ",coefMtx.shape
+   #print "min ",coefMtx.min()
+   #print "max ",coefMtx.max()
+   #print "shape coeffMtx ",coefMtx.shape
    return coefMtx
 # ..................................
 def clock():
@@ -304,14 +334,14 @@ def clock():
    #avg = sum / 10000   
    #print "AVG ",avg
 # ........................................
-def makeP(treeDict,I):
+def makeP(treeDict,I,layersPresent=None):
    """
    @summary: encodes phylogeny into matrix P and checks
    for sps in tree but not in PAM (I), if not in PAM, returns
    new PAM (I) in addition to P
    """
    ######### make P ###########
-   tips, internal, tipsNotInMtx = buildTips(treeDict,I.shape[1])
+   tips, internal, tipsNotInMtx = buildTips(treeDict,I.shape[1],layersPresent=layersPresent)
    negsDict = processInternalNodes(internal)
    tipIds,internalIds = getIds(tips,internalDict=internal)
    matrix = initMatrix(len(tipIds),len(internalIds))
@@ -353,18 +383,29 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       ##### Tashi's pam #####
       pamPath = os.path.join(jsP,'pam_2462.npy')
       I = np.load(pamPath)
-      
-      r, c = I.shape[0], 23
+      #### Tashi's layers present ####
+      import cPickle
+      lP = cPickle.load(open(os.path.join(jsP,'indices_2462.pkl')))['layersPresent']
+      ### compresss rows, experimental ###
+      bs = np.any(I,axis=1)  # bolean selection row-wise logical OR
+      delRowPos = np.where(bs == False)[0]  # position of deletes
+      I = np.delete(I,delRowPos,axis=0)
+      ##### compress columns, experimental ###
+      bs = np.any(I,axis=0)  # bolean selection cloumn-wise logical OR
+      delColPos = np.where(bs == False)[0]  # position of deletes
+      I = np.delete(I,delColPos,axis=1)
+      ### Tashi's Env Mtx ###
+      r, c = I.shape[0], 5
       E = np.random.random_sample((r, c))
-      
-      E1 = np.append(np.random.uniform(3,1300,(5000,4)),np.random.uniform(23,343,(5000,9)),axis=1)
-      E2 = np.append(np.random.uniform(1700,3200,(700,4)),np.random.uniform(111,578,(700,9)),axis=1)
-      E3 = np.append(np.random.uniform(1700,1718,(15058-5700,4)),np.random.uniform(700,1705,(15058-5700,9)),axis=1)
-      Esub = np.append(E1,E2,axis=0)
-      E = np.append(Esub,E3,axis=0)
-      print "new E shape ",E.shape
+      #E = np.random.uniform(1,123,(I.shape[0],5))
+      #E1 = np.append(np.random.uniform(3,1300,(5000,4)),np.random.uniform(23,343,(5000,9)),axis=1)
+      #E2 = np.append(np.random.uniform(1700,3200,(700,4)),np.random.uniform(111,578,(700,9)),axis=1)
+      #E3 = np.append(np.random.uniform(1700,1718,(15058-5700,4)),np.random.uniform(700,1705,(15058-5700,9)),axis=1)
+      #Esub = np.append(E1,E2,axis=0)
+      #E = np.append(Esub,E3,axis=0)
+      #print "new E shape ",E.shape
       #######################
-      P,I = makeP(d,I)
+      P,I = makeP(d,I,layersPresent=lP)
       
    else:
       # inputs from Liebold paper
@@ -387,18 +428,27 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    # std P
    Ones = np.array([np.ones(I.shape[1])]).T # column vector
    Pstd = standardizeMatrix(Wk, P, Ones)
-   
-   # calc Psig
-   PsigStd = np.dot(I,Pstd)
+   #
+   ## calc Psig
+   #PsigStd = np.dot(I,Pstd)
    
    
    # std E
-   Ones = np.array([np.ones(I.shape[0])]).T
-   Estd = standardizeMatrix(Wn, E, Ones)
+   #Ones = np.array([np.ones(I.shape[0])]).T
+   #Estd = standardizeMatrix(Wn, E, Ones)
+   #test = stdMtx(Wn, E, Ones, I)
+   
+   #print Estd
+   #print
+   #print test
    
    #BetaE_regression(PsigStd,Estd,Wn)
-   C = semiPartCorrelation(PsigStd,Estd,Wn)
-   print C
+   #C = semiPartCorrelation(PsigStd,Estd,Wn)
+   #print C
+   #print
+   #print C.min()
+   #print C.max()
+   #print C.shape
    
    
 # ........................................   
@@ -410,15 +460,18 @@ def loadJSON(path):
 
 # ........................................    
    
-def buildTips(clade, noColPam ): 
+def buildTips(clade, noColPam, layersPresent=None ): 
    """
    @summary: flattens to tips and return list of tip clades(dicts)
    unsure how calculations would reflect/change if more tips in tree
    than in PAM.  If it does it needs to check for matrix key
    """ 
-   
+   lPItems = layersPresent.items()
+   lPItems.sort(key=operator.itemgetter(0)) # order lyrs present by mtx idx
+   #orderedLyrsPresent = collections.OrderedDict(lPItems)
+   print "LEN ITEMS ",len(lPItems)
    noMx = {'c':noColPam}  # needs to start with last sps in pam
-   
+   test = []
    tips = []
    tipsNotInMatrix = []
    internal = {}
@@ -435,9 +488,16 @@ def buildTips(clade, noColPam ):
             buildLeaves(child)
       else: 
          if "mx" in clade:  
-            castClade = clade.copy()
-            castClade["mx"] = int(castClade["mx"]) 
-            tips.append(castClade)
+            if layersPresent[int(clade['mx'])]: #this is experimental
+               castClade = clade.copy()
+               # sum([x[1] for x in lPItems[:5] if x[1]])
+               #castClade["mx"] = int(castClade["mx"]) 
+               castClade["mx"] = sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])  # number of trues before mx
+               print sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])  #DOESN"T FIX PROBLEM WITH take in processTipNotinMatrix!!
+               test.append(castClade["mx"])
+               tips.append(castClade)
+            else:
+               print "not in pam ",int(clade['mx'])
          else:
             castClade = clade.copy()
             castClade['mx'] = noMx['c']  # assigns a mx starting at end of pam
@@ -491,10 +551,13 @@ def processTipNotInMatrix(tipsNotInMtx,internal,pam):
    la = [] # list of arrays              
    for k in sorted(mxMapping.keys()):
       if isinstance(mxMapping[k],list):
+         print 'k ',mxMapping[k]
          t = np.take(pam,np.array(mxMapping[k]),axis = 1)
          b = np.any(t,axis = 1)  #returns bool logical or
       else:
-         b = np.zeros(pam.shape[0],dtype=np.int)
+         print "does it get in here?"
+         #b = np.zeros(pam.shape[0],dtype=np.int)
+         b = np.ones(pam.shape[0],dtype=np.int)
       la.append(b)
    newPam = np.append(pam,np.array(la).T,axis=1)
    return newPam
