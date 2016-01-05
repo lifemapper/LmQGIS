@@ -88,7 +88,7 @@ def standardizeMatrix(W=None,M=None,OnesCol=None):
    #recipFill = 1.0/W.trace()
    #PoverFill  = M * recipFill
    totalSum = W.trace()
-   MeanWeighted  = M / totalSum
+   MOverFill  = M / totalSum  # ????????, this was POverFill
    #fillMinusOne = W.trace() - 1.0
    #recipFillMinusOne = 1.0/fillMinusOne
    
@@ -103,16 +103,22 @@ def standardizeMatrix(W=None,M=None,OnesCol=None):
   
    
    #numerator = np.dot(np.dot(OnesCol*OnesCol.T,W),PoverFill)
-   numerator_part = np.dot(OneOneTW,MeanWeighted)
+   numerator_part = np.dot(OneOneTW,MOverFill)  # equals ones(NumberSites,1)*MeanWeigthedPred
+   # where MeansWeigthedPred =  sPred(OneWM)/totalSum
    
    
    ################
    
    OneW = np.dot(OnesCol.T, W)
-   
+   #print "OneW "
+   #print np.where(OneW == 0)
+   #print
    #OneWP1 = np.dot(OnesCol.T * W,M)  # returns a matrix
    #OneWP = np.dot(np.dot(OnesCol.T, W),M) # returns a vector
-   OneWM = np.dot(OneW,M) # returns a vector
+   OneWM = np.dot(OneW,M) # returns a vector, equals sPred in Matlab code
+   
+   #  I think this was the problem
+   
    
    ####################
    
@@ -125,20 +131,19 @@ def standardizeMatrix(W=None,M=None,OnesCol=None):
    # can rule out 2 - (1*1), division by zero
    # that leaves, 2 - (2*2) (bad), 1 - (1*1) (bad), 1 - (2*2)
    #den = OneWPP - (np.dot((OneWP*OneWP),np.dot(recipFill,recipFillMinusOne))) # doesn't match Leibold
-   test = (OneWMM - ((OneWM**2)  / totalSum))
-   print np.where(OneWMM == 0)
-   print np.where(M == 0)
-   print "Cosby"
-   print np.where(OneWM == 0)
-   print (OneWM**2).min()
-   print test.min()
+   #print np.where(OneWMM == 0)
+   #print np.where(M == 0)
+   #
+   #print np.where(OneWM == 0)
+   #print (OneWM**2).min()
+   #print test.min()
    StdDevWeighted_Squared = (OneWMM - ((OneWM**2)  / totalSum)) / (totalSum)  # matches Leibold
    # StdDevWeighted_Squared = (OneWPP - ((OneWP**2)  / totalSum)) / (totalSum -1)  # from equation in non code supplemental
-   print StdDevWeighted_Squared.min()
+   #print StdDevWeighted_Squared.min()
    StdDevWeighted = StdDevWeighted_Squared**.5
-   print StdDevWeighted.min()
+   #print StdDevWeighted.min()
    denominator = np.dot(OnesCol,StdDevWeighted)
-   print "min denominator ",denominator.min()
+   #print "min denominator ",denominator.min()
    denominator_recip = denominator**-1
    std = denominator_recip * (M - numerator_part)  #running into division by zero for Tashi's data
    #std = (M - numerator_part) / denominator  # running into division by for Tashi's data
@@ -238,8 +243,98 @@ def BetaE_regression(PsigStd,Estd,Wn):
             pass
             print "negative R squared, node ",x
             print 
-# ........................................ 
-            
+# ........................................
+def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx): 
+   # NodeMtx = P
+   IncidenceMtx = I
+   NumberNodes = NodeMtx.shape[1]
+   VectorProbRsq = np.array([np.ones(NumberNodes)]) # supposed to column vector?, not sure where this is being used right now, looks like might be row vector
+   NumberPredictors = PredictorMtx.shape[1]
+   MatrixProbSemiPartial = np.ones((NumberNodes,NumberPredictors))  # holder array for results?
+   
+   # put results here
+   resultSemiPartial = np.array((NumberNodes,NumberPredictors))
+   
+   
+   for NodeNumber in range(0,NumberNodes):
+      SpeciesPresentAtNode = np.where(NodeMtx[:,NodeNumber] != 0)[0]
+      Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
+      # find rows in Incidence that are all zero
+      bs = np.any(Incidence,axis=1)  # bolean selection row-wise logical OR
+      EmptySites = np.where(bs == False)[0]  # position of deletes
+      Incidence = np.delete(Incidence,EmptySites,0)  # delete rows
+      Predictors = PredictorMtx
+      Predictors = np.delete(Predictors,EmptySites,0) # delete rows
+      NumberSites = Incidence.shape[0]
+      #######################
+      
+      TotalSum = np.sum(Incidence)
+      SumSites = np.sum(Incidence,axis = 1)  # sum of the rows, omega
+      SumSpecies = np.sum(Incidence,axis = 0)  # sum of the columns, alpha
+      NumberSpecies = Incidence.shape[1]
+      SiteWeights = np.diag(SumSites)   # Wn
+      SpeciesWeights = np.diag(SumSpecies) # Wk
+      
+      # standardize Predictor, in this case Env matrix
+      Ones = np.array([np.ones(NumberSites)]).T
+      StdPredictors = stdMtx(SiteWeights, Predictors, Ones, Incidence)
+      ## P standardize 
+      Ones = np.array([np.ones(NumberSpecies)]).T
+      StdNode = stdMtx(SpeciesWeights, NodeMtx[SpeciesPresentAtNode,NodeNumber], Ones, Incidence)
+      
+      # PsigStd
+      StdPSum = np.dot(Incidence,StdNode)  # this is giving values above 1 !!! 
+      
+      # regression #############3
+      Q,R = np.linalg.qr(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
+      
+      RdivQT = R/Q.T
+      StdPredRQ = np.dot(StdPredictors,RdivQT)
+      H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)
+      Predicted =  np.dot(H,StdPSum)
+      #print Predicted
+      ## TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
+      ##TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
+      #
+      ## result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
+      ## want to assign this an element in an array ????
+      #print
+      #print np.dot(np.array([Predicted]).T,np.array([Predicted]))
+      #print "dfadas"
+      #print np.dot(np.array([StdPSum]).T,np.array([StdPSum]))
+      #print np.trace(np.dot(StdPSum.T,StdPSum))
+      resultRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))  
+      #print "resultRsq "
+      #print resultRsq
+      ################################################3
+
+      #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
+      #% freedom for weighted models are different from non-weighted models
+      #% adjustments based on effective degrees of freedom should be considered
+      #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
+      #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
+      
+      # semi partial correlations 
+      for i in range(0,NumberPredictors):
+         IthPredictor = Predictors[:,i]
+         
+         WithoutIthPredictor = np.delete(Predictors,i,axis=1)
+         # % slope for the ith predictor, Beta, regression coefficient
+         # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
+         Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor))
+         #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
+         IthSlope = np.dot(np.dot(np.dot((R/Q.T),IthPredictor),SiteWeights),StdPSum)
+         
+         # % regression for the remaining predictors
+         Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor))
+         RdivQT_r = R/Q.T
+         WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT)
+         H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights)
+         Predicted = np.dot(H,StdPSum)
+         RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
+         #resultSemiPartial[NodeNumber][i]  = (resultRsq)
+         
+# ........................................           
 def semiPartCorrelation(PsigStd,Estd,Wn):
    
    def getP(col):
@@ -348,7 +443,7 @@ def makeP(treeDict,I,layersPresent=None):
    P = buildPMatrix(matrix,internalIds,tips, negsDict)
    
    if len(tipsNotInMtx) > 0:
-      I = processTipNotInMatrix(tipsNotInMtx, internal, I)
+      I = processTipNotInMatrix(tipsNotInMtx, internal, I,layersPresent=layersPresent)
       
    return P, I
 # ........................................
@@ -430,13 +525,13 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    Pstd = standardizeMatrix(Wk, P, Ones)
    #
    ## calc Psig
-   #PsigStd = np.dot(I,Pstd)
+   PsigStd = np.dot(I,Pstd)
    
    
    # std E
-   #Ones = np.array([np.ones(I.shape[0])]).T
-   #Estd = standardizeMatrix(Wn, E, Ones)
-   #test = stdMtx(Wn, E, Ones, I)
+   Ones = np.array([np.ones(I.shape[0])]).T
+   Estd = standardizeMatrix(Wn, E, Ones)
+   #Estd = stdMtx(Wn, E, Ones, I)  # Leibold std procedure
    
    #print Estd
    #print
@@ -444,6 +539,7 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    
    #BetaE_regression(PsigStd,Estd,Wn)
    #C = semiPartCorrelation(PsigStd,Estd,Wn)
+   semiPartCorrelation_Leibold(I,E,P)
    #print C
    #print
    #print C.min()
@@ -469,9 +565,9 @@ def buildTips(clade, noColPam, layersPresent=None ):
    lPItems = layersPresent.items()
    lPItems.sort(key=operator.itemgetter(0)) # order lyrs present by mtx idx
    #orderedLyrsPresent = collections.OrderedDict(lPItems)
-   print "LEN ITEMS ",len(lPItems)
+   
    noMx = {'c':noColPam}  # needs to start with last sps in pam
-   test = []
+   #test = []
    tips = []
    tipsNotInMatrix = []
    internal = {}
@@ -491,13 +587,14 @@ def buildTips(clade, noColPam, layersPresent=None ):
             if layersPresent[int(clade['mx'])]: #this is experimental
                castClade = clade.copy()
                # sum([x[1] for x in lPItems[:5] if x[1]])
-               #castClade["mx"] = int(castClade["mx"]) 
+               #castClade["mx"] = int(castClade["mx"]) # this was just casting allready present mx
                castClade["mx"] = sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])  # number of trues before mx
-               print sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])  #DOESN"T FIX PROBLEM WITH take in processTipNotinMatrix!!
-               test.append(castClade["mx"])
+               #print sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])  #DOESN"T FIX PROBLEM WITH take in processTipNotinMatrix!!
+               #test.append(castClade["mx"])
                tips.append(castClade)
             else:
-               print "not in pam ",int(clade['mx'])
+               pass
+               #print "not in pam ",int(clade['mx'])
          else:
             castClade = clade.copy()
             castClade['mx'] = noMx['c']  # assigns a mx starting at end of pam
@@ -511,10 +608,12 @@ def buildTips(clade, noColPam, layersPresent=None ):
 
 
 # ..........................
-def getSiblingsMx(clade):
+def getSiblingsMx(clade,layersPresent=None):
    """
    @summary: gets all tips that are siblings that are in PAM, (have 'mx')
    """
+   lPItems = layersPresent.items()
+   lPItems.sort(key=operator.itemgetter(0))
    mx = []
    def getMtxIds(clade):
       if "children" in clade:
@@ -522,16 +621,19 @@ def getSiblingsMx(clade):
             getMtxIds(child)
       else:
          if "mx" in clade:
-            mx.append(int(clade["mx"]))
+            #mx.append(int(clade["mx"]))
+            compressedMx = sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])
+            mx.append(compressedMx)
    getMtxIds(clade)
    return mx
 # ..........................
-def processTipNotInMatrix(tipsNotInMtx,internal,pam):
+def processTipNotInMatrix(tipsNotInMtx,internal,pam,layersPresent=None):
    """
    @param tipsNotInMtx: list of tip dictionaries
    @param internal: list of internal nodes made in buildTips
    """     
-   
+   lPItems = layersPresent.items()
+   lPItems.sort(key=operator.itemgetter(0))
    mxMapping = {} 
    for tip in tipsNotInMtx:
       parentId = [x for x in tip["path"].split(",")][1]  
@@ -541,21 +643,22 @@ def processTipNotInMatrix(tipsNotInMtx,internal,pam):
             # not itself
             if 'children' in sibling:
                # recurse unitl it get to tips with 'mx'
-               mxs = getSiblingsMx(sibling)
+               mxs = getSiblingsMx(sibling,layersPresent=layersPresent)
                mxMapping[int(tip['mx'])] = mxs
             else:
                if "mx" in sibling:
-                  mxMapping[int(tip['mx'])] = [int(sibling['mx'])]
+                  #mxMapping[int(tip['mx'])] = [int(sibling['mx'])]
+                  mxMapping[int(tip['mx'])] = sum([x[1] for x in lPItems[:int(sibling["mx"])] if x[1]])
                else:
                   mxMapping[int(tip['mx'])] = 0
    la = [] # list of arrays              
    for k in sorted(mxMapping.keys()):
       if isinstance(mxMapping[k],list):
-         print 'k ',mxMapping[k]
+         
          t = np.take(pam,np.array(mxMapping[k]),axis = 1)
          b = np.any(t,axis = 1)  #returns bool logical or
       else:
-         print "does it get in here?"
+         
          #b = np.zeros(pam.shape[0],dtype=np.int)
          b = np.ones(pam.shape[0],dtype=np.int)
       la.append(b)
@@ -649,7 +752,7 @@ def timer(label):
 if __name__ == "__main__":
    
    
-   startHere(testWithInputsFromPaper=False,shiftedTree=False)
+   startHere(testWithInputsFromPaper=True,shiftedTree=False)
    
 
    
