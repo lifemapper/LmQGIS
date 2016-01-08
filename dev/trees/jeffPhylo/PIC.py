@@ -85,7 +85,11 @@ def stdMtx(W,M,OnesCol,I):
       #print np.where(t == 0)
       Std = ((np.dot(OnesCol,StdDevWeightedPred))**-1) * (M-np.dot(OnesCol,MeanWeightedPred))
    except Warning:
-      print "Warning 3 ",str(Warning)
+      print "Warning 3 ",Warning
+      print M
+      print sPred2  # both exactly the same 
+      print sPred**2/TotalSum
+      print
    
    
    return Std
@@ -265,12 +269,14 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
    VectorProbRsq = np.array([np.ones(NumberNodes)]) # supposed to column vector?, not sure where this is being used right now, looks like might be row vector
    NumberPredictors = PredictorMtx.shape[1]
    MatrixProbSemiPartial = np.ones((NumberNodes,NumberPredictors))  # holder array for results?
-   
+   print NodeMtx
+   print
    # put results here
    resultSemiPartial = np.array((NumberNodes,NumberPredictors))
    
    skippedNodes = 0
    for NodeNumber in range(0,NumberNodes):
+      print
       SpeciesPresentAtNode = np.where(NodeMtx[:,NodeNumber] != 0)[0]
       Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
       
@@ -279,16 +285,20 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
       emptyCol = np.where(bs == False)[0]
       #############
       if len(emptyCol) == 0:
+         print "node number ",NodeNumber
          ###########
          # find rows in Incidence that are all zero
          bs = np.any(Incidence,axis=1)  # bolean selection row-wise logical OR
          EmptySites = np.where(bs == False)[0]  # position of deletes
          Incidence = np.delete(Incidence,EmptySites,0)  # delete rows
-         print "rows in new Incidence ",Incidence.shape[0]
+         #print "rows in new Incidence ",Incidence.shape[0]
          Predictors = PredictorMtx
          Predictors = np.delete(Predictors,EmptySites,0) # delete rows
          NumberSites = Incidence.shape[0]
          #######################
+         
+         if NumberPredictors > (NumberSites -2):  # or is it, <
+            pass
          
          TotalSum = np.sum(Incidence)
          SumSites = np.sum(Incidence,axis = 1)  # sum of the rows, omega
@@ -297,73 +307,81 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
          SiteWeights = np.diag(SumSites)   # Wn
          SpeciesWeights = np.diag(SumSpecies) # Wk
          
-         # standardize Predictor, in this case Env matrix
-         Ones = np.array([np.ones(NumberSites)]).T
-         StdPredictors = stdMtx(SiteWeights, Predictors, Ones, Incidence)
-         ## P standardize 
-         Ones = np.array([np.ones(NumberSpecies)]).T
-         print "node number ",NodeNumber
-         StdNode = stdMtx(SpeciesWeights, NodeMtx[SpeciesPresentAtNode,NodeNumber], Ones, Incidence)
-         
-         
-         
-         # PsigStd
-         StdPSum = np.dot(Incidence,StdNode)  # this is giving values above 1 !!! 
-         
-         
-         # regression #############3
-         Q,R = np.linalg.qr(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
-         
-         RdivQT = R/Q.T
-         
-         StdPredRQ = np.dot(StdPredictors,RdivQT)
-         # H is BetaAll
-         H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # this is where the hangup is, won't scale
-         print "H"
-         print H
-         print "where is the hang up"
-         Predicted =  np.dot(H,StdPSum)
-         
-         ## TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
-         ##TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
-         #
-         ## result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
-         ## want to assign this an element in an array ????
-         print "SIG ",StdPSum
-         #np.trace(np.dot(Predicted.T,Predicted))  # test
-         #resultRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum)) 
-         print "sum of sqrs ",np.sum(StdPSum**2) 
-         resultRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)  # if any element in the denominator is zero, error obviously, happens with zero columns in PAM
-         ################################################3
-         
-         #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
-         #% freedom for weighted models are different from non-weighted models
-         #% adjustments based on effective degrees of freedom should be considered
-         #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
-         #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
-         
-         if NumberPredictors > (NumberSites -2):  # or is it, <
-            print "WHOA!!!!!"
-         
-         # semi partial correlations 
-         for i in range(0,NumberPredictors):
-            print "predictor no. ",i
-            IthPredictor = Predictors[:,i]
-            WithoutIthPredictor = np.delete(Predictors,i,axis=1)
-            # % slope for the ith predictor, Beta, regression coefficient
-            # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
-            print np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor)
-            Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor))
-            #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
-            IthSlope = np.dot(np.dot(np.dot((R/Q.T),IthPredictor),SiteWeights),StdPSum)
+         try:
+            # standardize Predictor, in this case Env matrix
+            Ones = np.array([np.ones(NumberSites)]).T
+            StdPredictors = stdMtx(SiteWeights, Predictors, Ones, Incidence)
+            print "STD PRED!!"
+            ## P standardize 
+            Ones = np.array([np.ones(NumberSpecies)]).T
             
-            # % regression for the remaining predictors
-            Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor))
-            RdivQT_r = R/Q.T
-            WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
-            H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights)
-            Predicted = np.dot(H,StdPSum)
-            RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
+            StdNode = stdMtx(SpeciesWeights, NodeMtx[SpeciesPresentAtNode,NodeNumber], Ones, Incidence)
+            print "STD NODE!!"
+            
+         except:
+            print "COULD NOT STD FOR NODE ",NodeNumber
+         else:
+            print
+            print "std Node ",StdNode
+            # PsigStd
+            StdPSum = np.dot(Incidence,StdNode)  # this is giving values above 1 !!! 
+            print 
+            print "Incidence "
+            print Incidence
+            print
+            print "PSum ",StdPSum
+            # regression #############3
+            Q,R = np.linalg.qr(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
+            
+            RdivQT = R/Q.T
+            
+            StdPredRQ = np.dot(StdPredictors,RdivQT)
+            # H is BetaAll
+            H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # this is where the hangup is, won't scale
+            
+            Predicted =  np.dot(H,StdPSum)
+            
+            ## TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
+            ##TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
+            #
+            ## result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
+            ## want to assign this an element in an array ????
+           
+            #np.trace(np.dot(Predicted.T,Predicted))  # test
+            #resultRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum)) 
+             
+            resultRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)  # if any element in the denominator is zero, error obviously, happens with zero columns in PAM
+            ################################################3
+            
+            #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
+            #% freedom for weighted models are different from non-weighted models
+            #% adjustments based on effective degrees of freedom should be considered
+            #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
+            #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
+            
+            
+            
+            # semi partial correlations 
+            for i in range(0,NumberPredictors):
+               print "predictor no. ",i
+               IthPredictor = np.array([Predictors[:,i]]).T
+               WithoutIthPredictor = np.delete(Predictors,i,axis=1)
+               # % slope for the ith predictor, Beta, regression coefficient
+               # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
+               
+               Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor))
+               #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
+               
+               IthSlope = np.dot(np.dot(np.dot((R/Q.T),IthPredictor.T),SiteWeights),StdPSum)
+               
+               # % regression for the remaining predictors
+               Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor))
+               RdivQT_r = R/Q.T
+               WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
+               H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights)
+               Predicted = np.dot(H,StdPSum)
+               #RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
+               RemainingRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)
             #resultSemiPartial[NodeNumber][i]  = (resultRsq)
          
 # ........................................           
@@ -537,6 +555,8 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       #
       #######################
       P,I = makeP(d,I,layersPresent=lP)
+      print I
+      print 
       #P[0][3] = -1.0  # this is the key
       #P[1][4] = 0.0   # this is the key
       print "shape P ",P.shape
