@@ -46,6 +46,8 @@ def getEnvMatrix():
                  [3.89, 0.99,  21.11], 
                  [3.97, 1.2,  12.01], 
                  [3.23, 1.0,  10.12] ])
+   
+  
    return E
 
 def calculateMarginals(I):
@@ -69,7 +71,9 @@ def calculateMarginals(I):
 def stdMtx(W,M,OnesCol,I):
    
    TotalSum = I.sum()
+   
    SiteWeights = W
+   
    sPred = np.dot(np.dot(OnesCol.T,SiteWeights),M)
    sPred2 = np.dot(np.dot(OnesCol.T,SiteWeights),(M*M))
    try:
@@ -86,10 +90,7 @@ def stdMtx(W,M,OnesCol,I):
       Std = ((np.dot(OnesCol,StdDevWeightedPred))**-1) * (M-np.dot(OnesCol,MeanWeightedPred))
    except Warning:
       print "Warning 3 ",Warning
-      print M
-      print sPred2  # both exactly the same 
-      print sPred**2/TotalSum
-      print
+      
    
    
    return Std
@@ -276,7 +277,7 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
    
    skippedNodes = 0
    for NodeNumber in range(0,NumberNodes):
-      print
+      
       SpeciesPresentAtNode = np.where(NodeMtx[:,NodeNumber] != 0)[0]
       Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
       
@@ -284,14 +285,17 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
       bs = np.any(Incidence, axis=0)
       emptyCol = np.where(bs == False)[0]
       #############
-      if len(emptyCol) == 0:
+      
+     
+      ###########
+      # find rows in Incidence that are all zero
+      bs = np.any(Incidence,axis=1)  # bolean selection row-wise logical OR
+      EmptySites = np.where(bs == False)[0]  # position of deletes
+      Incidence = np.delete(Incidence,EmptySites,0)  # delete rows
+      
+      if len(emptyCol) == 0 and Incidence.shape[0] > 1:
+         print;print
          print "node number ",NodeNumber
-         ###########
-         # find rows in Incidence that are all zero
-         bs = np.any(Incidence,axis=1)  # bolean selection row-wise logical OR
-         EmptySites = np.where(bs == False)[0]  # position of deletes
-         Incidence = np.delete(Incidence,EmptySites,0)  # delete rows
-         #print "rows in new Incidence ",Incidence.shape[0]
          Predictors = PredictorMtx
          Predictors = np.delete(Predictors,EmptySites,0) # delete rows
          NumberSites = Incidence.shape[0]
@@ -301,43 +305,44 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
             pass
          
          TotalSum = np.sum(Incidence)
-         SumSites = np.sum(Incidence,axis = 1)  # sum of the rows, omega
-         SumSpecies = np.sum(Incidence,axis = 0)  # sum of the columns, alpha
+         SumSites = np.sum(Incidence,axis = 1)  # sum of the rows, alpha
+         SumSpecies = np.sum(Incidence,axis = 0)  # sum of the columns, omega
          NumberSpecies = Incidence.shape[1]
          SiteWeights = np.diag(SumSites)   # Wn
          SpeciesWeights = np.diag(SumSpecies) # Wk
          
          try:
+            
             # standardize Predictor, in this case Env matrix
             Ones = np.array([np.ones(NumberSites)]).T
             StdPredictors = stdMtx(SiteWeights, Predictors, Ones, Incidence)
-            print "STD PRED!!"
+            #print "STD PRED!!"
             ## P standardize 
             Ones = np.array([np.ones(NumberSpecies)]).T
             
             StdNode = stdMtx(SpeciesWeights, NodeMtx[SpeciesPresentAtNode,NodeNumber], Ones, Incidence)
-            print "STD NODE!!"
+            #print "STD NODE!!"
             
          except:
             print "COULD NOT STD FOR NODE ",NodeNumber
          else:
-            print
-            print "std Node ",StdNode
+            
             # PsigStd
-            StdPSum = np.dot(Incidence,StdNode)  # this is giving values above 1 !!! 
-            print 
-            print "Incidence "
-            print Incidence
-            print
-            print "PSum ",StdPSum
+            StdPSum = np.dot(Incidence,StdNode)  
+            
             # regression #############3
             Q,R = np.linalg.qr(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
             
-            RdivQT = R/Q.T
+            invTest = np.linalg.inv(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
+            
+            #print invTest;print
+            
+            RdivQT = np.linalg.lstsq(R,Q.T)[0]
+            #print RdivQT
             
             StdPredRQ = np.dot(StdPredictors,RdivQT)
             # H is BetaAll
-            H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # this is where the hangup is, won't scale
+            H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # WON'T SCALE!!
             
             Predicted =  np.dot(H,StdPSum)
             
@@ -347,43 +352,46 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
             ## result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
             ## want to assign this an element in an array ????
            
-            #np.trace(np.dot(Predicted.T,Predicted))  # test
             #resultRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum)) 
-             
-            resultRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)  # if any element in the denominator is zero, error obviously, happens with zero columns in PAM
-            ################################################3
-            
-            #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
-            #% freedom for weighted models are different from non-weighted models
-            #% adjustments based on effective degrees of freedom should be considered
-            #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
-            #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
-            
-            
-            
-            # semi partial correlations 
-            for i in range(0,NumberPredictors):
-               print "predictor no. ",i
-               IthPredictor = np.array([Predictors[:,i]]).T
-               WithoutIthPredictor = np.delete(Predictors,i,axis=1)
-               # % slope for the ith predictor, Beta, regression coefficient
-               # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
+            if np.sum(StdPSum**2) != 0:
+               resultRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)  # if  zero in denom , error obviously,
+               ################################################3
                
-               Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor))
-               #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
+               #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
+               #% freedom for weighted models are different from non-weighted models
+               #% adjustments based on effective degrees of freedom should be considered
+               #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
+               #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
                
-               IthSlope = np.dot(np.dot(np.dot((R/Q.T),IthPredictor.T),SiteWeights),StdPSum)
-               
-               # % regression for the remaining predictors
-               Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor))
-               RdivQT_r = R/Q.T
-               WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
-               H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights)
-               Predicted = np.dot(H,StdPSum)
-               #RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
-               RemainingRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)
-            #resultSemiPartial[NodeNumber][i]  = (resultRsq)
-         
+               # semi partial correlations 
+               for i in range(0,NumberPredictors):
+                  print "predictor no. ",i
+                  IthPredictor = np.array([Predictors[:,i]]).T
+                  WithoutIthPredictor = np.delete(Predictors,i,axis=1)
+                  
+                  # % slope for the ith predictor, Beta, regression coefficient
+                  # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
+                  Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor))
+                  #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
+                  RdivQT = np.linalg.lstsq(R,Q.T)[0]
+                  IthSlope = np.dot(np.dot(np.dot(RdivQT,IthPredictor.T),SiteWeights),StdPSum)
+                  
+                  # % regression for the remaining predictors
+                  Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor))
+                  RdivQT_r = np.linalg.lstsq(R,Q.T)[0]
+                  WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
+                  H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights)
+                  Predicted = np.dot(H,StdPSum)
+                  #RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
+                  RemainingRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)
+                  if (resultRsq - RemainingRsq) >= 0:
+                     resultSemiPartial = IthSlope * ((resultRsq - RemainingRsq)**.5) / np.absolute(IthSlope)
+                  else:
+                     #print "nothing"
+                     resultSemiPartial = 0
+                  print "SEMI ",resultSemiPartial;print
+            else:
+               print "division by zero"
 # ........................................           
 def semiPartCorrelation(PsigStd,Estd,Wn):
    
@@ -406,7 +414,7 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       
       numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
       
-      diffRSqr = numDiffRsqr /  diffRSqrDen# next was unnec. getting repeated -np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
+      diffRSqr = numDiffRsqr /  diffRSqrDen # next was unnec. getting repeated -np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
       
       if diffRSqr >= 0:
       
@@ -588,26 +596,26 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    Wk,Wn = calculateMarginals(I)
    
    # std P
-   #Ones = np.array([np.ones(I.shape[1])]).T # column vector
-   #Pstd = standardizeMatrix(Wk, P, Ones)
+   Ones = np.array([np.ones(I.shape[1])]).T # column vector
+   Pstd = standardizeMatrix(Wk, P, Ones)
    ##
    ### calc Psig
-   #PsigStd = np.dot(I,Pstd)
+   PsigStd = np.dot(I,Pstd)
    
    
    # std E
-   #Ones = np.array([np.ones(I.shape[0])]).T
-   #Estd = standardizeMatrix(Wn, E, Ones)
-   #Estd = stdMtx(Wn, E, Ones, I)  # Leibold std procedure
+   Ones = np.array([np.ones(I.shape[0])]).T
+   Estd = standardizeMatrix(Wn, E, Ones)
+   Estd = stdMtx(Wn, E, Ones, I)  # Leibold std procedure
    
    #print Estd
    #print
    #print test
    
    #BetaE_regression(PsigStd,Estd,Wn)
-   #C = semiPartCorrelation(PsigStd,Estd,Wn)
-   semiPartCorrelation_Leibold(I,E,P)
-   #print C
+   C = semiPartCorrelation(PsigStd,Estd,Wn)
+   #semiPartCorrelation_Leibold(I,E,P)
+   print C
    #print
    #print C.min()
    #print C.max()
@@ -840,7 +848,7 @@ def timer(label):
 if __name__ == "__main__":
    
    
-   startHere(testWithInputsFromPaper=False,shiftedTree=False)
+   startHere(testWithInputsFromPaper=True,shiftedTree=False)
    
 
    
