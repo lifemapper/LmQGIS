@@ -274,7 +274,7 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
    print
    # put results here
    resultSemiPartial = np.array((NumberNodes,NumberPredictors))
-   
+   faster = slower = 0
    skippedNodes = 0
    for NodeNumber in range(0,NumberNodes):
       
@@ -332,29 +332,49 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
             
             # regression #############3
             Q,R = np.linalg.qr(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
+            print "done QR"
             
-            invTest = np.linalg.inv(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
             
-            #print invTest;print
             
             RdivQT = np.linalg.lstsq(R,Q.T)[0]
+            print "done left division"
             #print RdivQT
             
             StdPredRQ = np.dot(StdPredictors,RdivQT)
             # H is BetaAll
-            H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # WON'T SCALE!!
             
+            swDiagonoal = np.diagonal(SiteWeights)
+            
+            #st = time.clock()
+            #H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # WON'T SCALE!!
+            H_first = np.dot(StdPredRQ,StdPredictors.T)
+            H = np.einsum('ij,j->ij',H_first,swDiagonoal)
+            #et = time.clock()
+            #tt_dot = et - st
+            
+            
+            
+            #st = time.clock()
+            #H_first = np.dot(StdPredRQ,StdPredictors.T)
+            #H = np.apply_along_axis(lambda x : x*swDiagonoal, 1, H_first)
+            #et = time.clock()
+            #tt_apply = et -st
+            
+            # try this too
+            # np.einsum('ij,j->ij',A,b)
+            
+           
             Predicted =  np.dot(H,StdPSum)
             
-            ## TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
-            ##TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
-            #
-            ## result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
-            ## want to assign this an element in an array ????
-           
-            #resultRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum)) 
-            if np.sum(StdPSum**2) != 0:
-               resultRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)  # if  zero in denom , error obviously,
+            
+            # TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
+            #TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
+            
+            # result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
+            # want to assign this an element in an array ????
+            StdPSumSqrs = np.sum(StdPSum**2)
+            if  StdPSumSqrs != 0:
+               resultRsq = np.sum(Predicted**2)/StdPSumSqrs  # if  zero in denom , error obviously,
                ################################################3
                
                #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
@@ -371,16 +391,24 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
                   
                   # % slope for the ith predictor, Beta, regression coefficient
                   # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
-                  Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor))
+                  #Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor)) # original
+                  Q,R = np.linalg.qr(np.dot(np.einsum('ij,j->ij',IthPredictor.T,swDiagonoal),IthPredictor))
                   #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
                   RdivQT = np.linalg.lstsq(R,Q.T)[0]
-                  IthSlope = np.dot(np.dot(np.dot(RdivQT,IthPredictor.T),SiteWeights),StdPSum)
+                  
+                  IthsSlope_part = np.dot(RdivQT,IthPredictor.T)
+                  IthsSlope_second_part = np.einsum('ij,j->ij',IthsSlope_part,swDiagonoal)
+                  IthSlope = np.dot(IthsSlope_second_part,StdPSum)
+                  #IthSlope = np.dot(np.dot(np.dot(RdivQT,IthPredictor.T),SiteWeights),StdPSum)  # original
                   
                   # % regression for the remaining predictors
-                  Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor))
+                  #Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor)) #original
+                  Q,R = np.linalg.qr(np.dot(np.einsum('ij,j->ij',WithoutIthPredictor.T,swDiagonoal),WithoutIthPredictor))
                   RdivQT_r = np.linalg.lstsq(R,Q.T)[0]
                   WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
-                  H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights)
+                  H_part = np.dot(WithoutPredRQ_r,WithoutIthPredictor.T)
+                  H = np.einsum('ij,j->ij',H_part,swDiagonoal)
+                  #H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights) #original
                   Predicted = np.dot(H,StdPSum)
                   #RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
                   RemainingRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)
@@ -392,6 +420,8 @@ def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx):
                   print "SEMI ",resultSemiPartial;print
             else:
                print "division by zero"
+               
+   
 # ........................................           
 def semiPartCorrelation(PsigStd,Estd,Wn):
    
@@ -412,7 +442,7 @@ def semiPartCorrelation(PsigStd,Estd,Wn):
       YjminusI = np.dot(Estd_minus_i,BetaEjMinusi)
       ###############
       
-      numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))
+      numDiffRsqr = np.trace(np.dot(YjAll.T,YjAll)) - np.trace(np.dot(YjminusI.T,YjminusI))  # thise are just sum of the squares too
       
       diffRSqr = numDiffRsqr /  diffRSqrDen # next was unnec. getting repeated -np.trace(np.outer(PsigStd.T,PsigStd.T))#  this wasn't a diagonal matrix - np.trace(PsigStd.T*PsigStd.T)
       
@@ -519,10 +549,10 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    #######################
    if not testWithInputsFromPaper:
       #### load tree json ######
-      jsP = "/home/jcavner/PhyloXM_Examples/"
-      #jsP = "/home/jcavner/TASHI_PAM/"
-      fN = "Liebold_notEverythinginMatrix.json"
-      #fN = 'tree.json'
+      #jsP = "/home/jcavner/PhyloXM_Examples/"
+      jsP = "/home/jcavner/TASHI_PAM/"
+      #fN = "Liebold_notEverythinginMatrix.json"
+      fN = 'tree.json'
       path = os.path.join(jsP,fN)
       d = loadJSON(path)
       ##############
@@ -543,23 +573,23 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       lP = {0:True,1:False,2:True}
       lP = None
       ###### Tashi's pam #####
-      #pamPath = os.path.join(jsP,'pam_2462.npy')
-      #I = np.load(pamPath)
-      ##### Tashi's layers present ####
-      #import cPickle
-      #lP = cPickle.load(open(os.path.join(jsP,'indices_2462.pkl')))['layersPresent']
-      #lP = None
-      #### compresss rows, experimental ###
-      #bs = np.any(I,axis=1)  # bolean selection row-wise logical OR
-      #delRowPos = np.where(bs == False)[0]  # position of deletes
-      ##I = np.delete(I,delRowPos,axis=0)
-      ###### compress columns, experimental ###
-      #bs = np.any(I,axis=0)  # bolean selection cloumn-wise logical OR
-      #delColPos = np.where(bs == False)[0]  # position of deletes
-      ##I = np.delete(I,delColPos,axis=1)
-      #### Tashi's Env Mtx ###
-      #r, c = I.shape[0], 5
-      #E = np.random.random_sample((r, c))
+      pamPath = os.path.join(jsP,'pam_2462.npy')
+      I = np.load(pamPath)
+      #### Tashi's layers present ####
+      import cPickle
+      lP = cPickle.load(open(os.path.join(jsP,'indices_2462.pkl')))['layersPresent']
+      lP = None
+      ### compresss rows, experimental ###
+      bs = np.any(I,axis=1)  # bolean selection row-wise logical OR
+      delRowPos = np.where(bs == False)[0]  # position of deletes
+      #I = np.delete(I,delRowPos,axis=0)
+      ##### compress columns, experimental ###
+      bs = np.any(I,axis=0)  # bolean selection cloumn-wise logical OR
+      delColPos = np.where(bs == False)[0]  # position of deletes
+      #I = np.delete(I,delColPos,axis=1)
+      ### Tashi's Env Mtx ###
+      r, c = I.shape[0], 5
+      E = np.random.random_sample((r, c))
       #
       #######################
       P,I = makeP(d,I,layersPresent=lP)
@@ -593,29 +623,29 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    #print
    #print np.sum(P[:,notZero],axis=0)     
           
-   Wk,Wn = calculateMarginals(I)
-   
-   # std P
-   Ones = np.array([np.ones(I.shape[1])]).T # column vector
-   Pstd = standardizeMatrix(Wk, P, Ones)
-   ##
-   ### calc Psig
-   PsigStd = np.dot(I,Pstd)
-   
-   
-   # std E
-   Ones = np.array([np.ones(I.shape[0])]).T
-   Estd = standardizeMatrix(Wn, E, Ones)
-   Estd = stdMtx(Wn, E, Ones, I)  # Leibold std procedure
+   #Wk,Wn = calculateMarginals(I)
+   #
+   ## std P
+   #Ones = np.array([np.ones(I.shape[1])]).T # column vector
+   #Pstd = standardizeMatrix(Wk, P, Ones)
+   ###
+   #### calc Psig
+   #PsigStd = np.dot(I,Pstd)
+   #
+   #
+   ## std E
+   #Ones = np.array([np.ones(I.shape[0])]).T
+   #Estd = standardizeMatrix(Wn, E, Ones)
+   #Estd = stdMtx(Wn, E, Ones, I)  # Leibold std procedure
    
    #print Estd
    #print
    #print test
    
    #BetaE_regression(PsigStd,Estd,Wn)
-   C = semiPartCorrelation(PsigStd,Estd,Wn)
-   #semiPartCorrelation_Leibold(I,E,P)
-   print C
+   #C = semiPartCorrelation(PsigStd,Estd,Wn)
+   semiPartCorrelation_Leibold(I,E,P)
+   #print C
    #print
    #print C.min()
    #print C.max()
@@ -848,7 +878,7 @@ def timer(label):
 if __name__ == "__main__":
    
    
-   startHere(testWithInputsFromPaper=True,shiftedTree=False)
+   startHere(testWithInputsFromPaper=False,shiftedTree=False)
    
 
    
