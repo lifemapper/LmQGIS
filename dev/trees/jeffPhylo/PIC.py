@@ -76,20 +76,20 @@ def stdMtx(W,M,OnesCol,I):
    
    sPred = np.dot(np.dot(OnesCol.T,SiteWeights),M)
    sPred2 = np.dot(np.dot(OnesCol.T,SiteWeights),(M*M))
-   try:
-      MeanWeightedPred = sPred/TotalSum
-   except Warning:
-      print Warning
-   try:
-      StdDevWeightedPred = ((sPred2-(sPred**2/TotalSum))/(TotalSum))**.5
-   except Warning:
-      print "Warning 2 ",str(Warning)
-   try:
-      t = np.dot(OnesCol,StdDevWeightedPred)
+   #try:
+   MeanWeightedPred = sPred/TotalSum
+   #except Warning:
+   #   print Warning
+   #try:
+   StdDevWeightedPred = ((sPred2-(sPred**2/TotalSum))/(TotalSum))**.5
+   #except Warning:
+   #   print "Warning 2 ",str(Warning)
+   #try:
+   t = np.dot(OnesCol,StdDevWeightedPred)
       #print np.where(t == 0)
-      Std = ((np.dot(OnesCol,StdDevWeightedPred))**-1) * (M-np.dot(OnesCol,MeanWeightedPred))
-   except Warning:
-      print "Warning 3 ",Warning
+   Std = ((np.dot(OnesCol,StdDevWeightedPred))**-1) * (M-np.dot(OnesCol,MeanWeightedPred))
+   #except Warning:
+   #   print "Warning 3 ",Warning
       
    
    
@@ -262,6 +262,183 @@ def BetaE_regression(PsigStd,Estd,Wn):
             pass
             print "negative R squared, node ",x
             print 
+            
+# ........................................
+def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx): 
+   # NodeMtx = P
+   IncidenceMtx = I
+   NumberNodes = NodeMtx.shape[1]
+   VectorProbRsq = np.array([np.ones(NumberNodes)]) # supposed to column vector?, not sure where this is being used right now, looks like might be row vector
+   NumberPredictors = PredictorMtx.shape[1]
+   MatrixProbSemiPartial = np.ones((NumberNodes,NumberPredictors))  # holder array for results?
+   iDictPred = {}
+   iDictNode = {'y':0}
+   
+   # put results here
+   resultSemiPartial = np.zeros((NumberNodes,NumberPredictors))
+  
+  
+   def predictors(predictorCol, **kwargs):
+      try:
+         Predictors = kwargs['Predictors']
+         swDiagonoal = kwargs['swDiagonoal']
+         StdPSum  = kwargs['StdPSum']
+         resultRsq = kwargs['resultRsq']
+         x = iDictPred['x']
+         
+         
+         IthPredictor = np.array([predictorCol]).T
+         WithoutIthPredictor = np.delete(Predictors,x,axis=1)  
+         
+         # % slope for the ith predictor, Beta, regression coefficient
+         # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
+         #Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor)) # original
+         Q,R = np.linalg.qr(np.dot(np.einsum('ij,j->ij',IthPredictor.T,swDiagonoal),IthPredictor))
+         #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
+         RdivQT = np.linalg.lstsq(R,Q.T)[0]
+         
+         IthsSlope_part = np.dot(RdivQT,IthPredictor.T)
+         IthsSlope_second_part = np.einsum('ij,j->ij',IthsSlope_part,swDiagonoal)
+         IthSlope = np.dot(IthsSlope_second_part,StdPSum)
+         #IthSlope = np.dot(np.dot(np.dot(RdivQT,IthPredictor.T),SiteWeights),StdPSum)  # original
+         
+         # % regression for the remaining predictors
+         #Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor)) #original
+         Q,R = np.linalg.qr(np.dot(np.einsum('ij,j->ij',WithoutIthPredictor.T,swDiagonoal),WithoutIthPredictor))
+         RdivQT_r = np.linalg.lstsq(R,Q.T)[0]
+         WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
+         H_part = np.dot(WithoutPredRQ_r,WithoutIthPredictor.T)
+         H = np.einsum('ij,j->ij',H_part,swDiagonoal)
+         #H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights) #original
+         Predicted = np.dot(H,StdPSum)
+         #RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
+         RemainingRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)
+         if (resultRsq - RemainingRsq) >= 0:
+            resultSP = IthSlope * ((resultRsq - RemainingRsq)**.5) / np.absolute(IthSlope)
+         else:
+            resultSP = np.array([0.0])
+         
+         iDictPred['x'] += 1
+      except Exception, e:
+         resultSP = np.array([0.0])
+      
+      return resultSP
+   
+   def nodes(nodeCol):
+      """
+      @summary: operation to be performed on each node
+      """
+      #print 
+      #print "node ",iDictNode['y']
+      iDictPred['x'] = 0
+      
+      SpeciesPresentAtNode = np.where(nodeCol != 0)[0]
+      Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
+      
+      # added Jeff, find if any of the columns in sliced Incidence are all zero
+      bs = np.any(Incidence, axis=0)
+      emptyCol = np.where(bs == False)[0]
+      #############
+      
+     
+      ###########
+      # find rows in Incidence that are all zero
+      bs = np.any(Incidence,axis=1)  # bolean selection row-wise logical OR
+      EmptySites = np.where(bs == False)[0]  # position of deletes
+      Incidence = np.delete(Incidence,EmptySites,0)  # delete rows
+      
+      if Incidence.shape[0] > 1:# and len(emptyCol) == 0: # might not need this last clause, get more good nodes for Tashi without it
+         
+         #print "node number ",NodeNumber
+         Predictors = PredictorMtx
+         Predictors = np.delete(Predictors,EmptySites,0) # delete rows
+         NumberSites = Incidence.shape[0]
+         #######################
+         
+         if NumberPredictors > (NumberSites -2):  # or is it, <
+            pass
+         
+         TotalSum = np.sum(Incidence)
+         SumSites = np.sum(Incidence,axis = 1)  # sum of the rows, alpha
+         SumSpecies = np.sum(Incidence,axis = 0)  # sum of the columns, omega
+         NumberSpecies = Incidence.shape[1]
+         SiteWeights = np.diag(SumSites)   # Wn
+         SpeciesWeights = np.diag(SumSpecies) # Wk
+         
+         try:
+            
+            # standardize Predictor, in this case Env matrix
+            Ones = np.array([np.ones(NumberSites)]).T
+            StdPredictors = stdMtx(SiteWeights, Predictors, Ones, Incidence)
+            
+            ## P standardize 
+            Ones = np.array([np.ones(NumberSpecies)]).T
+            
+            #StdNode = stdMtx(SpeciesWeights, NodeMtx[SpeciesPresentAtNode,NodeNumber], Ones, Incidence)
+            StdNode = stdMtx(SpeciesWeights, nodeCol[SpeciesPresentAtNode], Ones, Incidence)
+              
+         except:
+            
+            result = np.array([np.zeros(NumberPredictors)])
+         else:
+            
+            # PsigStd
+            StdPSum = np.dot(Incidence,StdNode)  
+            
+            # regression #############3
+            Q,R = np.linalg.qr(np.dot(np.dot(StdPredictors.T,SiteWeights),StdPredictors))
+           
+            RdivQT = np.linalg.lstsq(R,Q.T)[0]
+            
+            StdPredRQ = np.dot(StdPredictors,RdivQT)
+            
+            
+            swDiagonoal = np.diagonal(SiteWeights)
+            
+            # H is BetaAll
+            #H = np.dot(np.dot(StdPredRQ,StdPredictors.T),SiteWeights)  # WON'T SCALE!!
+            H_first = np.dot(StdPredRQ,StdPredictors.T)
+            H = np.einsum('ij,j->ij',H_first,swDiagonoal)
+            
+            Predicted =  np.dot(H,StdPSum)
+            
+            
+            #TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
+            #TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
+            
+            # result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
+            
+            StdPSumSqrs = np.sum(StdPSum**2)
+            if  StdPSumSqrs != 0:
+               resultRsq = np.sum(Predicted**2)/StdPSumSqrs  # if  zero in denom , error obviously,
+               ################################################3
+               
+               #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
+               #% freedom for weighted models are different from non-weighted models
+               #% adjustments based on effective degrees of freedom should be considered
+               #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
+               #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
+               
+               # semi partial correlations 
+               d =  {'Predictors' :Predictors,'swDiagonoal': swDiagonoal, 'StdPSum':StdPSum,'resultRsq':resultRsq}
+               result = np.apply_along_axis(predictors, 0, Predictors, **d)
+               
+                  
+            else:
+               result = np.array([np.zeros(NumberPredictors)])
+      else:
+         result = np.array([np.zeros(NumberPredictors)])
+      resultSemiPartial[iDictNode['y']] = result[0] 
+      iDictNode['y'] += 1    
+        
+      return np.array([])      
+   
+   np.apply_along_axis(nodes, 0, NodeMtx)
+   print;print "FINAL"
+   print resultSemiPartial
+   bs = np.any(resultSemiPartial,axis=1)
+   print
+   print "good nodes ",len(np.where(bs == True)[0])
 # ........................................
 def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx): 
    # NodeMtx = P
@@ -549,10 +726,10 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    #######################
    if not testWithInputsFromPaper:
       #### load tree json ######
-      #jsP = "/home/jcavner/PhyloXM_Examples/"
-      jsP = "/home/jcavner/TASHI_PAM/"
-      #fN = "Liebold_notEverythinginMatrix.json"
-      fN = 'tree.json'
+      jsP = "/home/jcavner/PhyloXM_Examples/"
+      #jsP = "/home/jcavner/TASHI_PAM/"
+      fN = "Liebold_notEverythinginMatrix.json"
+      #fN = 'tree.json'
       path = os.path.join(jsP,fN)
       d = loadJSON(path)
       ##############
@@ -572,25 +749,25 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       #I = np.delete(I,delRowPos,axis=0)
       lP = {0:True,1:False,2:True}
       lP = None
-      ###### Tashi's pam #####
-      pamPath = os.path.join(jsP,'pam_2462.npy')
-      I = np.load(pamPath)
-      #### Tashi's layers present ####
-      import cPickle
-      lP = cPickle.load(open(os.path.join(jsP,'indices_2462.pkl')))['layersPresent']
-      lP = None
-      ### compresss rows, experimental ###
-      bs = np.any(I,axis=1)  # bolean selection row-wise logical OR
-      delRowPos = np.where(bs == False)[0]  # position of deletes
-      #I = np.delete(I,delRowPos,axis=0)
-      ##### compress columns, experimental ###
-      bs = np.any(I,axis=0)  # bolean selection cloumn-wise logical OR
-      delColPos = np.where(bs == False)[0]  # position of deletes
-      #I = np.delete(I,delColPos,axis=1)
-      ### Tashi's Env Mtx ###
-      r, c = I.shape[0], 5
-      E = np.random.random_sample((r, c))
-      #
+      ####### Tashi's pam #####
+      #pamPath = os.path.join(jsP,'pam_2462.npy')
+      #I = np.load(pamPath)
+      ##### Tashi's layers present ####
+      #import cPickle
+      #lP = cPickle.load(open(os.path.join(jsP,'indices_2462.pkl')))['layersPresent']
+      #lP = None
+      #### compresss rows, experimental ###
+      #bs = np.any(I,axis=1)  # bolean selection row-wise logical OR
+      #delRowPos = np.where(bs == False)[0]  # position of deletes
+      ##I = np.delete(I,delRowPos,axis=0)
+      ###### compress columns, experimental ###
+      #bs = np.any(I,axis=0)  # bolean selection cloumn-wise logical OR
+      #delColPos = np.where(bs == False)[0]  # position of deletes
+      ##I = np.delete(I,delColPos,axis=1)
+      #### Tashi's Env Mtx ###
+      #r, c = I.shape[0], 5
+      #E = np.random.random_sample((r, c))
+      ##
       #######################
       P,I = makeP(d,I,layersPresent=lP)
       print I
@@ -644,7 +821,7 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    
    #BetaE_regression(PsigStd,Estd,Wn)
    #C = semiPartCorrelation(PsigStd,Estd,Wn)
-   semiPartCorrelation_Leibold(I,E,P)
+   semiPartCorrelation_Leibold_Vectorize(I,E,P)
    #print C
    #print
    #print C.min()
