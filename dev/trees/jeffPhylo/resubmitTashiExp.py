@@ -154,6 +154,7 @@ if __name__ == "__main__":
    # applythresholdrule, 4 : 'Minimum training presence' 
    
    modelNames  = []  # for testing for duplicates
+   NoNewMasks = 0
    for item in usersPaths.items():
       try:   
          user = item[0]
@@ -173,34 +174,36 @@ if __name__ == "__main__":
          for model in modelInfo:
             try:
                name = model["name"] # just for test
-               occId   =  model['occurrencesetid']
-               occObj  = getOccSet(occId)
-               count   = getOccCount(occSet=occObj)
-               if count >= 5:
+               #occId   =  model['occurrencesetid']
+               #occObj  = getOccSet(occId)
+               #count   = getOccCount(occSet=occObj)
+               #if count >= 5:
+               if True:
                   if name in NewMaskSps:
-                     # if name in NewMasksSps build new mask and post, use id from returned post for mask
-                     shpPath = os.path.join(maskShpBase,"%s%s" % (NewMaskSps[name],".shp"))
-                     if not os.path.exists(shpPath):
-                        raise Exception, "missing shpPath %s" % (shpPath)
-                        
-                     tiffoutPath = buildMask(shpPath, tifMaskBasePath, NewMaskSps[name])
-                     if not os.path.exists(tiffoutPath):
-                        raise Exception, "missing tiffPath, failed to make mask %s" % (tiffoutPath)
-                     
-                        
-                     dloc = tiffoutPath
-                     postedMask = postMaskLayer(name+"_MASK_July10_FirstTry", dloc, typeCode ,epsg)
-                     mdlMask = prjMask = postedMask.id
+                     NoNewMasks += 1
+                     ## if name in NewMasksSps build new mask and post, use id from returned post for mask
+                     #shpPath = os.path.join(maskShpBase,"%s%s" % (NewMaskSps[name],".shp"))
+                     #if not os.path.exists(shpPath):
+                     #   raise Exception, "missing shpPath %s" % (shpPath)
+                     #   
+                     #tiffoutPath = buildMask(shpPath, tifMaskBasePath, NewMaskSps[name])
+                     #if not os.path.exists(tiffoutPath):
+                     #   raise Exception, "missing tiffPath, failed to make mask %s" % (tiffoutPath)
+                     #
+                     #   
+                     #dloc = tiffoutPath
+                     #postedMask = postMaskLayer(name+"_MASK_July10_FirstTry", dloc, typeCode ,epsg)
+                     #mdlMask = prjMask = postedMask.id
                      
                   else:
                      mdlMask = prjMask = model["maskid"] 
                   
-                  mdlScen = model['scenarioid']
-                  prjScen = [] #[model["scenarioid"]]         
-                  exp     = postExperiment(occId, "ATT_MAXENT", 
-                                          mdlScen, mdlMask, 
-                                          prjMask, prjScen = prjScen, 
-                                          algoParams = params)
+                  #mdlScen = model['scenarioid']
+                  #prjScen = [] #[model["scenarioid"]]         
+                  #exp     = postExperiment(occId, "ATT_MAXENT", 
+                  #                        mdlScen, mdlMask, 
+                  #                        prjMask, prjScen = prjScen, 
+                  #                        algoParams = params)
             except Exception,e:
                print "SPECIES EXCEPTION ",name," for user",user,"  ",str(e)
             else:
@@ -209,7 +212,7 @@ if __name__ == "__main__":
          del client  # instead of logout
       except Exception, e:
          print "Other EXCEPTION ",str(e),"for user ",user
-         
+   print "No NEW MASKS ",NoNewMasks  
 ####################  diagnostic bloc ###################
    #searchDict = {}
    #searchDict.update(NewMaskSps)
