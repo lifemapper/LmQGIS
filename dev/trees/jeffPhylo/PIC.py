@@ -69,7 +69,12 @@ def calculateMarginals(I):
    
 
 def stdMtx(W,M,OnesCol,I):
-   
+   """
+   @param W: diagonal mtx
+   @param M: mtx to be std
+   @param OnesCol: column vector of ones, sites (n) or species (k)
+   @param I: Incidence mtx, PAM 
+   """
    TotalSum = I.sum()
    
    SiteWeights = W
@@ -279,6 +284,10 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
   
   
    def predictors(predictorCol, **kwargs):
+      """
+      @summary: applied across column axis for predictor matrix.
+      predictor matrix can be either env or hist biogeography
+      """
       try:
          Predictors = kwargs['Predictors']
          swDiagonoal = kwargs['swDiagonoal']
@@ -777,7 +786,7 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       print "shape P ",P.shape
       print "shape I ",I.shape
       print 
-      #print P
+      print P
    else:
       # inputs from Liebold paper
       P,I = makeInputsForTest()
