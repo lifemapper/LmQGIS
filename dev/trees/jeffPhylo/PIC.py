@@ -51,7 +51,10 @@ def getEnvMatrix():
    return E
 
 def calculateMarginals(I):
-      
+   """
+   @summary: marginals similar to RAD marginals
+   @param I: Incidence mtx, PAM
+   """   
    siteCount = I.shape[0]
    siteVector = np.ones(siteCount)
    speciesCount = I.shape[1]
@@ -178,8 +181,9 @@ def standardizeMatrix(W=None,M=None,OnesCol=None):
 
 
 def models(PsigStdNode,Estd,Wn,Estd_i=None,Estd_mi=None):
-   
-   
+   """
+   @deprecated: maybe
+   """
    def i(myEstd,PsigStdByNode):
       
       # inverse of a matrix
@@ -203,7 +207,9 @@ def models(PsigStdNode,Estd,Wn,Estd_i=None,Estd_mi=None):
    return BetaEjAll, BetaEji, BetaEjMinusi
 
 def BetaE_regression(PsigStd,Estd,Wn):
-   
+   """
+   @deprecated: maybe
+   """
    def getPartModel(E):
       """
       @summary: since associative can compute these parts
@@ -270,6 +276,11 @@ def BetaE_regression(PsigStd,Estd,Wn):
             
 # ........................................
 def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx): 
+   """
+   @summary: so far this is the most recent, follows Pedro's matlab code as far as loops
+   that are necessary for treating nodes individually. Exceptions are mathematical changes
+   for effeciency, and corrections for sps in tree but not in PAM, also fault checks.
+   """
    # NodeMtx = P
    IncidenceMtx = I
    NumberNodes = NodeMtx.shape[1]
