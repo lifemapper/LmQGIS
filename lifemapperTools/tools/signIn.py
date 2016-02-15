@@ -49,10 +49,10 @@ from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject
 from LmClient.lmClientLib import LMClient, OutOfDateException
-from LmCommon.common.localconstants import  WEBSERVICES_ROOT
+from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
 
 
-SIGNUPURL = os.path.join(WEBSERVICES_ROOT,'signup')
+SIGNUPURL = os.path.join(CURRENT_WEBSERVICES_ROOT,'signup')
 
 
 class Ui_SubDialog(object):
@@ -145,7 +145,7 @@ class SignInDialog(QDialog, Ui_Dialog):
       valid = self.validate()
       if valid:
          try:
-            cl = LMClient()
+            cl = LMClient(server=CURRENT_WEBSERVICES_ROOT)
             cl.login(userId=self.keyvalues["usernameEdit"], 
                      pwd=self.keyvalues["passEdit"])
          except OutOfDateException, e:
