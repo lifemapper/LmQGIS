@@ -737,17 +737,6 @@ class PostEnvLayerDialog(QtGui.QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
-   sys.path.append(os.path.join(import_path, 'LmShared'))
-   configPath = os.path.join(import_path, 'config', 'config.ini') 
-   os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
-   from LmClient.lmClientLib import LMClient 
-   client =  LMClient()
-   client.login('Dermot', 'Dermot')
-   qApp = QtGui.QApplication(sys.argv)
-   #d = PostScenarioDialog(match=True,scenarioId=112,client=client)
-   d = PostEnvLayerDialog(client=client)
-   d.show()
-   sys.exit(qApp.exec_())
+   pass
          
       
