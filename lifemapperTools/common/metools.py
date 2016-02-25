@@ -46,7 +46,7 @@ from lifemapperTools.tools.spatialStats import SpatialStatsDialog
 from lifemapperTools.tools.listSDMExperiments import  ListSDMExpDialog
 from lifemapperTools.tools.ui_listBuildScenariosDialog import ListBuildScenariosDialog
 from lifemapperTools.tools.ui_postEnvLayer import PostEnvLayerDialog
-from lifemapperTools.tools.uploadTreeOTL import UploadTreeDialog
+from lifemapperTools.tools.uploadTreeOTL import UploadTreeDialog #_Tashi
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.communicate import Communicate
@@ -245,11 +245,12 @@ class MetoolsPlugin:
             else:
                self.postSDMExpDialog = PostSDMExpDialog( self.iface, 
                                                      client = self.signInDialog.client)
-               
-      elif self.signInDialog is None:         
-         cl = LMClient()
-         self.postSDMExpDialog = PostSDMExpDialog( self.iface, client = cl)
-      self.postSDMExpDialog.exec_()
+            self.postSDMExpDialog.exec_()   
+      elif self.signInDialog is None:   
+         pass      
+         #cl = LMClient()
+         #self.postSDMExpDialog = PostSDMExpDialog( self.iface, client = cl)
+      #self.postSDMExpDialog.exec_()
 # ..............................................................................     
    def listSDMExp(self):
       self.closeRADPSPlotDialogs()
