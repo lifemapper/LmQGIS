@@ -11,8 +11,8 @@ import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.pluginconstants import ARCHIVE_DWL_TYPE
-from LmCommon.common.localconstants import  WEBSERVICES_ROOT
-
+from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
+from lifemapperTools.common.pluginconstants import BROWSER_BANNER
 # ..........................
 
 PROVIDER = "Lifemapper"
@@ -586,8 +586,11 @@ class Ui_Dock(object):
       self.treeView.setModel(self.treeModel)
       self.treeView.setObjectName("treeView")
       
+      self.logoLabel = QLabel()
+      self.logoPixMap = QPixmap(BROWSER_BANNER)
+      self.logoLabel.setPixmap(self.logoPixMap)
       
-      
+      self.verticalLayout.addWidget(self.logoLabel)
       self.verticalLayout.addWidget(self.hint.combo)
       self.verticalLayout.addWidget(self.treeView)
       
@@ -601,7 +604,7 @@ class Ui_Dock(object):
       combo can be added as a widget using self.hint.combo, callback
       adds extra functionality in addition to combo model
       """
-      self.hint = Hint(self.client, callBack=self.callBack, setModel=False, serviceRoot=WEBSERVICES_ROOT)
+      self.hint = Hint(self.client, callBack=self.callBack, setModel=False, serviceRoot=CURRENT_WEBSERVICES_ROOT)
       archiveComboModel = ArchiveComboModel([],None)
       self.hint.model = archiveComboModel
       self.hint.combo.lineEdit().setPlaceholderText("[Start Typing]")
@@ -682,7 +685,7 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
    def signIn(self):
    
       try:
-         cl = LMClient()
+         cl = LMClient(server=CURRENT_WEBSERVICES_ROOT)
       except OutOfDateException, e:
          message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
          QMessageBox.warning(self,"Problem...",message,QMessageBox.Ok)
