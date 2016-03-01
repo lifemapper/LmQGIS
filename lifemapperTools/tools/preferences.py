@@ -28,16 +28,19 @@ import ConfigParser
 from PyQt4 import QtCore, QtGui
 #from qgis.utils import reloadPlugin, unloadPlugin
 import lifemapperTools as LM
-from LmCommon.common.localconstants import  WEBSERVICES_ROOT
+from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 
-
 ICON_VALUES = {'server':'SERVER'}
 CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
-CONFIG = "/home/jcavner/ghWorkspace/core.git/config/site.ini" # comment out when in qgis
+CONFIG = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when in qgis
 SECTION = 'LmCommon - common'
-ITEM = 'WEBSERVICES_ROOT'
+ITEM = 'CURRENT_WEBSERVICES_ROOT'
+
+
+BANNER_ICONS = {'idigbio':':/plugins/lifemapperTools/icons/idigbio_logo_0.png',
+               'lifemapper':':/plugins/lifemapperTools/icons/lm_poster_276_45.png'}
 
 def getURLFromConfig():
 
@@ -114,7 +117,7 @@ class Ui_Dialog(object):
       self.changeServerLab = QtGui.QLabel("Services URL")
       
       #self.websiteRoot = QtGui.QLineEdit()
-      #self.websiteRoot.setText(WEBSERVICES_ROOT)
+      #self.websiteRoot.setText(CURRENT_WEBSERVICES_ROOT)
       
       self.gridLayout_input.addWidget(self.serverTitle,0,0,1,1,QtCore.Qt.AlignTop)
       self.gridLayout_input.addWidget(self.serverLabel,1,0,1,1)
@@ -311,8 +314,9 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       QtGui.QDialog.__init__(self)
       self.client = None
       self.newUrl = None
+      self.bannerPath = None
       self.setupUi()
-      #self.setCurrentUrlTxt(WEBSERVICES_ROOT)  # might want to put this in changeSettings
+      #self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)  # might want to put this in changeSettings
       self.setWindowTitle("Settings")
    
    def openAddNewUrl(self):
@@ -336,7 +340,14 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       else:
          self.serverList.setEnabled(True)
          self.addNewBut.setEnabled(True)
-              
+   
+   def getBanner(self,Sn):
+      
+      iconPth = None
+      if Sn.lower() in BANNER_ICONS:
+         iconPth = BANNER_ICONS[Sn.lower()]
+      return iconPth
+                 
    def resetToDefault(self):
       """
       @summary: resets url to default and disables 
@@ -351,11 +362,14 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          self.serverList.setCurrentIndex(serverIdx)
          
          newUrl = self.serverListModel.listData[serverIdx.row()][1]
+         serverName = self.serverListModel.listData[serverIdx.row()][0]
          self.setCurrentUrlTxt(newUrl)
          if newUrl != getURLFromConfig():
             self.acceptBut.setEnabled(True)
+            self.bannerPath = self.getBanner(serverName)
             self.newUrl = newUrl
          else:
+            
             self.newUrl = None
             self.acceptBut.setEnabled(False)
          
@@ -367,11 +381,15 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       @summary: called on selection in server list
       """
       newUrl = self.serverListModel.listData[index.row()][1]
+      print "n url ",newUrl," ",getURLFromConfig()
+      serverName = self.serverListModel.listData[index.row()][0]
       self.setCurrentUrlTxt(newUrl)
       if newUrl != getURLFromConfig():
          self.acceptBut.setEnabled(True)
          self.acceptBut.setFocus(True)
+         print "new url"
          self.newUrl = newUrl
+         self.bannerPath = self.getBanner(serverName)
       else:
          self.newUrl = None
          self.acceptBut.setEnabled(False)
@@ -389,8 +407,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       except OutOfDateException, e:
          message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
          QtGui.QMessageBox.warning(self,"Problem...",message,QtGui.QMessageBox.Ok)
-      except:
-      
+      except Exception, e:
          message = "No Network Connection, check url or change"
          QtGui.QMessageBox.warning(self,"Problem...",message,QtGui.QMessageBox.Ok)
       else:
@@ -414,7 +431,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       
       currentInInstances = False
       try:
-         instanceObjs = self.client.sdm.getAvailableInstances()
+         instanceObjs = self.client.getAvailableInstances()
       except:
          pass
       else:         
@@ -422,10 +439,10 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          
          for server in instanceObjs:
             items.append(server)
-            if server[1] == WEBSERVICES_ROOT:
+            if server[1] == CURRENT_WEBSERVICES_ROOT:
                currentInInstances = True 
          #items.extend([(x,str(x)+"_server") for x in range(0,4)])
-         #items.extend([('http://yeti.lifemapper.org','http://yeti.lifemapper.org')])     
+         items.extend([('idigbio', 'http://lifemapper.org')])     
          self.serverListModel.updateList(items)
       return currentInInstances
    
@@ -444,11 +461,11 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       self.serverList.setEnabled(False)
       self.addNewBut.setEnabled(False)  
       self.acceptBut.setEnabled(False) 
-      self.setCurrentUrlTxt(WEBSERVICES_ROOT)
+      self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)
       
-      # sets list to WEBSERVICES_ROOT
+      # sets list to CURRENT_WEBSERVICES_ROOT
       currentUrlIdxList = self.serverListModel.match(self.serverListModel.index(0),
-                                                     QtCore.Qt.DisplayRole ,WEBSERVICES_ROOT)
+                                                     QtCore.Qt.DisplayRole ,CURRENT_WEBSERVICES_ROOT)
       if len(currentUrlIdxList) > 0:
          currentUrlIdx = currentUrlIdxList[0]
          self.serverList.setCurrentIndex(currentUrlIdx)
@@ -458,7 +475,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       """
       @summary: called from main settings group, sets up Web Services URL change group
       """
-      self.setCurrentUrlTxt(WEBSERVICES_ROOT)
+      self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)
       if self.client == None:
             self.buildClient()
       if self.client is not None:
@@ -480,10 +497,11 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          
    def writeInit(self):   
       """
-      @summary: make changes to WEBSERVICES_ROOT in ini file
+      @summary: make changes to CURRENT_WEBSERVICES_ROOT in ini file
       """
       if self.newUrl is not None and CONFIG is not None:
          try:
+            
             url = str(self.newUrl)
             
             cfgPath = CONFIG
@@ -492,7 +510,11 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
             cfg = ConfigParser.SafeConfigParser()
             cfg.read(cfgPath)
             cfg.set(sec,k,url) 
+            print "w url"
             cfg.set(sec,"OGC_SERVICE_URL",os.path.join(url,"ogc"))  
+            if self.bannerPath is not None:
+               print "w banner"
+               cfg.set(sec,"BROWSER_BANNER",self.bannerPath)          
             with open(cfgPath, 'wb') as configfile:
                cfg.write(configfile)   
          except Exception, e:
