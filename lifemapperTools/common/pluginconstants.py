@@ -25,6 +25,13 @@
           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 
           02110-1301, USA.
 """
+import os
+from LmCommon.common.config import Config
+_CONFIG_HEADING = "LmCommon - common"
+
+CONFIG_FILENAME = os.getenv('LIFEMAPPER_CONFIG_FILE') 
+CURRENT_WEBSERVICES_ROOT = Config(fns=[CONFIG_FILENAME]).get(_CONFIG_HEADING, 'CURRENT_WEBSERVICES_ROOT')
+BROWSER_BANNER = Config(fns=[CONFIG_FILENAME]).get(_CONFIG_HEADING, 'BROWSER_BANNER')
 
 
 
