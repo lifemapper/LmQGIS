@@ -34,7 +34,6 @@ from lifemapperTools.common.model import RequestModel
 from LmClient.lmClientLib import LMClient
 from lifemapperTools.common.pluginconstants import  GENERIC_REQUEST,EXECUTE_REQUEST
 from LmCommon.common.lmconstants import JobStatus
-from LmCommon.common.localconstants import ARCHIVE_USER
 import pdb
 
 
