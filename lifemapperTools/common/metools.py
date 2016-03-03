@@ -72,7 +72,17 @@ class MetoolsPlugin:
       self.pamSumDialog = None
       self.plotDialog = None
       self.treeWindow = None
-      
+   
+   def getInstances(self):
+   
+      try:
+         instanceObjs = LMClient().getAvailableInstances()
+      except:
+         instanceObjs = False
+      else:            
+         instanceObjs.extend([('idigbio', 'http://lifemapper.org')])     
+      return instanceObjs
+     
    def initGui(self):
       self.signInDialog = None
       self.menu = QMenu()
@@ -103,8 +113,9 @@ class MetoolsPlugin:
       
       
       ###########   Browse Occ Sets #################
+      #self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)  # was below action Feb 2016
       self.iface.addToolBarIcon(self.browseIconAction)
-      #self.occSetBrowseDock = QDockWidget("Lifemapper Occurrence Sets")
+      
       self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)
       #self.occSetBrowseDock.setObjectName("occDock")
       
@@ -135,8 +146,14 @@ class MetoolsPlugin:
       #QObject.connect(self.changeWSAction, SIGNAL("triggered()"), self.changeWS)
       self.changeWSAction.triggered.connect(self.changeWS)
       self.changeWSAction.setEnabled(False)
+   
+   def showDockWithBannerChange(self):
+         
+         self.occSetBrowseDock.show()
       
    def _initSDMActions(self):
+      
+      
       
       self.postSDMExpItem = QAction( QCoreApplication.translate("lifemapperTools", "New Experiment"),self.iface.mainWindow())
       self.postEnvLayerSetItem = QAction( QCoreApplication.translate("lifemapperTools", "Build Environmental Layer Set"),self.iface.mainWindow())
@@ -151,6 +168,15 @@ class MetoolsPlugin:
       # Browse Occurrence Set Action for Icon  ################333
       self.browseIconAction = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"), \
             "Browse Lifemapper Archive", self.iface.mainWindow())
+      #browseMenu = QMenu()
+      #inst = self.getInstances()
+      #if inst:
+      #   for act in inst:
+      #      mA = QAction(act[0],self.iface.mainWindow())
+      #      mA.triggered.connect(self.showDockWithBannerChange)
+      #      browseMenu.addAction(mA)
+      #self.browseIconAction.setMenu(browseMenu)
+      ##################
       #self.browseIconAction.triggered.connect(self.showHideBrowseDock)
       ##################################################################
       #   for the menu item for browse dock
