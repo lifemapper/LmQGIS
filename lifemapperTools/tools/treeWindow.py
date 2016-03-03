@@ -193,8 +193,8 @@ class TreeWindow(QMainWindow):
             #self.jsonUrl = "file:///home/jcavner/Pooka8/Rodentia_628/tree/tree.json"
             #self.jsonUrl = "file:///home/jcavner/attrTree_1011.json"
             #searchJSON = "/home/jcavner/attrTree_1011.json"
-            self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/Liebold.json"
-            searchJSON = "/home/jcavner/PhyloXM_Examples/Liebold.json"
+            self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"
+            searchJSON = "/home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"
             
             #filename =   "african_mammal_realDealMX.json"
             #filename  =   "mammalsWithLengthsandMX.json" 
