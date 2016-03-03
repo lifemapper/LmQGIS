@@ -31,6 +31,7 @@ from qgis.gui import *
 import lifemapperTools as LM
 from lifemapperTools.common.lmListModel import LmListModel                                             
 from LmClient.lmClientLib import LMClient, OutOfDateException
+from lifemapperTools.common.pluginconstants import BROWSER_BANNER
 
 
       
@@ -47,7 +48,7 @@ class Ui_Dock(object):
       #self.infoWidget = QWidget()
       
       self.logoLabel = QLabel()
-      self.logoPixMap = QPixmap(":/plugins/lifemapperTools/icons/lm_poster_276_45.png")
+      self.logoPixMap = QPixmap(BROWSER_BANNER)
       self.logoLabel.setPixmap(self.logoPixMap)
       
       
@@ -261,7 +262,7 @@ class BrowseOccProviderDock(QDockWidget, Ui_Dock):
       self.providerCombo.clear()
       self.providerCombo.clearEditText()
       try:
-         instanceObjs = self.client.sdm.getAvailableInstances()
+         instanceObjs = self.client.getAvailableInstances()
       except:
          pass
       else:
