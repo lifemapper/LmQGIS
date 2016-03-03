@@ -878,11 +878,12 @@ class ListSDMExpDialog(QDialog, Ui_Dialog):
       self.help.show() 
              
 if __name__ == "__main__":
-#  
-   client =  LMClient(userId='', pwd='')
-   qApp = QApplication(sys.argv)
-   d = ListSDMExpDialog(None,client=client)#,experimentId=596106
-   d.show()
-   sys.exit(qApp.exec_())   
+   pass
+   #  
+   #client =  LMClient(userId='', pwd='')
+   #qApp = QApplication(sys.argv)
+   #d = ListSDMExpDialog(None,client=client)#,experimentId=596106
+   #d.show()
+   #sys.exit(qApp.exec_())   
       
       
