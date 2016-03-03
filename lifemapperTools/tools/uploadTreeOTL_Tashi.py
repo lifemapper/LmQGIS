@@ -413,9 +413,14 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
       # build dict from composite csv
       csvPath = "/home/jcavner/TashiCSV/composite.csv"
       lr = list(csv.reader(open(csvPath,'r')))
-      modelInfo = {l[0]:{k:v  for k,v in zip(lr[0],l) } for l in lr[1:]}
+      #modelInfo = {l[0]:{k:v  for k,v in zip(lr[0],l) } for l in lr[1:]}
       
-      
+      #### occurrences ####  Feb 2016
+      import commands
+      occDirectory = "/home/jcavner/Tashi_2016_Reanalysis/FinalOcc/FinalOcc1_13_16/shps/reprojected/"
+      res = commands.getoutput('ls %s*.shp' % (occDirectory))  
+      occs = res.split('\n')
+      #######################
       
       self.acceptBut.setEnabled(True)
       # if has a shapefile extension add it, if tif add it, no shx etc
@@ -425,6 +430,10 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
                (os.path.splitext(f)[1] == OutputFormat.GTIFF or
                 os.path.splitext(f)[1] == OutputFormat.SHAPE) and
                 os.path.splitext(os.path.basename(f))[0] in self.namesInTable]
+      
+      notfull = [f for f in os.listdir(dirname) if os.path.splitext(os.path.basename(f))[0] 
+                 not in self.namesInTable]
+      notfull.sort()
       # get just lyr names from tree/table model
                
       basenames = [os.path.splitext(os.path.basename(f))[0] for f in full]
@@ -455,9 +464,10 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
       ############
       matchedCount = 0
       nonMatched = 0
+      nonMatchedL = []
       for x, rec in enumerate(self.table.tableView.model().data):
    
-         if namePath.has_key(rec[0]) and rec[0] in modelInfo: # this is a check between tree and folder, but needs a check
+         if namePath.has_key(rec[0]): # commented out on Feb 2016 #and rec[0] in modelInfo: # this is a check between tree and folder, but needs a check
             # to see if name is in modelInfo Dict
             ############
             #NotPruneIdx = self.justLast.index(rec[0])
@@ -478,9 +488,10 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
             # now go to csv, model dict, for occurrencesetId? matched by name? retrieve occset using id, 
             # store in temp or workspace subfolder, get it's path and send path, and shp path to getthreshold
             # and populate threshold columns
-            occSetId = modelInfo[rec[0]]['occurrencesetid']
+            #occSetId = modelInfo[rec[0]]['occurrencesetid']
             dwnLdBase = "/home/jcavner/TashiShpDownloadedFromTree/"
-            shpPath = os.path.join(dwnLdBase,rec[0]+".shp")
+            dwnLdBase = "/home/jcavner/Tashi_2016_Reanalysis/FinalOcc/FinalOcc1_13_16/shps/reprojected/" # Feb 2016
+            shpPath = os.path.join(dwnLdBase,rec[0]+"_AEAC.shp")
             #occSetSuccess = self.getOccSet(occSetId,shpPath)
             #if occSetSuccess:
             #try:
@@ -516,6 +527,7 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
          else:
             #print rec[0],"  ",namePath.has_key(rec[0])," and ",rec[0] in modelInfo
             nonMatched = nonMatched + 1
+            nonMatchedL.append(rec[0])
             index = self.table.tableView.model().index(x,2)
             index.model().skipComboinRow.append(x)
             self.table.tableView.selectionModel().select(index,QItemSelectionModel.Select|QItemSelectionModel.Rows)
@@ -527,7 +539,12 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
       #csvH.close()
       ################
       print "MATCHED ",matchedCount 
-      print "NONMATCHED ",nonMatched     
+      print "NONMATCHED ",nonMatched 
+      print len(notfull)
+      print len(nonMatchedL) 
+      nonMatchedL.sort() 
+      for x in notfull:
+         print x 
       self.removeRecords()
       self.tableview.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
       #print full
@@ -745,7 +762,7 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
                       be able to upload them to this experiment.""" + namesString
          QMessageBox.warning(self, 'Layers CRS Wrong', message)
       
-      postedTree = self.postTree()
+      #postedTree = self.postTree()
       #wroteTreeLocally = self.writeTree()
             
       self.acceptBut.setEnabled(True)
