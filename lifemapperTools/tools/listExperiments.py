@@ -471,11 +471,6 @@ class ListExperimentDialog(_Controller, QDialog, Ui_Dialog):
       
 if __name__ == "__main__":
 #  
-   client =  LMClient()
-   client.login(userId='', pwd='')
-   qApp = QApplication(sys.argv)
-   d = ListExperimentDialog(None,client=client)#,experimentId=596106
-   d.show()
-   sys.exit(qApp.exec_())   
+   pass   
       
       
