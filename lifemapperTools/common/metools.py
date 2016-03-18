@@ -46,7 +46,7 @@ from lifemapperTools.tools.spatialStats import SpatialStatsDialog
 from lifemapperTools.tools.listSDMExperiments import  ListSDMExpDialog
 from lifemapperTools.tools.ui_listBuildScenariosDialog import ListBuildScenariosDialog
 from lifemapperTools.tools.ui_postEnvLayer import PostEnvLayerDialog
-from lifemapperTools.tools.uploadTreeOTL import UploadTreeDialog #_Tashi
+from lifemapperTools.tools.uploadTreeOTL_Tashi import UploadTreeDialog #_Tashi
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.communicate import Communicate
@@ -80,7 +80,7 @@ class MetoolsPlugin:
       except:
          instanceObjs = False
       else:            
-         instanceObjs.extend([('idigbio', 'http://lifemapper.org')])     
+         instanceObjs.extend([('iDigBio', 'http://lifemapper.org')])     
       return instanceObjs
      
    def initGui(self):
@@ -111,17 +111,17 @@ class MetoolsPlugin:
       self.menu.insertAction(self.signOutItem,self.uploadEnvlayerAction)
       self.menu.insertAction(self.signOutItem,self.changeWSAction)
       
-      
-      ###########   Browse Occ Sets #################
-      #self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)  # was below action Feb 2016
-      self.iface.addToolBarIcon(self.browseIconAction)
-      
-      self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)
-      #self.occSetBrowseDock.setObjectName("occDock")
-      
-      self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.occSetBrowseDock)
-      self.occSetBrowseDock.hide()
-      ###############################################
+      self._initArchiveBrowser()
+      ############   Browse Occ Sets #################
+      ##self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)  # was below action Feb 2016
+      #self.iface.addToolBarIcon(self.browseIconAction)
+      #
+      ##self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action = self.browseIconAction)
+      ##self.occSetBrowseDock.setObjectName("occDock")
+      #
+      #self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.occSetBrowseDock)
+      #self.occSetBrowseDock.hide()
+      ################################################
     
       menu_bar = self.iface.mainWindow().menuBar()
       actions = menu_bar.actions()
@@ -139,7 +139,52 @@ class MetoolsPlugin:
       Communicate.instance().setPlotExist.connect(self.setPlotDialog)
       Communicate.instance().setTreeExist.connect(self.setTreeWindow)
       
-
+   
+   def _initArchiveBrowser(self):
+           
+      # Browse Occurrence Set Action for Icon  ################
+      self.browseIconAction = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"), \
+            "Browse Lifemapper Archive", self.iface.mainWindow())
+      self.browseIconAction.setCheckable(True)
+      
+      #self.browseIconAction.triggered.connect(self.occSetBrowseDock.showHideBrowseDock)
+      browseMenu = QMenu()
+      browseMenu.triggered.connect(self.showDockWithBannerChange)
+      inst = self.getInstances()
+      if inst:
+         #aG = QActionGroup(browseMenu)
+         for idx,act in enumerate(inst):
+            # QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"),
+            mA = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"),act[0],self.iface.mainWindow())
+            mA.setData((idx,act[0],act[1]))
+            mA.setCheckable(True)
+            browseMenu.addAction(mA)
+            #aG.addAction(mA)
+         #browseMenu.addActions(aG.actions())
+         self.browseIconAction.setMenu(browseMenu)
+      
+      self.occSetBrowseDock = BrowseOccProviderDock(self.iface, action=self.browseIconAction)   
+      self.iface.addToolBarIcon(self.browseIconAction)
+      self.iface.addDockWidget(Qt.LeftDockWidgetArea, self.occSetBrowseDock)
+      self.occSetBrowseDock.hide()
+         
+   def showDockWithBannerChange(self, menuAction):
+      
+      
+      show = False
+      if menuAction.isChecked():
+         self.browseIconAction.setChecked(True) # turn on main
+         # turn off others
+         mA = self.browseIconAction.menu().actions()
+         for action in mA:
+            if action.data()[0] != menuAction.data()[0]:
+               action.setChecked(False)
+         show = True  
+      if self.browseIconAction.isChecked() and not menuAction.isChecked():
+         self.browseIconAction.setChecked(False)
+      
+      self.occSetBrowseDock.showHideBrowseDock(show,fromMenu=menuAction.data())
+         
       
    def _initChangeWSAction(self):
       self.changeWSAction = QAction( QCoreApplication.translate("lifemapperTools", "Change Workspace"),self.iface.mainWindow())
@@ -147,9 +192,7 @@ class MetoolsPlugin:
       self.changeWSAction.triggered.connect(self.changeWS)
       self.changeWSAction.setEnabled(False)
    
-   def showDockWithBannerChange(self):
-         
-         self.occSetBrowseDock.show()
+   
       
    def _initSDMActions(self):
       
@@ -165,23 +208,21 @@ class MetoolsPlugin:
       self.postEnvLayerSetItem.triggered.connect(self.postEnvLayerSet)
       self.listSDMExpsItem.triggered.connect(self.listSDMExp)
       
-      # Browse Occurrence Set Action for Icon  ################333
-      self.browseIconAction = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"), \
-            "Browse Lifemapper Archive", self.iface.mainWindow())
-      #browseMenu = QMenu()
-      #inst = self.getInstances()
-      #if inst:
-      #   for act in inst:
-      #      mA = QAction(act[0],self.iface.mainWindow())
-      #      mA.triggered.connect(self.showDockWithBannerChange)
-      #      browseMenu.addAction(mA)
-      #self.browseIconAction.setMenu(browseMenu)
-      ##################
-      #self.browseIconAction.triggered.connect(self.showHideBrowseDock)
-      ##################################################################
-      #   for the menu item for browse dock
-      #   self.browseOccSetItem = QAction(QCoreApplication.translate("lifemapperTools","Browse Occurrence Providers"),self.iface.mainWindow()) 
-      ##  self.browseOccSetItem.triggered.connect(self.browseOccProv)
+      ## Browse Occurrence Set Action for Icon  ################333
+      #self.browseIconAction = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"), \
+      ##      "Browse Lifemapper Archive", self.iface.mainWindow())
+      ##self.browseIconAction.setCheckable(True)
+      ##browseMenu = QMenu()
+      ##browseMenu.triggered.connect(self.showDockWithBannerChange)
+      ##inst = self.getInstances()
+      ##if inst:
+      ##   for act in inst:
+      ##      mA = QAction(QIcon(":/plugins/lifemapperTools/icons/lm_worlds.png"),act[0],self.iface.mainWindow())
+      ##      mA.setData(act[0])
+      ##      mA.triggered.connect(self.showDockWithBannerChange)
+      ##      browseMenu.addAction(mA)
+      ##   self.browseIconAction.setMenu(browseMenu)
+      
       
    def _initUploadEnvLayerAction(self):
       self.uploadEnvlayerAction =  QAction( QCoreApplication.translate("lifemapperTools", "Upload Environment Layer"),self.iface.mainWindow()) 
