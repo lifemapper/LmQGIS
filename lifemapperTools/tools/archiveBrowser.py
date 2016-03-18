@@ -6,16 +6,19 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
-from lifemapperTools.common.lmHint import Hint
+from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.pluginconstants import ARCHIVE_DWL_TYPE
-from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
-from lifemapperTools.common.pluginconstants import BROWSER_BANNER
+#from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
+#from lifemapperTools.common.pluginconstants import BROWSER_BANNER
 # ..........................
 
 PROVIDER = "Lifemapper"
+
+BANNER_ICONS = {'idigbio':':/plugins/lifemapperTools/icons/idigbio_logo_0.png',
+               'lifemapper':':/plugins/lifemapperTools/icons/lm_poster_276_45.png'}
 # ..........................
 
 def toUnicode(value, encoding='utf-8'):
@@ -47,7 +50,7 @@ class BrowserTreeModel(QAbstractItemModel):
       self.headers = ['','','']
       self.columns = 3
       self.root = TreeItem("Root", "Root", parent = None)
-      self.provider = TreeItem("Lifemapper","Lifemapper",self.root)
+      self.provider = TreeItem('Archive','Archive',self.root)
       
    
    # ----------  change data
@@ -587,16 +590,48 @@ class Ui_Dock(object):
       self.treeView.setObjectName("treeView")
       
       self.logoLabel = QLabel()
-      self.logoPixMap = QPixmap(BROWSER_BANNER)
-      self.logoLabel.setPixmap(self.logoPixMap)
-      
-      self.verticalLayout.addWidget(self.logoLabel)
+      self.logoLabel.setToolTip('Search by typing species, add queried species data to map by double clicking')
+      instName = self.action.menu().actions()[0].data()[1] # Lm instance data (name)
+      self.changeBanner(instName)
+      #self.logoPixMap = QPixmap(BROWSER_BANNER)
+      #self.logoLabel.setPixmap(self.logoPixMap)
+      pW = QWidget()
+      self.horizLayout = QGridLayout(pW)
+      self.horizLayout.setMargin(0)
+      self.horizLayout.setColumnMinimumWidth(0,300)
+      self.horizLayout.setColumnMinimumWidth(1,30)
+      self.helpBut = QPushButton('?')
+      self.helpBut.setMaximumSize(20, 20)
+      self.horizLayout.addWidget(self.help, 0,1,1,1 )
+      self.horizLayout.addWidget(self.logoLabel,0,0,1,1)
+      self.verticalLayout.addWidget(pW)
+      #self.verticalLayout.addWidget(self.logoLabel)
       self.verticalLayout.addWidget(self.hint.combo)
       self.verticalLayout.addWidget(self.treeView)
       
       
       
       dockWidget.setWidget(self.centralwidget)
+      
+   # .......................
+   def help(self):
+      self.help = QWidget()
+      self.help.setWindowTitle('Lifemapper Help')
+      self.help.resize(600, 400)
+      self.help.setMinimumSize(600,400)
+      self.help.setMaximumSize(1000,1000)
+      layout = QVBoxLayout()
+      helpDialog = QTextBrowser()
+      helpDialog.setOpenExternalLinks(True)
+      #helpDialog.setSearchPaths(['documents'])
+      helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
+      helpDialog.setSource(QUrl.fromLocalFile(helppath))
+      helpDialog.scrollToAnchor('constructGrid')
+      layout.addWidget(helpDialog)
+      self.help.setLayout(layout)
+      if self.isModal():
+         self.setModal(False)
+      self.help.show() 
    # ..............................................................    
    def setUpHintService(self):
       """
@@ -604,7 +639,7 @@ class Ui_Dock(object):
       combo can be added as a widget using self.hint.combo, callback
       adds extra functionality in addition to combo model
       """
-      self.hint = Hint(self.client, callBack=self.callBack, setModel=False, serviceRoot=CURRENT_WEBSERVICES_ROOT)
+      self.hint = Hint(self.client, callBack=self.callBack, setModel=False) #, serviceRoot=CURRENT_WEBSERVICES_ROOT
       archiveComboModel = ArchiveComboModel([],None)
       self.hint.model = archiveComboModel
       self.hint.combo.lineEdit().setPlaceholderText("[Start Typing]")
@@ -655,7 +690,7 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
    def __init__(self,iface, action=None):
       QDockWidget.__init__(self,None)
       
-      self.setWindowTitle("Lifemapper Archive")
+      self.setWindowTitle("Species Distribution Model and Occurrence Point Archive")
       self.iface = iface
       
       # ..................
@@ -665,27 +700,79 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       self.action.triggered.connect(self.showHideBrowseDock)
       self.setupUi(self)
 
-
+   def getBanner(self,Sn):      
+      iconPth = None
+      if Sn.lower() in BANNER_ICONS:
+         iconPth = BANNER_ICONS[Sn.lower()]
+      return iconPth
+   
+   def changeBanner(self,name):
+      iconPath = self.getBanner(name)
+      if iconPath is not None:
+         self.logoPixMap = QPixmap(iconPath)
+         self.logoLabel.setPixmap(self.logoPixMap)
    # ..............................................................     
-   def showHideBrowseDock(self):
+   def showHideBrowseDock(self,mainTog,fromMenu=False):
       """
       @summary: slot for icon in metools
       """
-      if self.isVisible():     
+      print "mainTog ",mainTog # this is the key for toggle from Main and maybe menu
+      #print fromMenu
+      server = None
+      if not fromMenu and mainTog: # checks Lm in menu when main
+         self.action.menu().actions()[0].setChecked(True) # might need a better
+         # way of designating Lm rather than position
+         
+      if not fromMenu and not mainTog:  # turns off all when main turned off
+         for action in self.action.menu().actions():
+            action.setChecked(False)
+         
+      #if self.isVisible(): 
+      if not mainTog:    
          self.hide()
       else:
-         if self.client == None:
-            self.signIn() 
-            #self.loadInstanceCombo()
+         if fromMenu:
+            server = fromMenu[2]
+            name = fromMenu[1] 
+         else:
+            server = self.action.menu().actions()[0].data()[2]  # url for Lifemapper
+            name = self.action.menu().actions()[0].data()[1]
+         #############   
+         if self.client is None:
+            self.signIn(server) 
             if self.client is not None:
                self.hint.client = self.client
                self.treeView.client = self.client
-         self.show()
+               self.changeBanner(name)
+               #self.treeModel.provider = TreeItem(name,name,self.treeModel.root)
+               self.show()
+            else:
+               if self.isVisible():
+                  self.hide()
+         else:            
+            if self.client._cl.server != server:
+               # needs to clear the query
+               self.hint.model.updateList([SpeciesSearchResult('', '', '','')])
+               del self.client
+               self.client = None
+               self.signIn(server) 
+               if self.client is not None:
+                  self.hint.client = self.client
+                  self.treeView.client = self.client
+                  self.changeBanner(name)
+                  #self.treeModel.provider = TreeItem(name,name,self.treeModel.root)
+                  self.show() # ??
+               else:
+                  if self.isVisible():
+                     self.hide()
+            else:
+               self.show()
+                  
    # ..............................................................         
-   def signIn(self):
-   
+   def signIn(self, server):
+      
       try:
-         cl = LMClient(server=CURRENT_WEBSERVICES_ROOT)
+         cl = LMClient(server=server)
       except OutOfDateException, e:
          message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
          QMessageBox.warning(self,"Problem...",message,QMessageBox.Ok)
@@ -703,8 +790,8 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
          except OutOfDateException, e:
             
             message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
-            self.client.logout()
-            self.client = None
+            #self.client.logout()  #might not need this
+            self.client = None 
             msgBox = QMessageBox.warning(self,
                                              "Problem...",
                                              message,
