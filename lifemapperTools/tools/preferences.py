@@ -33,14 +33,14 @@ from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 
 ICON_VALUES = {'server':'SERVER'}
-CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
+#CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
 CONFIG = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when in qgis
 SECTION = 'LmCommon - common'
 ITEM = 'CURRENT_WEBSERVICES_ROOT'
 
 
-BANNER_ICONS = {'idigbio':':/plugins/lifemapperTools/icons/idigbio_logo_0.png',
-               'lifemapper':':/plugins/lifemapperTools/icons/lm_poster_276_45.png'}
+#BANNER_ICONS = {'idigbio':':/plugins/lifemapperTools/icons/idigbio_logo_0.png',
+#               'lifemapper':':/plugins/lifemapperTools/icons/lm_poster_276_45.png'}
 
 def getURLFromConfig():
 
@@ -314,7 +314,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       QtGui.QDialog.__init__(self)
       self.client = None
       self.newUrl = None
-      self.bannerPath = None
+      #self.bannerPath = None
       self.setupUi()
       #self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)  # might want to put this in changeSettings
       self.setWindowTitle("Settings")
@@ -341,12 +341,12 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          self.serverList.setEnabled(True)
          self.addNewBut.setEnabled(True)
    
-   def getBanner(self,Sn):
-      
-      iconPth = None
-      if Sn.lower() in BANNER_ICONS:
-         iconPth = BANNER_ICONS[Sn.lower()]
-      return iconPth
+   #def getBanner(self,Sn):
+   #   
+   #   iconPth = None
+   #   if Sn.lower() in BANNER_ICONS:
+   #      iconPth = BANNER_ICONS[Sn.lower()]
+   #   return iconPth
                  
    def resetToDefault(self):
       """
@@ -366,7 +366,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          self.setCurrentUrlTxt(newUrl)
          if newUrl != getURLFromConfig():
             self.acceptBut.setEnabled(True)
-            self.bannerPath = self.getBanner(serverName)
+            #self.bannerPath = self.getBanner(serverName)
             self.newUrl = newUrl
          else:
             
@@ -389,7 +389,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          self.acceptBut.setFocus(True)
          print "new url"
          self.newUrl = newUrl
-         self.bannerPath = self.getBanner(serverName)
+         #self.bannerPath = self.getBanner(serverName)
       else:
          self.newUrl = None
          self.acceptBut.setEnabled(False)
@@ -512,9 +512,9 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
             cfg.set(sec,k,url) 
             print "w url"
             cfg.set(sec,"OGC_SERVICE_URL",os.path.join(url,"ogc"))  
-            if self.bannerPath is not None:
-               print "w banner"
-               cfg.set(sec,"BROWSER_BANNER",self.bannerPath)          
+            #if self.bannerPath is not None:
+            #   print "w banner"
+            #   cfg.set(sec,"BROWSER_BANNER",self.bannerPath)          
             with open(cfgPath, 'wb') as configfile:
                cfg.write(configfile)   
          except Exception, e:
