@@ -64,9 +64,10 @@ class HintModel(LmListModel):
 
 class Hint:
    
-   def __init__(self, client , parent = None, callBack = None, setModel=True, serviceRoot="http://lifemapper.org"):
+   def __init__(self, client , parent = None, callBack = None, setModel=True, serviceRoot="http://svc.lifemapper.org"):
       
       self.client = client
+      
       # need to initialize a LmListModel
       self.serviceRoot = serviceRoot
       self.parent = parent
