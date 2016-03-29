@@ -222,7 +222,7 @@ class LMFolderTreeView(QTreeView):
          
          QTreeView.__init__(self,parent)
          self.client = client
-         #self.setRootIsDecorated(True)
+         self.setRootIsDecorated(True)
          #self.provider = PROVIDER
          #self.tmpDir = tmpDir
          self.header().hide()
