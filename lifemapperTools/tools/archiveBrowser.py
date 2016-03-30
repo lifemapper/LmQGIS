@@ -597,12 +597,13 @@ class Ui_Dock(object):
       #self.logoLabel.setPixmap(self.logoPixMap)
       pW = QWidget()
       self.horizLayout = QGridLayout(pW)
-      self.horizLayout.setMargin(0)
+      self.horizLayout.setMargin(0) #maybe make this 3
       self.horizLayout.setColumnMinimumWidth(0,300)
       self.horizLayout.setColumnMinimumWidth(1,30)
       self.helpBut = QPushButton('?')
       self.helpBut.setMaximumSize(20, 20)
-      self.horizLayout.addWidget(self.help, 0,1,1,1 )
+      self.helpBut.clicked.connect(self.helpWindow)
+      self.horizLayout.addWidget(self.helpBut, 0,1,1,1 )
       self.horizLayout.addWidget(self.logoLabel,0,0,1,1)
       self.verticalLayout.addWidget(pW)
       #self.verticalLayout.addWidget(self.logoLabel)
@@ -614,20 +615,20 @@ class Ui_Dock(object):
       dockWidget.setWidget(self.centralwidget)
       
    # .......................
-   def help(self):
+   def helpWindow(self):
+      
       self.help = QWidget()
       self.help.setWindowTitle('Lifemapper Help')
-      self.help.resize(600, 400)
-      self.help.setMinimumSize(600,400)
-      self.help.setMaximumSize(1000,1000)
+      self.help.resize(400, 100)
+      self.help.setMinimumSize(500,200)
+      self.help.setMaximumSize(500,200)
       layout = QVBoxLayout()
-      helpDialog = QTextBrowser()
-      helpDialog.setOpenExternalLinks(True)
-      #helpDialog.setSearchPaths(['documents'])
-      helppath = os.path.dirname(os.path.realpath(__file__))+'/documents/help.html'
-      helpDialog.setSource(QUrl.fromLocalFile(helppath))
-      helpDialog.scrollToAnchor('constructGrid')
-      layout.addWidget(helpDialog)
+      self.helpDialog = QTextEdit()
+      self.helpDialog.setReadOnly(True)
+      self.helpDialog.setWordWrapMode(QTextOption.WordWrap)
+      directions = """To search an archive for openModeler and MaxEnt distribution models choose a data provider from the LM option button. A dockable search pane will appear under the layers panel. Type a species name in the search bar.  An autocomplete function will provide species that match your search. A tree view will be filled out by species. Expand a species to see the occurrence set layer and the models. Each model can be expanded to reach that model's completed projections.  Double click on a terminal leaf to add the layer to the map canvas. Adding a layer also automatically downloads the data to a  temporary directory."""
+      self.helpDialog.setPlainText(directions)
+      layout.addWidget(self.helpDialog)
       self.help.setLayout(layout)
       if self.isModal():
          self.setModal(False)
