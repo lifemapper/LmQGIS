@@ -42,7 +42,7 @@
 path.link {
   fill: none;
   stroke: #666666;
-  stroke-width: 1.5px;
+  stroke-width: 1.0px;
 }
 
     </style>
@@ -66,8 +66,8 @@ old_circle = false;
 old_text = false;
 
 var m = [20, 120, 20, 120],
-w = 1280 - m[1] - m[3],
-h = 800 - m[0] - m[2],
+w = 600 - m[1] - m[3],
+h = 400 - m[0] - m[2],
 i = 0,
 x = d3.scale.linear().domain([0,w]).range([0,w]),
 y = d3.scale.linear().domain([0,h]).range([h,0]),
@@ -75,8 +75,8 @@ root;
     
 
 
-var width = 1600,
-   height = 1300;
+var width = 600,
+   height = 300;
 
 var cluster = d3.layout.cluster()
    .separation(function(a, b) { return a.parent == b.parent ? 3 : 3; })
@@ -310,7 +310,7 @@ function recurseIds(pathArray,node){
 	
 };
 
-function findClades(compositePathStr,lookFors){
+function findClades(compositePathStr,lookFors,fromFolder){
 	
 	if (lookFors != ''){ // empty selection
 		var tips = lookFors.split(',');
@@ -330,7 +330,13 @@ function findClades(compositePathStr,lookFors){
 	} else {
 		clearSelection();		
 	}
-	addSubtractToPythonList();
+	if (fromFolder != 'True'){
+		addSubtractToPythonList();	
+	} else{
+		send = jsonify(leafs);
+		pyDialog.addToLeavesforZoom(send);
+	}
+	
 	pathToToggle = false;		
 	
 };
@@ -445,8 +451,8 @@ function update(source) {
   nodeEnter.append("svg:text")
       .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
       .attr("id",function(d){return "textId"+d.pathId})
-      .attr("font-size", function(d){return d.children || d._children ? "10px" :"15px"})
-      .attr("dy", function(d){return d.children || d._children ? ".95em" : ".35em"})
+      .attr("font-size", function(d){return d.children || d._children ? "5px" :"8px"})
+      .attr("dy", function(d){return d.children || d._children ? ".55em" : ".25em"})
       .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
       .text(function(d) { return d.children || d._children ? d.name : d.name.replace("_"," "); })
       .style("fill-opacity", 1)
@@ -458,7 +464,7 @@ function update(source) {
       .attr("transform", function(d) { return "translate(" + d.y  + "," + d.x + ")"; });
 
   nodeUpdate.select("circle")
-      .attr("r", 5)
+      .attr("r", 2)
       .attr("id",function(d){return "pathId"+d.pathId})
       .style("fill", function(d) { if (d._children){
                                   color = "lightsteelblue";
@@ -681,7 +687,7 @@ function zoomToLeaf(dy,dx,did){
 function addSubtractToPythonList(){
 	
 	send = jsonify(leafs);
-	TreeWindowObj.addList(send);
+	pyDialog.addtoFolders(send);
 			
 }
 
