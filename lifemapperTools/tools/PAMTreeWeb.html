@@ -332,16 +332,32 @@ function findClades(compositePathStr,lookFors,fromFolder){
 	}
 	if (fromFolder != 'True'){
 		addSubtractToPythonList();	
-	} else{
-		send = jsonify(leafs);
-		pyDialog.addToLeavesforZoom(send);
-	}
+	} //else{
+		//send = jsonify(leafs);
+		//pyDialog.addToLeavesforZoom(send);
+		//sendSelectedToPythonZoom();
+	//}
 	
 	pathToToggle = false;		
 	
 };
 
+function sendSelectedToPythonZoom(){
 
+	
+	var list = [];
+	for (prop in leafs){
+		
+		//leafJSON = jsonify(leafs[prop])
+		//pyObj.processLeafJSON(leafJSON)
+		list.push(leafs[prop]);
+	}
+	var selectedLeafs = {};
+	selectedLeafs["selected"] = list;
+	signalJSON = jsonify(selectedLeafs);
+	pyDialog.addToLeavesforZoom(signalJSON)
+	
+};
 function findClade(path,spsName){
 	lookingFor = [];
 	var treeIds = path.split(',');
