@@ -7,7 +7,27 @@ from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.common.LmQTree import BrowserTreeModel, TreeItem
 
-
+def toUnicode(value, encoding='utf-8'):
+   """
+   @summary: Encodes a value for a element's text
+   @param value: The object to make text
+   @param encoding: (optional) The encoding of the text
+   @todo: Encoding should be a constant
+   """
+   if isinstance(value, basestring):
+      if not isinstance(value, unicode):
+         value = unicode(value, encoding)
+   else:
+      value = unicode(str(value), encoding)
+   return value
+      
+def fromUnicode(uItem, encoding="utf-8"):
+   """
+   @summary: Converts a unicode string to text for display
+   @param uItem: A unicode object
+   @param encoding: (optional) The encoding to use
+   """
+   return uItem.encode("utf-8")
 
 class Ui_Dialog(object):
    
@@ -47,13 +67,13 @@ class Ui_Dialog(object):
       MainLayout.addWidget(QTextEdit())
       MainLayout.addWidget(self.tabWidget)
    
-   def setUpFolderHintService(self):
+   def setUpFolderHintService(self,data=[]):
       """
       @summary: sets up the hint service and sets hint attribute
       combo can be added as a widget using self.hint.combo, callback
       adds extra functionality in addition to combo model
       """
-      self.folderHint = PAMHint(self.client, callBack=self.callBack, setModel=False) #, serviceRoot=CURRENT_WEBSERVICES_ROOT
+      self.folderHint = PAMHint(self.client, callBack=self.callBack, setModel=False,data=data) #, serviceRoot=CURRENT_WEBSERVICES_ROOT
       archiveComboModel = ArchiveComboModel([],None)
       self.folderHint.model = archiveComboModel
       self.folderHint.combo.lineEdit().setPlaceholderText("[Start Typing]")
@@ -67,43 +87,45 @@ class Ui_Dialog(object):
    def setUpFolderTreeView(self):
       
       self.folderTreeView = LMFolderTreeView(self.client, parent = self.folderPage)
+      #self.folderTreeView = QTreeView()
       self.folderModel = BrowserTreeModel(top='pam')
       self.folderTreeView.setModel(self.folderModel)
       self.folderTreeView.setObjectName("folderTreeView")
    
    def callBack(self, items):
       print "in call back"
-      #"""
-      #@summary: call back from hint class, where items are used to populate tree
-      #@param items: list of hit items
-      #"""
-      #
-      #if items[0].displayName == '':
-      ##if len(items)  == 0:  # without SpeciesResult wrapper obj
-      #   self.treeModel.beginRemoveRows(self.treeModel.index(0,0,QModelIndex()), 0, self.treeModel.provider.childCount()-1)
-      #   self.treeModel.provider.childItems = []
-      #   self.treeModel.endRemoveRows()
-      #else:
-      #   row = 0
-      #   self.treeModel.provider.childItems = []
-      #   for sps in items:
-      #      
-      #      nameFolder = TreeItem(sps.displayName,sps.displayName,self.treeModel.provider)
-      #      occSetName = "occurrence set (%s points)" % sps.numPoints
-      #      occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,
-      #                            type=ARCHIVE_DWL_TYPE.OCCURRENCE)
-      #      try:
-      #         for m in sps.models:
-      #            mF = TreeItem(m.algorithmCode,m.algorithmCode,nameFolder)
-      #            for p in m.projections:
-      #               TreeItem(p.projectionId,p.projectionScenarioCode,mF,type=ARCHIVE_DWL_TYPE.PROJ)
-      #      except:
-      #         pass
-      #      self.treeModel.insertRow(row, QModelIndex())      
-      #      row = row + 1
-      #      
-      #               
-      #   self.treeView.expand(self.treeModel.index(0,0,QModelIndex()))
+      """
+      @summary: call back from hint class, where items are used to populate tree
+      @param items: list of hit items
+      """
+      
+      if items[0].displayName == '':
+      #if len(items)  == 0:  # without SpeciesResult wrapper obj
+         self.folderModel.beginRemoveRows(self.folderModel.index(0,0,QModelIndex()), 0, self.folderModel.provider.childCount()-1)
+         self.folderModel.provider.childItems = []
+         self.folderModel.endRemoveRows()
+      else:
+         row = 0
+         self.folderModel.provider.childItems = []
+         for sps in items:
+            
+            nameFolder = TreeItem(sps.displayName,sps.displayName,self.folderModel.provider)
+            #occSetName = "occurrence set (%s points)" % sps.numPoints
+            #occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,
+            #                      type='new')
+            stats = TreeItem('presence values','presence values',nameFolder)
+            #try:
+            #   for m in sps.models:
+            #      mF = TreeItem(m.algorithmCode,m.algorithmCode,nameFolder)
+            #      for p in m.projections:
+            #         TreeItem(p.projectionId,p.projectionScenarioCode,mF,type='new')
+            #except:
+            #   pass
+            self.folderModel.insertRow(row, QModelIndex())      
+            row = row + 1
+                        
+         self.folderTreeView.expand(self.folderModel.index(0,0,QModelIndex()))
+         
    def setUpTable(self):
       
       self.tableData = [['start','','']]  
@@ -112,41 +134,69 @@ class Ui_Dialog(object):
       return self.table.createTable(header)   
 
 class PAMHint(Hint):
-
+   
+   def __init__(self, client, callBack=None, setModel=True, data=[]):
+      Hint.__init__(self, client, callBack=callBack, setModel=setModel)
+      self.layers = data
+      
+   def onTextChange(self, text):
+      
+      noChars = len(text)
+      if text == '':
+         self.combo.clear()
+         self.combo.clearEditText()
+         if self.callback is not None:
+            self.callback([FolderSpsSearchResult('', '', '','','')])
+                  
+      if noChars >= 3:
+         
+         if text.count(" ") == 1:
+            if len(text.split(" ")) == 1: # don't know, look in orig
+               self.combo.clear()
+               self.combo.clearEditText()
+         #   currText = self.combo.currentText()
+         #   idx = self.getIdxFromTuples(currText)
+         #   self.combo.setCurrentIndex(idx) 
+               
+            return
+         #if ' ' in text:
+         #   text.replace(' ','%20')
+         self.searchOccSets(text)
+    
+   def getIdxFromTuples(self,currentText):
+      pass
+      #idx = 0
+      #if self.namedTuples is not None:
+      #   for sH in self.namedTuples: 
+      #      # probably will need to change this inside of Qgis        
+      #      #if sH.name.lower() in unicode(currentText).lower():
+      #      #if sH.name.lower() in currentText.lower():
+      #      #if sH.displayName.lower() in currentText.lower():
+      #      if sH.displayName in currentText:
+      #         break
+      #      idx += 1   
+      #else:
+      #   print "no namedTuples"      
+      #return idx 
+   
    def searchOccSets(self,searchText=''):
       """
       @summary: calls hint service
       @param    searchText: text to search for
       @todo:    needs a call back, probably set on init
       """
-      print "here"
+      
       # use toUnicode(searchText).encode('utf-8') for search
-      #root = self.serviceRoot
-      #try:
-      #   #self.namedTuples = self.client.sdm.hint(toUnicode(searchText).encode('utf-8'),
-      #   #                                        maxReturned=60,serviceRoot=root)   
-      #   self.namedTuples = self.client.sdm.searchArchive(toUnicode(searchText).encode('utf-8'))    
-      #except Exception, e:
-      #   #print "or is throwing except ", e 
-      #   pass
-      #else:
-      #   items = []
-      #   if self.namedTuples is not None:
-      #      if len(self.namedTuples) > 0:
-      #         for species in self.namedTuples:
-      #            
-      #            items.append(SpeciesSearchResult(species.displayName,species.occurrenceSetId,
-      #                                             numPoints=species.numPoints,models=species.models
-      #                                             )) 
-      #            # species.name,species.id, downloadUrl=species.downloadUrl, numModels=species.numModels
-      #      else:  # added this Sept. 29
-      #         items.append(SpeciesSearchResult('', '', '',''))
-      #   else:  
-      #      items.append(SpeciesSearchResult('', '', '',''))
-      #      
-      #   self.model.updateList(items) #uncomment when gong back to combo from lineEdit
-      #   if self.callback is not None:
-      #      self.callback(items)
+      try:                                         
+         matches = [v for v in self.layers if v.displayName.startswith(searchText)]    
+      except Exception, e:
+         print "or is throwing except ", e 
+         
+      else:
+         if len(matches) > 0:
+            self.model.updateList(matches)
+            if self.callback is not None:
+               self.callback(matches)
 
 class ArchiveComboModel(LmListModel):
    
@@ -165,6 +215,7 @@ class ArchiveComboModel(LmListModel):
          else:   
             try: 
                return self.listData[index.row()].displayName
+               #return self.listData[index.row()]
             except: 
                return #self.listData[index.row()]
            
@@ -254,7 +305,7 @@ class PAMDialog(QDialog, Ui_Dialog):
       self.client = client
       self.setupUi(experimentname=experimentname)
       
-      #self.getPALayers(expId)
+      self.getPALayers(expId)
       
      
    
@@ -265,10 +316,16 @@ class PAMDialog(QDialog, Ui_Dialog):
       try:
          palyrs = self.client.rad.getPALayers(expId)  
       except:
-         self.palyrs = None
+         self.palyrs = None # ?
       else:
-         self.palyrs = palyrs
-      print dir(self.palyrs[0])
+         self.palyrs = palyrs # ?
+         l = []
+         for pa in palyrs:
+            o = FolderSpsSearchResult(pa.name.replace("_"," "),minPresence=pa.minPresence,
+                                      maxPresence=pa.maxPresence,
+                                      percentPresence=pa.percentPresence)
+            l.append(o)
+         self.folderHint.layers = l
       
 if __name__ == "__main__":
 #  
