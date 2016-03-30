@@ -152,6 +152,10 @@ class Ui_Dialog(object):
             self.folderModel.provider.childItems = []
             self.folderModel.endRemoveRows()
             #self.treeMatchesinCallBack = []
+            if not fromTree:
+               print "is it in here"
+               self.treeWebView.page().mainFrame().evaluateJavaScript('clearSelection();')
+            #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))
          else:
             row = 0
             self.folderModel.provider.childItems = []
@@ -205,15 +209,7 @@ class PAMHint(Hint):
             self.callback([FolderSpsSearchResult('', '', '','','')])
                   
       if noChars >= 3:
-         
-         if text.count(" ") == 1:
-            if len(text.split(" ")) == 1: # don't know, look in orig
-               self.combo.clear()
-               self.combo.clearEditText()
-         #   currText = self.combo.currentText()
-         #   idx = self.getIdxFromTuples(currText)
-         #   self.combo.setCurrentIndex(idx) 
-               
+         if text.count(" ") == 1:  
             return
          #if ' ' in text:
          #   text.replace(' ','%20')
@@ -396,19 +392,19 @@ class PAMDialog(QDialog, Ui_Dialog):
       
       if len(self.selectedinTreeFromFolder) > 0:
          if len(self.selectedinTreeFromFolder) > 5:
-            idx = int(len(self.selectedinTreeFromFolder)) / 2
-            item = int(self.selectedinTreeFromFolder[idx])
+            idx = len(self.selectedinTreeFromFolder) / 2
+            item = self.selectedinTreeFromFolder[int(idx)]
+            print "zoom name check ",item["name"]
          else:
             item = self.selectedinTreeFromFolder[0]
             
-         self.treeWebView.page().mainFrame().evaluateJavaScript('zoomToLeaf("%s","%s", "%s");' % (item.dx,item.dy,item.pathId))
+         self.treeWebView.page().mainFrame().evaluateJavaScript('zoomToLeaf("%s","%s", "%s");' % (item["x"],item["y"],item["pathId"]))
      
    def selectInTree(self):
       
       
       paths = []
       ids   = []
-      print self.tipsByName
       for sps in self.treeMatchesinCallBack:
          if sps in self.tipsByName:
             try:
@@ -431,13 +427,14 @@ class PAMDialog(QDialog, Ui_Dialog):
       except Exception, e:
          print "EXCEPT IN select in Tree ",(str)
       
-      self.zoomItem()
+      #self.zoomItem()
       
    @pyqtSlot(str)
    def addToLeavesforZoom(self,leavesJSON):
       
       leaves = json.loads(str(leavesJSON))
-      self.selectedinTreeFromFolder = leaves.values()
+      self.selectedinTreeFromFolder = leaves["selected"]
+      print self.selectedinTreeFromFolder
    
    @pyqtSlot(str)
    def addtoFolders(self,leavesJSON):
@@ -449,7 +446,7 @@ class PAMDialog(QDialog, Ui_Dialog):
       #needs to clear folder view ??
       self.folderHint.combo.clear()
       self.folderHint.combo.clearEditText()
-      self.callBack([FolderSpsSearchResult('', '', '','','')])
+      self.callBack([FolderSpsSearchResult('', '', '','','')],fromTree=True)
       
       inner = leaves.values()
       inner.sort(key=operator.itemgetter('name')) # sorts a list of dictionaries by a specific key
@@ -551,6 +548,7 @@ if __name__ == "__main__":
    epsg = 3410
    bucket = 1438
    treeJson = "/home/jcavner/WorkshopWS/AfricaMammals_1055/tree/tree.json"
+   sitesPresentPath = "/home/jcavner/WorkshopWS/AfricaMammals_1055/sitesPresent.pkl"
    qApp = QApplication(sys.argv)
    d = PAMDialog(None,client=client,expId = expId,treeJSON=treeJson)
    
