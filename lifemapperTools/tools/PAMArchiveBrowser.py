@@ -1,6 +1,8 @@
 
 import sys, os
 import logging
+import cPickle
+import csv
 try: import simplejson as json 
 except: import json
 from collections import Counter
@@ -49,6 +51,17 @@ class WebPage(QWebPage):
       self.logger.warning("JsConsole(%s:%d): %s" % (sourceID, lineNumber, msg))
 
 
+class PAMTableModel(RADTableModel):
+   
+   def flags(self, index):   
+      if index.column() in self.editIndexes and index.column() not in self.controlIndexes:     
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable  
+      elif index.column() in self.controlIndexes:
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable   
+        
+      #return QtCore.QAbstractTableModel.flags(self, index)
+      return Qt.ItemIsDragEnabled | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
 class Ui_Dialog(object):
    
    def setupUi(self, experimentname=''):
@@ -77,6 +90,9 @@ class Ui_Dialog(object):
       self.tablePage = QWidget()
       self.tableLayout = QVBoxLayout(self.tablePage)
       self.tableView = self.setUpTable()
+      self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+      self.tableView.dragEnabled()
+      self.tableView.setDragDropMode(QAbstractItemView.DragOnly)
       
       self.tableLayout.addWidget(self.tableView)
       
@@ -135,7 +151,7 @@ class Ui_Dialog(object):
       
       self.folderTreeView = LMFolderTreeView(self.client, parent = self.folderPage)
       #self.folderTreeView = QTreeView()
-      self.folderModel = BrowserTreeModel(top='pam')
+      self.folderModel = BrowserTreeModel(top='Africa Mammals PAM')
       self.folderTreeView.setModel(self.folderModel)
       self.folderTreeView.setObjectName("folderTreeView")
    
@@ -151,28 +167,37 @@ class Ui_Dialog(object):
             self.folderModel.beginRemoveRows(self.folderModel.index(0,0,QModelIndex()), 0, self.folderModel.provider.childCount()-1)
             self.folderModel.provider.childItems = []
             self.folderModel.endRemoveRows()
-            #self.treeMatchesinCallBack = []
+            self.table.tableView.setModel(PAMTableModel([[]],self.header,[],[]))
             if not fromTree:
                print "is it in here"
                self.treeWebView.page().mainFrame().evaluateJavaScript('clearSelection();')
             #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))
          else:
             row = 0
+            tableLL = []
             self.folderModel.provider.childItems = []
             for sps in items:
+               
+               tableLL.append([sps.displayName,sps.percentPresence,sps.minPresence,sps.maxPresence])
                
                nameFolder = TreeItem(sps.displayName,sps.displayName,self.folderModel.provider)
                #occSetName = "occurrence set (%s points)" % sps.numPoints
                #occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,
                #                      type='new')
-               stats = TreeItem('presence values','presence values',nameFolder)
-               #try:
-               #   for m in sps.models:
-               #      mF = TreeItem(m.algorithmCode,m.algorithmCode,nameFolder)
-               #      for p in m.projections:
-               #         TreeItem(p.projectionId,p.projectionScenarioCode,mF,type='new')
-               #except:
-               #   pass
+               presenceFolder = TreeItem('presence values','presence values',nameFolder)
+               
+               TreeItem(sps.percentPresence,"percent presence - %s" % (sps.percentPresence),presenceFolder)
+               TreeItem(sps.percentPresence,"min presence - %s" % (sps.minPresence),presenceFolder)
+               TreeItem(sps.percentPresence,"max presence - %s" % (sps.maxPresence),presenceFolder)
+               
+               
+               statsFolder = TreeItem('RAD stats','RAD stats',nameFolder)
+               if sps.displayName in self.statsBySps:
+                  statDict = self.statsBySps[sps.displayName] # this is a dict
+                  for stat in statDict:
+                     label = " %s - %s" % (stat,str(statDict[stat]))
+                     TreeItem((stat,statDict[stat],sps.displayName),label,statsFolder,type="RAD")
+               
                if not fromTree:
                   if " " in sps.displayName:
                      self.treeMatchesinCallBack.append(sps.displayName.replace(" ","_"))
@@ -185,13 +210,17 @@ class Ui_Dialog(object):
             if not fromTree:
                if len(self.treeMatchesinCallBack) > 0:
                   self.selectInTree()
-         
+                  
+            self.table.tableView.setModel(PAMTableModel(tableLL,self.header,[],[]))
+            self.table.tableView.resizeColumnsToContents()
+            self.table.tableView.horizontalHeader().setStretchLastSection(True)
+            
    def setUpTable(self):
       
-      self.tableData = [['start','','']]  
+      self.tableData = [['','','','']]  
       self.table =  RADTable(self.tableData)
-      header = ['1','2','3']
-      return self.table.createTable(header)   
+      self.header = ['name','percent presence','min presence','max presence']
+      return self.table.createTable(self.header)   
 
 class PAMHint(Hint):
    
@@ -325,15 +354,79 @@ class LMFolderTreeView(QTreeView):
          QTreeView.__init__(self,parent)
          self.client = client
          self.setRootIsDecorated(True)
+         self.RADAvg = {}
          #self.provider = PROVIDER
          #self.tmpDir = tmpDir
          self.header().hide()
-         #self.doubleClicked.connect(self.handleEvent)
+         self.doubleClicked.connect(self.handleEvent)
          #self.dragEnabled()
          #self.setDragDropMode(QAbstractItemView.DragOnly)
          self.header().setResizeMode(QHeaderView.ResizeToContents)
          
+   def handleEvent(self, index):
+      
+      # will need to get type
+      childRowIdx = index.row()
+      downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
+      stat,RADValue,sps = self.getDataFromDoubleClick(index)
+      if downloadType == 'RAD': # check that it is only a stat, look at orig
+         barDataList = list(csv.reader(open("/home/jcavner/PAMBrowser/bar-data.csv",'r')))
+         barDataList[1][1] = RADValue
+         barDataList[1][0] = sps
+         if stat in self.RADAvg:
+            avg = self.RADAvg[stat]
+         else:
+            avg = 999
+         barDataList[2][1] = avg
+         wr = csv.writer(open("/home/jcavner/PAMBrowser/bar-data.csv",'w')) #, dialect='excel')
+         wr.writerows(barDataList)
+         self.ChartDialog = RADStatsDialog(stat)
+         self.ChartDialog.setModal(False)
+         self.ChartDialog.show()
+      #if downloadType == ARCHIVE_DWL_TYPE.PROJ:
+      #   #if hit and lmId:
+      #   self.downLoadProjectionTiff(lmId, parentName, grandparent, scenName=leafName)
 
+   def getDataFromDoubleClick(self, itemIdx):
+      """
+      @summary: gets data from tree model from selection in view
+      """
+      
+      childRowIdx = itemIdx.row()
+      data = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).itemData 
+      #leafName = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).name
+      #hit = self.model().nodeFromIndex(itemIdx.parent()).child(childRowIdx).hit
+      #parentName = self.model().nodeFromIndex(itemIdx.parent()).name
+      #try:
+      #   grandparent = self.model().nodeFromIndex(itemIdx.parent().parent()).name
+      #except Exception, e:
+      #   grandparent = ''
+      ##if hit is None:
+      ##   hit = True  # this is temporary, to handle hit when still using them
+      #return hit, lmId, parentName, leafName, grandparent
+      return data[0],data[1],data[2]
+
+class RADStatsDialog(QDialog):
+   
+   def __init__(self,statName):
+      QDialog.__init__(self)
+      self.setWindowTitle("Statistic: "+statName)
+      self.resize(380, 350)
+      self.setMinimumSize(380, 350)
+      self.setMaximumSize(1300, 1300)
+      self.setSizeGripEnabled(True)
+      self.chartWebView = QWebView(self)
+      self.chartWebView.setMaximumSize(500, 500)
+      self.chartWebView.setPage(WebPage())
+      self.chartWebView.page().settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls,
+                                                      True)
+      #self.chartWebView.page().mainFrame().addToJavaScriptWindowObject("pyDialog", self)
+      #url = "http://google.com"
+      #pluginDir = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
+      #browserPath = "/home/jcavner/PAMBrowser/"
+      #url = os.path.join(browserPath,"RADStats.html")
+      url = "file:///home/jcavner/PAMBrowser/RADStats2.html"  # %s" % (url)
+      self.chartWebView.load(QUrl(url))
       
 class PAMDialog(QDialog, Ui_Dialog):
    
@@ -346,7 +439,8 @@ class PAMDialog(QDialog, Ui_Dialog):
 # .............................................................................
    def __init__(self, iface, inputs=None, client=None, epsg=None,
                 experimentname='',expId=None, 
-                treeJSON="file:///home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"):
+                treeJSON="file:///home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json",
+                presenceDict=None):
       """
       @param iface: QGIS interface object
       @param mode: describe process or execute mode
@@ -354,15 +448,18 @@ class PAMDialog(QDialog, Ui_Dialog):
       """
       QDialog.__init__(self)
       #self.setWindowFlags(self.windowFlags() & Qt.WindowMinimizeButtonHint)
+      self.setWindowTitle("Archive (PAM) Browser")
       self.client = client
       self.jsonUrl = treeJSON
       self.searchJSON = treeJSON
       self.prepareTreeForSearch()
       
+      self._availablestats = None
+      self.statsTypes = {}
       
       self.setupUi(experimentname=experimentname)
       
-      self.getPALayers(expId)
+      self.getPALayers(expId,presenceDict)
       
    def prepareTreeForSearch(self):
       
@@ -374,6 +471,7 @@ class PAMDialog(QDialog, Ui_Dialog):
       self.selectedinTreeFromFolder = []
       self.treeMatchesinCallBack = []
       self.tipsByName = {}
+      self.tipsByMx = {}
       ########  experimental ##########
       self.tips = [] # list with all the tip pathIds
       self.repeatIds = []
@@ -454,8 +552,8 @@ class PAMDialog(QDialog, Ui_Dialog):
       items = []
       for d in inner:
          k = d["name"]
-         if k in self.lookup:
-            items.append(self.lookup[k])
+         if k in self.palookup:
+            items.append(self.palookup[k])
          #result = SelectedResult(d["name"],d["x"],d["y"],d["pathId"],d["path"])
          #if d.has_key("length"):
          #   result.setLength(d["length"])
@@ -491,7 +589,11 @@ class PAMDialog(QDialog, Ui_Dialog):
             self.flattenTreeToTips(child)
       else:
          # this means it is a tip
+         ########## new for browser
+         if 'mx' in clade:
+            self.tipsByMx[clade['mx']] = clade
          self.tipsByName[clade["name"]] = clade 
+         ###################
          self.tips.append(clade["pathId"]) # list with all the tip pathIds
          self.pilotList.append(clade)
          if "_" in clade["name"]:  # want to probably think about this
@@ -517,7 +619,7 @@ class PAMDialog(QDialog, Ui_Dialog):
       
       self.closeId = sortedFreq[2][0]
      
-   def getPALayers(self,expId):
+   def getPALayers(self,expId, presenceDict):
       
       try:
          palyrs = self.client.rad.getPALayers(expId)  
@@ -534,8 +636,134 @@ class PAMDialog(QDialog, Ui_Dialog):
             l.append(o)
             d[pa.name] = o
          self.folderHint.layers = l
-         self.lookup = d
+         self.palookup = d
+      # RAD stats dynamic
+      #self.buildStatsLookup()
+      #pD = cPickle.load(open(presenceDict))
+      #self.lyrsPresent = pD[1438]['layersPresent'] # hardcoding this bucketId for now
+      #self.getSpsStats()
+      #self.buildStatsBySps()
+      # replaced with pickle
+      self.statsBySps = cPickle.load(open("/home/jcavner/PAMBrowser/statsBySps.pkl"))
+      # write pickle, just once
+      #cPickle.dump(self.statsBySps,open("/home/jcavner/PAMBrowser/statsBySps.pkl","wb"))
+      self.buildSpsAvg()
+   
+   def buildSpsAvg(self):
       
+      self.avgs = {}
+      #print self.statsBySps
+      totalSps = float(len(self.statsBySps))
+      #print 'total ',totalSps
+      for sps in self.statsBySps: # sps key
+         for stat in self.statsBySps[sps]:
+            if stat not in self.avgs:
+               self.avgs[stat] = float(self.statsBySps[sps][stat])
+            else:
+               self.avgs[stat] += float(self.statsBySps[sps][stat])
+        
+      for s in self.avgs:
+         self.avgs[s] =  self.avgs[s] / totalSps    
+      self.folderTreeView.RADAvg = self.avgs
+      
+   def buildStatsBySps(self):
+      
+      # for only mx
+      # get the mx for the sps, if True in lyrs Present
+      # sort lyrsPresent keys
+      lpKeys = [k for k in self.lyrsPresent.keys() if self.lyrsPresent[k]]
+      lpKeys.sort()
+      self.statsBySps = {}
+      for mx in self.tipsByMx:
+         if self.lyrsPresent[int(mx)]:
+            name = self.tipsByMx[mx]['name'].replace("_"," ")  # has under_bar
+            idx = lpKeys.index(mx)  # get idx of mx in lpKeys
+            spsDict = {}
+            for stat in self.statsByStatName:
+               spsDict[stat] = self.statsByStatName[stat][idx]   
+            self.statsBySps[name] = spsDict
+      #print len(self.statsBySps)
+   def getSpsStats(self):
+      
+      self.statsByStatName = {}
+      for stat in self.getAvailableSpeciesStats():
+         v = self.getData(3103,stat)  # 3103, orig pamsum
+         self.statsByStatName[stat] = v
+   
+   def getData(self, pam, stat):
+      """
+      @summary: this returns a column (with respect to the table) for a stat for
+      a pam
+      """
+      args = {}
+      args.update({'expId':1055, 'bucketId':1438})
+      args.update({'pamSumId':pam})
+      args.update({'stat':stat})
+      try:
+         stats = self.client.rad.getPamSumStatistic(**args)      
+      except:
+         return False
+      else:
+         return stats
+   
+   @property
+   def availablestats(self):
+      if self._availablestats is None or self._availablestats == False:
+         self.setAvailableStats()      
+      return self._availablestats
+      
+   def setAvailableStats(self):
+      statsinputs = {}
+      statsinputs.update({'expId':1055, 'bucketId':1438})
+      statsinputs.update({'pamSumId':'original','stat':None})
+      try:
+         stats = self.client.rad.getPamSumStatistic(**statsinputs) 
+      except:
+         stats = False     
+      self._availablestats = stats
+      
+   def buildStatsLookup(self):
+      
+      types = ['specieskeys' , 'siteskeys' , 'diversitykeys']
+      statsType = {}
+      for type in types:
+         arguments = {}
+         arguments.update({'expId':1055, 'bucketId':1438})
+         arguments.update({'pamSumId':'original'})
+         arguments.update({'keys':type})
+         try:
+            keys = self.client.rad.getPamSumStatisticsKeys(**arguments)
+         except:
+            pass
+         else:
+            values = [type.replace('keys','') for x in range(0,len(keys))]          
+            #d = {k:v for k,v in zip(keys,values)}
+            d = dict(zip(keys,values))
+            statsType.update(d)
+      self.statsTypes.update(statsType)
+   
+    
+   def getAvailableSpeciesStats(self):
+      """
+      @summary: builds a list of of available species based stats
+      """
+      availablestats = self.availablestats
+       
+      availablespecies = []
+      if availablestats:      
+         for stat in availablestats:
+            if stat in self.statsTypes.keys():
+               if (self.statsTypes[stat] == 'species') and ('sigma' not in stat)  and ('covariance' not in stat):
+                  availablespecies.append(stat)          
+      else:
+         message = "There is a problem with the statistical service"
+         msgBox = QMessageBox.information(self,
+                                             "Problem...",
+                                             message,
+                                             QMessageBox.Ok)
+      return availablespecies 
+    
+
 if __name__ == "__main__":
 #  
 
@@ -550,7 +778,9 @@ if __name__ == "__main__":
    treeJson = "/home/jcavner/WorkshopWS/AfricaMammals_1055/tree/tree.json"
    sitesPresentPath = "/home/jcavner/WorkshopWS/AfricaMammals_1055/sitesPresent.pkl"
    qApp = QApplication(sys.argv)
-   d = PAMDialog(None,client=client,expId = expId,treeJSON=treeJson)
+   
+   d = PAMDialog(None,client=client,expId = expId,
+                 treeJSON=treeJson,presenceDict=sitesPresentPath)
    
    d.show()
    sys.exit(qApp.exec_())
