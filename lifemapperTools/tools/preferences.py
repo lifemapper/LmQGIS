@@ -432,9 +432,9 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       currentInInstances = False
       try:
          instanceObjs = self.client.getAvailableInstances()
-      except:
+      except: 
          pass
-      else:         
+      else:        
          items = []
          
          for server in instanceObjs:
