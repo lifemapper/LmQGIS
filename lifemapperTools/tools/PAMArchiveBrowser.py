@@ -62,7 +62,77 @@ class PAMTableModel(RADTableModel):
       #return QtCore.QAbstractTableModel.flags(self, index)
       return Qt.ItemIsDragEnabled | Qt.ItemIsEnabled | Qt.ItemIsSelectable
 
+class PAMTab(QTabWidget):
+   # try QTabBar instead
+   def tabChanged(self,index):
+      print index # nope
+
 class Ui_Dialog(object):
+   
+   def tabBarSetUp(self):
+      
+      
+      self.tableView = self.setUpTable()
+      self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+      self.tableView.dragEnabled()
+      
+      #########  folder tab
+      self.folderPage = QWidget()
+      self.folderLayout = QVBoxLayout(self.folderPage)
+      
+      self.setUpFolderHintService()
+      self.setUpFolderTreeView()
+      
+      self.folderLayout.addWidget(self.folderHint.combo)
+      self.folderLayout.addWidget(self.folderTreeView)
+      
+      self.tabWidget = QTabBar()
+      #self.tabWidget.setStyleSheet("QTabBar::tab { height: 32px; width: 82px; }")
+      #self.tabWidget.setStyleSheet("QTabBar::tab:selected { margin-left: -2px; margin-right: -2px; }")
+      newExpBut = QPushButton("New")
+      newExpBut.setAutoDefault(False)
+      self.tabWidget.addTab('folder view')  # for QTabBar, needs different layout
+      self.tabWidget.addTab('table view')
+      self.tabWidget.setTabButton(1,QTabBar.RightSide,newExpBut)
+      
+      self.tabBarVertLayout = QVBoxLayout()
+      self.tabBarVertLayout.setMargin(0)
+      self.tabBarVertLayout.addWidget(self.tabWidget)
+      self.tabBarVertLayout.addWidget(self.folderPage)
+   
+   def regularTabLayout(self):
+      
+      ##### tabs
+      self.tabWidget = QTabWidget()
+      
+      #########  folder tab
+      self.folderPage = QWidget()
+      self.folderLayout = QVBoxLayout(self.folderPage)
+
+      
+      self.setUpFolderHintService()
+      #folderWin = QTextEdit()
+      self.setUpFolderTreeView()
+      self.folderLayout.addWidget(self.folderHint.combo)
+      self.folderLayout.addWidget(self.folderTreeView)
+      
+      #########  table tab
+      self.tablePage = QWidget()
+      self.tableLayout = QVBoxLayout(self.tablePage)
+      self.tableView = self.setUpTable()
+      self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+      self.tableView.dragEnabled()
+      self.tableView.setDragDropMode(QAbstractItemView.DragOnly)
+      
+      self.tableLayout.addWidget(self.tableView)
+      
+      ##################
+      self.tabWidget.addTab(self.folderPage, 'folder view')
+      self.tabWidget.addTab(self.tablePage, 'table view')
+      
+      #newExpBut = QPushButton("New")
+      #newExpBut.setAutoDefault(False)
+      #self.tabWidget.setTabButton(1,QTabBar.RightSide,newExpBut)
    
    def setupUi(self, experimentname=''):
       self.resize(648, 410)
@@ -75,10 +145,10 @@ class Ui_Dialog(object):
       ##### tabs
       self.tabWidget = QTabWidget()
       
-      #########  folder tab
+      ########  folder tab
       self.folderPage = QWidget()
       self.folderLayout = QVBoxLayout(self.folderPage)
-
+      
       #self.hintCombo = QComboBox()
       self.setUpFolderHintService()
       #folderWin = QTextEdit()
@@ -100,8 +170,11 @@ class Ui_Dialog(object):
       self.tabWidget.addTab(self.folderPage, 'folder view')
       self.tabWidget.addTab(self.tablePage, 'table view')
       
-      ######################
-      #  QWeb  put this in its own method
+      #self.regularTabLayout()
+      #self.tabBarSetUp()
+      
+      #################  Tree and Map  ############
+      #  QWeb  put this in its own method?
       self.treeWebView = QWebView()
       self.treeWebView.setMaximumSize(300, 600)
       self.treeWebView.setPage(WebPage())
@@ -113,22 +186,51 @@ class Ui_Dialog(object):
       url = os.path.join(pluginDir,"PAMTreeWeb.html")
       url = "file:///%s" % (url)
       self.treeWebView.load(QUrl(url))
+      ###### map ####
+      self.mapWebView = QWebView()
+      self.mapWebView.hide()
+      self.mapWebView.setMaximumSize(300, 600)
+      self.mapWebView.setPage(WebPage())
+      self.mapWebView.page().settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls,
+                                                      True)
+      #self.mapWebView.page().mainFrame().addToJavaScriptWindowObject("pyDialog", self)
+      url = "http://google.com"
+      pluginDir = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
+      url = os.path.join(pluginDir,"PAMTreeWeb.html")
+      url = "file:///%s" % ("home/jcavner/PAMBrowser/map.html")
+      self.mapWebView.load(QUrl(url))
+      
+      
       #####################
       
       
       vWidget = QWidget()
       treeVLayout = QVBoxLayout(vWidget)
       
-      self.loadBut = QPushButton('load')
+      self.TreeMapButLayout = QHBoxLayout()
+      self.TreeMapButLayout.setMargin(0)
+      
+      self.mapButton = QPushButton("map")
+      self.mapButton.setAutoDefault(False)
+      self.mapButton.clicked.connect(self.loadMap)
+      
+      self.loadBut = QPushButton('tree')
       self.loadBut.setAutoDefault(False)
       self.loadBut.clicked.connect(self.loadTree)
-      treeVLayout.addWidget(self.loadBut)
+      
+      self.TreeMapButLayout.addWidget(self.loadBut)
+      self.TreeMapButLayout.addWidget(self.mapButton)
+      
+      #treeVLayout.addWidget(self.loadBut)
+      treeVLayout.addLayout(self.TreeMapButLayout)
       treeVLayout.addWidget(self.treeWebView)
-      ######################
-      #MainLayout.addWidget(QTextEdit())
-      #MainLayout.addWidget(self.treeWebView)
+      treeVLayout.addWidget(self.mapWebView)
+      
+      ###################################
+      
       MainLayout.addWidget(vWidget)
-      MainLayout.addWidget(self.tabWidget)
+      MainLayout.addWidget(self.tabWidget)   # good
+      #MainLayout.addLayout(self.tabBarVertLayout)
    
    def setUpFolderHintService(self,data=[]):
       """
@@ -149,7 +251,7 @@ class Ui_Dialog(object):
    
    def setUpFolderTreeView(self):
       
-      self.folderTreeView = LMFolderTreeView(self.client, parent = self.folderPage)
+      self.folderTreeView = LMFolderTreeView(self.client)#, parent = self.folderPage)
       #self.folderTreeView = QTreeView()
       self.folderModel = BrowserTreeModel(top='Africa Mammals PAM')
       self.folderTreeView.setModel(self.folderModel)
@@ -167,9 +269,8 @@ class Ui_Dialog(object):
             self.folderModel.beginRemoveRows(self.folderModel.index(0,0,QModelIndex()), 0, self.folderModel.provider.childCount()-1)
             self.folderModel.provider.childItems = []
             self.folderModel.endRemoveRows()
-            self.table.tableView.setModel(PAMTableModel([[]],self.header,[],[]))
+            self.table.tableView.setModel(PAMTableModel([['','','','']],self.header,[],[]))
             if not fromTree:
-               print "is it in here"
                self.treeWebView.page().mainFrame().evaluateJavaScript('clearSelection();')
             #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))
          else:
@@ -181,15 +282,15 @@ class Ui_Dialog(object):
                tableLL.append([sps.displayName,sps.percentPresence,sps.minPresence,sps.maxPresence])
                
                nameFolder = TreeItem(sps.displayName,sps.displayName,self.folderModel.provider)
-               #occSetName = "occurrence set (%s points)" % sps.numPoints
-               #occSet     = TreeItem(sps.occurrenceSetId,occSetName,nameFolder,
-               #                      type='new')
-               presenceFolder = TreeItem('presence values','presence values',nameFolder)
+               
+               
+               presenceFolder = TreeItem('Presence Values','presence values',nameFolder)
+               
                
                TreeItem(sps.percentPresence,"percent presence - %s" % (sps.percentPresence),presenceFolder)
-               TreeItem(sps.percentPresence,"min presence - %s" % (sps.minPresence),presenceFolder)
-               TreeItem(sps.percentPresence,"max presence - %s" % (sps.maxPresence),presenceFolder)
-               
+               TreeItem(sps.minPresence,"min presence - %s" % (sps.minPresence),presenceFolder)
+               TreeItem(sps.maxPresence,"max presence - %s" % (sps.maxPresence),presenceFolder)
+               TreeItem(sps.displayName,'view presence',presenceFolder,type="MAP")
                
                statsFolder = TreeItem('RAD stats','RAD stats',nameFolder)
                if sps.displayName in self.statsBySps:
@@ -482,10 +583,22 @@ class PAMDialog(QDialog, Ui_Dialog):
       self.calcNoDesc()
       self.addGeneraToHintList()
    
+   def loadMap(self):
+      
+      if self.treeWebView.isVisible():
+         self.treeWebView.hide()
+      self.mapWebView.show()
+   
    def loadTree(self):
       
+      if self.mapWebView.isVisible():
+         self.mapWebView.hide()
+      if not self.treeWebView.isVisible():
+         self.treeWebView.show()
+         return  # big ???
+      #if not self.flipOne:
       self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))      
-   
+      #self.flipOne = True
    def zoomItem(self):
       
       if len(self.selectedinTreeFromFolder) > 0:
