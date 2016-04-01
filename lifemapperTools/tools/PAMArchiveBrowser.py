@@ -185,7 +185,10 @@ class Ui_Dialog(object):
       pluginDir = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
       url = os.path.join(pluginDir,"PAMTreeWeb.html")
       url = "file:///%s" % (url)
+      print url
       self.treeWebView.load(QUrl(url))
+      
+   
       ###### map ####
       self.mapWebView = QWebView()
       self.mapWebView.hide()
@@ -193,12 +196,15 @@ class Ui_Dialog(object):
       self.mapWebView.setPage(WebPage())
       self.mapWebView.page().settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls,
                                                       True)
+      self.folderTreeView.mapWebView = self.mapWebView
       #self.mapWebView.page().mainFrame().addToJavaScriptWindowObject("pyDialog", self)
-      url = "http://google.com"
-      pluginDir = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
-      url = os.path.join(pluginDir,"PAMTreeWeb.html")
-      url = "file:///%s" % ("home/jcavner/PAMBrowser/map.html")
-      self.mapWebView.load(QUrl(url))
+      url2 = "http://google.com"
+      pluginDir2 = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
+      url2 = os.path.join(pluginDir2,"PAMMap.html")
+      url2 = "file:///%s" % (url2)
+      print url2
+      #url2 = "file:///home/jcavner/PAMBrowser/map.html"
+      self.mapWebView.load(QUrl(url2))
       
       
       #####################
@@ -290,7 +296,11 @@ class Ui_Dialog(object):
                TreeItem(sps.percentPresence,"percent presence - %s" % (sps.percentPresence),presenceFolder)
                TreeItem(sps.minPresence,"min presence - %s" % (sps.minPresence),presenceFolder)
                TreeItem(sps.maxPresence,"max presence - %s" % (sps.maxPresence),presenceFolder)
-               TreeItem(sps.displayName,'view presence',presenceFolder,type="MAP")
+               mx = -999
+               if sps.displayName.replace(" ","_") in self.tipsByName:
+                  if 'mx' in self.tipsByName[sps.displayName.replace(" ","_")]:
+                     mx = int(self.tipsByName[sps.displayName.replace(" ","_")]['mx'])
+               TreeItem(mx,'view presence',presenceFolder,type="MAP")
                
                statsFolder = TreeItem('RAD stats','RAD stats',nameFolder)
                if sps.displayName in self.statsBySps:
@@ -450,12 +460,14 @@ class FolderSpsSearchResult(object):
 
 class LMFolderTreeView(QTreeView):   
    
-   def __init__(self, client ,tmpDir = None, parent=None):
+   def __init__(self, client ,tmpDir = None, parent=None, mapWebView=None):
          
          QTreeView.__init__(self,parent)
          self.client = client
          self.setRootIsDecorated(True)
          self.RADAvg = {}
+         self.coordByMtx = {}
+         self.mapWebView = mapWebView
          #self.provider = PROVIDER
          #self.tmpDir = tmpDir
          self.header().hide()
@@ -469,8 +481,9 @@ class LMFolderTreeView(QTreeView):
       # will need to get type
       childRowIdx = index.row()
       downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
-      stat,RADValue,sps = self.getDataFromDoubleClick(index)
+      
       if downloadType == 'RAD': # check that it is only a stat, look at orig
+         stat,RADValue,sps = self.getDataFromDoubleClick(index)
          barDataList = list(csv.reader(open("/home/jcavner/PAMBrowser/bar-data.csv",'r')))
          barDataList[1][1] = RADValue
          barDataList[1][0] = sps
@@ -484,9 +497,23 @@ class LMFolderTreeView(QTreeView):
          self.ChartDialog = RADStatsDialog(stat)
          self.ChartDialog.setModal(False)
          self.ChartDialog.show()
-      #if downloadType == ARCHIVE_DWL_TYPE.PROJ:
-      #   #if hit and lmId:
-      #   self.downLoadProjectionTiff(lmId, parentName, grandparent, scenName=leafName)
+         
+      if downloadType == 'MAP':
+         
+         mx = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData
+         print "trying to map ",mx
+         if int(mx) in self.coordByMtx:
+            print "in dict"
+            spsCSV = "/home/jcavner/PAMBrowser/presence-data_%s.csv" %(str(mx))
+            wr = csv.writer(open(spsCSV,'w'))
+            nl = list(self.coordByMtx[int(mx)])
+            for l in nl:
+               l.extend(['z','z','z'])
+            nl.insert(0,['lon','lat','code','city','country'])   
+            wr.writerows(nl)
+            if self.mapWebView is not None:
+               print "has mapView"
+               self.mapWebView.page().mainFrame().evaluateJavaScript('loadRange("%s");' % (spsCSV))
 
    def getDataFromDoubleClick(self, itemIdx):
       """
@@ -588,6 +615,7 @@ class PAMDialog(QDialog, Ui_Dialog):
       if self.treeWebView.isVisible():
          self.treeWebView.hide()
       self.mapWebView.show()
+      
    
    def loadTree(self):
       
@@ -595,9 +623,9 @@ class PAMDialog(QDialog, Ui_Dialog):
          self.mapWebView.hide()
       if not self.treeWebView.isVisible():
          self.treeWebView.show()
-         return  # big ???
+         #return  # big ???
       #if not self.flipOne:
-      self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))      
+      #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))      
       #self.flipOne = True
    def zoomItem(self):
       
@@ -731,6 +759,8 @@ class PAMDialog(QDialog, Ui_Dialog):
       sortedFreq = sorted(self.noIdInPaths.iteritems(), key=operator.itemgetter(1),reverse=True)
       
       self.closeId = sortedFreq[2][0]
+      
+      print "C ",self.closeId
      
    def getPALayers(self,expId, presenceDict):
       
@@ -757,9 +787,11 @@ class PAMDialog(QDialog, Ui_Dialog):
       #self.getSpsStats()
       #self.buildStatsBySps()
       # replaced with pickle
+      self.rangeByMtx = cPickle.load(open("/home/jcavner/PAMBrowser/coordByMtx.pkl"))
       self.statsBySps = cPickle.load(open("/home/jcavner/PAMBrowser/statsBySps.pkl"))
       # write pickle, just once
       #cPickle.dump(self.statsBySps,open("/home/jcavner/PAMBrowser/statsBySps.pkl","wb"))
+      self.folderTreeView.coordByMtx = self.rangeByMtx
       self.buildSpsAvg()
    
    def buildSpsAvg(self):
@@ -896,4 +928,5 @@ if __name__ == "__main__":
                  treeJSON=treeJson,presenceDict=sitesPresentPath)
    
    d.show()
+   
    sys.exit(qApp.exec_())
