@@ -165,11 +165,32 @@ class Ui_Dialog(object):
       self.tableView.setDragDropMode(QAbstractItemView.DragOnly)
       
       self.tableLayout.addWidget(self.tableView)
+      ####################
+      #    new exp tab
+      self.newExpPage = QWidget()
+      self.newLayout = QVBoxLayout(self.newExpPage)
+      self.newLayout.setContentsMargins(14, 36, 14, 87)
+      
+      #self.newLayout.setMargin(0)
+      self.expName = QLineEdit()
+      self.epsg   = QLineEdit()
+      exl = QLabel("Experiment Name")
+      exl.setMaximumHeight(35)
+      self.newLayout.addWidget(exl)
+      self.newLayout.addWidget(self.expName)
+      epl = QLabel("EPSG")
+      epl.setMaximumHeight(35)
+      self.newLayout.addWidget(epl)
+      self.newLayout.addWidget(self.epsg)
+      self.newLayout.addWidget(QWidget())
+      finishedBut = QPushButton("Done")
+      finishedBut.setAutoDefault(False)
+      self.newLayout.addWidget(finishedBut)
       
       ##################
-      self.tabWidget.addTab(self.folderPage, 'folder view')
-      self.tabWidget.addTab(self.tablePage, 'table view')
-      
+      self.tabWidget.addTab(self.folderPage, 'search species')
+      self.tabWidget.addTab(self.tablePage, 'table')
+      self.tabWidget.addTab(self.newExpPage,'new experiment')
       #self.regularTabLayout()
       #self.tabBarSetUp()
       
