@@ -221,7 +221,7 @@ class Ui_Dialog(object):
       #self.mapWebView.page().mainFrame().addToJavaScriptWindowObject("pyDialog", self)
       url2 = "http://google.com"
       pluginDir2 = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
-      url2 = os.path.join(pluginDir2,"PAMMap.html")
+      url2 = os.path.join(pluginDir2,"PAMMapSelect.html")
       url2 = "file:///%s" % (url2)
       print url2
       #url2 = "file:///home/jcavner/PAMBrowser/map.html"
@@ -245,8 +245,20 @@ class Ui_Dialog(object):
       self.loadBut.setAutoDefault(False)
       self.loadBut.clicked.connect(self.loadTree)
       
+      self.drawBut = QPushButton('S')
+      self.drawBut.setAutoDefault(False)
+      self.drawBut.setMaximumWidth(15)
+      self.drawBut.clicked.connect(lambda: self.toggleZoomDraw("D"))
+      
+      self.zoomBut = QPushButton('Z')
+      self.zoomBut.setAutoDefault(False)
+      self.zoomBut.setMaximumWidth(15)
+      self.zoomBut.clicked.connect(lambda: self.toggleZoomDraw("Z"))
+      
       self.TreeMapButLayout.addWidget(self.loadBut)
       self.TreeMapButLayout.addWidget(self.mapButton)
+      self.TreeMapButLayout.addWidget(self.drawBut)
+      self.TreeMapButLayout.addWidget(self.zoomBut)
       
       #treeVLayout.addWidget(self.loadBut)
       treeVLayout.addLayout(self.TreeMapButLayout)
@@ -258,6 +270,13 @@ class Ui_Dialog(object):
       MainLayout.addWidget(vWidget)
       MainLayout.addWidget(self.tabWidget)   # good
       #MainLayout.addLayout(self.tabBarVertLayout)
+   
+   def toggleZoomDraw(self,ZD):
+      print "FDFFDSSFD"
+      if ZD == "D":
+         self.mapWebView.page().mainFrame().evaluateJavaScript('drawPoly();')
+      elif ZD == "Z":
+         self.mapWebView.page().mainFrame().evaluateJavaScript('callZoom();')
    
    def setUpFolderHintService(self,data=[]):
       """
