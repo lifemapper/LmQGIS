@@ -87,13 +87,13 @@ drag = d3.behavior.drag()
    
  // don't know if I need this, and it is leaving behind bits
     
-    svg.append("svg:path")
+  /*  svg.append("svg:path")
        //.attr("class", "terminator")
        .attr('stroke', 'red')
        .attr('stroke-width', '1px')
        .attr('fill', 'none')
        .attr({ d : line([coords[0], coords[coords.length-1]])});
-       	   
+   */    	   
      
     
   });
@@ -226,7 +226,7 @@ function drawPoly(){
 }
 
 function callZoom(){
-	
+	svg.select(".myselection").remove();
 	svg.on(".drag", null);
 	// should by defualt be in zoom ??
 	svg.call(zoom);
