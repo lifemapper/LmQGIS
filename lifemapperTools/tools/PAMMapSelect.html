@@ -33,8 +33,8 @@ var width = 960,
     height = 500;
 
 var projection = d3.geo.mercator()
-    .center([-85, 0 ])
-    .scale(300)
+    .center([-85, 0 ]) //[-85, 0 ]
+    .scale(300) // 300
     .rotate([-180,0]);
 
 function getMinMaxOf2DIndex(arr, idx) {
@@ -43,6 +43,19 @@ function getMinMaxOf2DIndex(arr, idx) {
         max: Math.max.apply(null, arr.map(function (e) { return e[idx]}))
     }
 }; 
+
+
+function getScaled(){
+	
+    translate = projection.translate();
+    
+    //console.log(zoom.scale())
+    // this won't work,needs an input coord
+    var x = translate[0]/zoom.scale();
+    var y = translate[1]/zoom.scale();
+    x+=width/zoom.scale();
+    y+=height/zoom.scale();
+};
 
 line = d3.svg.line()
     
@@ -95,9 +108,25 @@ drag = d3.behavior.drag()
     
     xPixValues = getMinMaxOf2DIndex(coords,0) // pixels
     yPixValues = getMinMaxOf2DIndex(coords,1)
-    //console.log(yPixValues.min.constructor == String)
+    
+    //translate = zoom.translate();
+    //projection.translate(zoom.translate())//.scale(zoom.scale());
+    //projection.translate([
+    //                      translate[0] - xPixValues.min ,
+     //                     translate[1] - yPixValues.max  
+    //                    ]);
+    //projection.scale(zoom.scale() - 300)  //this gives insane numbers
     minsMap = projection.invert([xPixValues.min,yPixValues.max]) // max in pixels in y direction is opposite
-    //maxsMap = projection.invert([xPixValues.max,yPixValues.min])
+    
+    //projection.translate(zoom.translate()) //?
+    //projection.scale(zoom.scale()) ///300
+    
+    //projection.translate([
+    //                      translate[0] - xPixValues.max ,
+    //                      translate[1] - yPixValues.min 
+    //                    ]);
+    
+    maxsMap = projection.invert([xPixValues.max,yPixValues.min])
    
     
     console.log(minsMap)
@@ -228,13 +257,14 @@ g.selectAll("path")
 // zoom and pan
 var zoom = d3.behavior.zoom()
     .on("zoom",function() {
+    	
         g.attr("transform","translate("+ 
             d3.event.translate.join(",")+")scale("+d3.event.scale+")");
         g.selectAll("circle")
             .attr("d", path.projection(projection));
         g.selectAll("path")  
             .attr("d", path.projection(projection)); 
-
+        
   });
 
 
