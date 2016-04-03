@@ -13,6 +13,7 @@ from lifemapperTools.tools.radTable import *
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.common.LmQTree import BrowserTreeModel, TreeItem
+import lifemapperTools.icons.icons
 
 def toUnicode(value, encoding='utf-8'):
    """
@@ -135,13 +136,26 @@ class Ui_Dialog(object):
       #self.tabWidget.setTabButton(1,QTabBar.RightSide,newExpBut)
    
    def setupUi(self, experimentname=''):
-      self.resize(648, 410)
-      self.setMinimumSize(648, 410)
-      self.setMaximumSize(648, 410)
-      self.setSizeGripEnabled(True)
+      self.resize(698, 410)   # orgin 648, 410
+      self.setMinimumSize(698, 470)
+      self.setMaximumSize(698, 470)
+      #self.setSizeGripEnabled(True)
       
-      MainLayout = QHBoxLayout(self)
+      TopLayout = QVBoxLayout(self)
       
+      MainLayout = QHBoxLayout()  # might not want self here, had self origninally
+      
+      pythonCommandText = QTextEdit(">>>")
+      #pythonCommandText.setStyleSheet("QFrame {border-top-style:dotted}")
+      pythonCommandText.setMaximumHeight(55)
+      pythonCommandText.setEnabled(False)
+      
+      TopLayout.addLayout(MainLayout)
+      pythonHoriz = QHBoxLayout()
+      #int left, int top, int right, int bottom
+      pythonHoriz.setContentsMargins(31, 0, 0, 0)
+      pythonHoriz.addWidget(pythonCommandText)
+      TopLayout.addLayout(pythonHoriz)
       ##### tabs
       self.tabWidget = QTabWidget()
       
@@ -233,6 +247,7 @@ class Ui_Dialog(object):
       
       vWidget = QWidget()
       treeVLayout = QVBoxLayout(vWidget)
+      treeVLayout.setMargin(0)
       
       self.TreeMapButLayout = QHBoxLayout()
       self.TreeMapButLayout.setMargin(0)
@@ -245,20 +260,59 @@ class Ui_Dialog(object):
       self.loadBut.setAutoDefault(False)
       self.loadBut.clicked.connect(self.loadTree)
       
-      self.drawBut = QPushButton('S')
+      
+      
+      ######### vert layout for map/tree buttons
+      #vertButContainer = 
+      self.verticalButLayout = QVBoxLayout()
+      self.verticalButLayout.setContentsMargins(0, 31, 0, 225)
+      #self.verticalButLayout.setMargin(0)
+      
+      lassoIcon = QIcon(":/plugins/lifemapperTools/icons/lasso.png")
+      self.drawBut = QPushButton(lassoIcon,"")
+      self.drawBut.setIconSize(QSize(20,19))
       self.drawBut.setAutoDefault(False)
-      self.drawBut.setMaximumWidth(15)
+      self.drawBut.setMaximumSize(27, 27)
       self.drawBut.clicked.connect(lambda: self.toggleZoomDraw("D"))
+      self.drawBut.setEnabled(False)
       
       self.zoomBut = QPushButton('Z')
       self.zoomBut.setAutoDefault(False)
-      self.zoomBut.setMaximumWidth(15)
+      self.zoomBut.setMaximumSize(27, 27)
       self.zoomBut.clicked.connect(lambda: self.toggleZoomDraw("Z"))
+      self.zoomBut.setEnabled(False)
+      
+      # clear could work for both map and tree
+      clearMapIcon = QIcon(":/plugins/lifemapperTools/icons/clearTreeSelection.png")
+      self.clearMapSelection = QPushButton(clearMapIcon,"")
+      self.clearMapSelection.setIconSize(QSize(25,25))
+      self.clearMapSelection.setAutoDefault(False)
+      self.clearMapSelection.setMaximumSize(27, 27)
+      
+      refreshIcon = QtGui.QIcon(":/plugins/lifemapperTools/icons/refresh.png")
+      self.refreshTree = QPushButton(refreshIcon,"")
+      self.refreshTree.setIconSize(QSize(24,24))
+      self.refreshTree.setAutoDefault(False)
+      self.refreshTree.setMaximumSize(27, 27)
+      
+      sepTopLine = QFrame()
+      sepTopLine.setFrameShape(QFrame.HLine)
+      sepTopLine.setFrameShadow(QFrame.Sunken)
+      
+      sepBotLine = QFrame()
+      sepBotLine.setFrameShape(QFrame.HLine)
+      sepBotLine.setFrameShadow(QFrame.Sunken)
+      #############################
       
       self.TreeMapButLayout.addWidget(self.loadBut)
       self.TreeMapButLayout.addWidget(self.mapButton)
-      self.TreeMapButLayout.addWidget(self.drawBut)
-      self.TreeMapButLayout.addWidget(self.zoomBut)
+      
+      self.verticalButLayout.addWidget(sepTopLine)
+      self.verticalButLayout.addWidget(self.zoomBut)
+      self.verticalButLayout.addWidget(self.drawBut)
+      self.verticalButLayout.addWidget(self.clearMapSelection)
+      self.verticalButLayout.addWidget(self.refreshTree)
+      self.verticalButLayout.addWidget(sepBotLine)
       
       #treeVLayout.addWidget(self.loadBut)
       treeVLayout.addLayout(self.TreeMapButLayout)
@@ -266,13 +320,15 @@ class Ui_Dialog(object):
       treeVLayout.addWidget(self.mapWebView)
       
       ###################################
-      
+      MainLayout.addLayout(self.verticalButLayout)
       MainLayout.addWidget(vWidget)
-      MainLayout.addWidget(self.tabWidget)   # good
-      #MainLayout.addLayout(self.tabBarVertLayout)
+      MainLayout.addWidget(QWidget())  # spacer
+      MainLayout.addWidget(self.tabWidget)  
+      
+   
    
    def toggleZoomDraw(self,ZD):
-      print "FDFFDSSFD"
+      
       if ZD == "D":
          self.mapWebView.page().mainFrame().evaluateJavaScript('drawPoly();')
       elif ZD == "Z":
@@ -652,12 +708,20 @@ class PAMDialog(QDialog, Ui_Dialog):
    
    def loadMap(self):
       
+      self.refreshTree.setEnabled(False)
+      self.drawBut.setEnabled(True)
+      self.zoomBut.setEnabled(True)
+      
       if self.treeWebView.isVisible():
          self.treeWebView.hide()
       self.mapWebView.show()
       
    
    def loadTree(self):
+      
+      self.refreshTree.setEnabled(True)
+      self.drawBut.setEnabled(False)
+      self.zoomBut.setEnabled(False)
       
       if self.mapWebView.isVisible():
          self.mapWebView.hide()
