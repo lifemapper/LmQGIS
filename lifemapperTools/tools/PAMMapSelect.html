@@ -37,6 +37,12 @@ var projection = d3.geo.mercator()
     .scale(300)
     .rotate([-180,0]);
 
+function getMinMaxOf2DIndex(arr, idx) {
+    return {
+        min: Math.min.apply(null, arr.map(function (e) { return e[idx]})),
+        max: Math.max.apply(null, arr.map(function (e) { return e[idx]}))
+    }
+}; 
 
 line = d3.svg.line()
     
@@ -83,7 +89,21 @@ drag = d3.behavior.drag()
     svg = d3.select(this);
    
      
-   console.log(coords)
+   //console.log(coords)
+    //console.log(coords[0][0]) // pixels are inverted
+    //console.log(coords[3][0])
+    
+    xPixValues = getMinMaxOf2DIndex(coords,0) // pixels
+    yPixValues = getMinMaxOf2DIndex(coords,1)
+    //console.log(yPixValues.min.constructor == String)
+    minsMap = projection.invert([xPixValues.min,yPixValues.max]) // max in pixels in y direction is opposite
+    //maxsMap = projection.invert([xPixValues.max,yPixValues.min])
+   
+    
+    console.log(minsMap)
+    //console.log(maxsMap)
+    //console.log(coords[0])
+    //console.log(projection.invert(coords[0]))  // takes a two element array
    
  // don't know if I need this, and it is leaving behind bits
     
