@@ -44,18 +44,35 @@ for c in mxsCSV:
       rowIdx = 0
       for site in rll[:,colIdx]:     
          if int(site):
-            x = truncate(float(pamLL[rowIdx+1][0]),4)
-            y = truncate(float(pamLL[rowIdx+1][1]),4)
+            x = float(truncate(float(pamLL[rowIdx+1][0]),4))
+            y = float(truncate(float(pamLL[rowIdx+1][1]),4))
             lcoordTuples.append([x,y])
          rowIdx += 1 
-      coordByMx[mx] = lcoordTuples
+      coordByMx[mx] = [{'minX':-999,'minY':-999,'maxX':-999,'maxY':-999},lcoordTuples]
 
-cPickle.dump(coordByMx,open("/home/jcavner/PAMBrowser/coordByMtx.pkl","wb"))
-cBm = cPickle.load(open("/home/jcavner/PAMBrowser/coordByMtx.pkl"))  
-#print coordByMx[6]  
-wr = csv.writer(open("/home/jcavner/PAMBrowser/presence-data_sps6.csv",'w'))
-nl = list(cBm[56])
-for l in nl:
-   l.extend(['z','z','z'])
-nl.insert(0,['lon','lat','code','city','country'])   
-wr.writerows(nl)
+for mx in coordByMx:
+   
+   cA = numpy.array(coordByMx[mx][1])
+   minX = min(cA[:,0])
+   maxX = max(cA[:,0])
+   minY = min(cA[:,1])
+   maxY = max(cA[:,1])
+   
+   coordByMx[mx][0]['minX'] = minX
+   coordByMx[mx][0]['minY'] = minY
+   coordByMx[mx][0]['maxX'] = maxX
+   coordByMx[mx][0]['maxY'] = maxY
+   
+#print coordByMx[56][0]
+#print coordByMx[56][1]
+cPickle.dump(coordByMx,open("/home/jcavner/PAMBrowser/coordByMtx_2.pkl","wb"))
+
+
+#cBm = cPickle.load(open("/home/jcavner/PAMBrowser/coordByMtx.pkl"))  
+##print coordByMx[6]  
+#wr = csv.writer(open("/home/jcavner/PAMBrowser/presence-data_sps6.csv",'w'))
+#nl = list(cBm[56])
+#for l in nl:
+#   l.extend(['z','z','z'])
+#nl.insert(0,['lon','lat','code','city','country'])   
+#wr.writerows(nl)
