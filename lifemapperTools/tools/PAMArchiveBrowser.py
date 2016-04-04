@@ -232,7 +232,7 @@ class Ui_Dialog(object):
       self.mapWebView.page().settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls,
                                                       True)
       self.folderTreeView.mapWebView = self.mapWebView
-      #self.mapWebView.page().mainFrame().addToJavaScriptWindowObject("pyDialog", self)
+      self.mapWebView.page().mainFrame().addToJavaScriptWindowObject("pyDialogMap", self)
       url2 = "http://google.com"
       pluginDir2 = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
       url2 = os.path.join(pluginDir2,"PAMMapSelect.html")
@@ -326,7 +326,7 @@ class Ui_Dialog(object):
       MainLayout.addWidget(self.tabWidget)  
       
    
-   
+      
    def toggleZoomDraw(self,ZD):
       
       if ZD == "D":
@@ -365,6 +365,7 @@ class Ui_Dialog(object):
       @summary: call back from hint class, where items are used to populate tree
       @param items: list of hit items
       """
+      print "in call back"
       self.treeMatchesinCallBack = []
       if len(items) > 0:
          if items[0].displayName == '':
@@ -473,12 +474,12 @@ class PAMHint(Hint):
       @param    searchText: text to search for
       @todo:    needs a call back, probably set on init
       """
-      
+      print "is this here?"
       # use toUnicode(searchText).encode('utf-8') for search
       try:                                         
          matches = [v for v in self.layers if v.displayName.startswith(searchText)]    
       except Exception, e:
-         pass
+         print "except in searchOccsets ",str(e)
       else:
          if len(matches) > 0:
             self.model.updateList(matches)
@@ -602,7 +603,7 @@ class LMFolderTreeView(QTreeView):
             print "in dict"
             spsCSV = "/home/jcavner/PAMBrowser/presence-data_%s.csv" %(str(mx))
             wr = csv.writer(open(spsCSV,'w'))
-            nl = list(self.coordByMtx[int(mx)])
+            nl = list(self.coordByMtx[int(mx)][1])
             for l in nl:
                l.extend(['z','z','z'])
             nl.insert(0,['lon','lat','code','city','country'])   
@@ -684,6 +685,81 @@ class PAMDialog(QDialog, Ui_Dialog):
       self.setupUi(experimentname=experimentname)
       
       self.getPALayers(expId,presenceDict)
+   
+   def bboxCrossBbox(self,searchBBOX,spsBBOXDict):
+      
+      #r1 search
+      #r2 sps
+      # left,right = x
+      # top,bottom = y
+      spsMinX = spsBBOXDict['minX']
+      spsMinY = spsBBOXDict['minY']
+      spsMaxX = spsBBOXDict['maxX']
+      spsMaxY = spsBBOXDict['maxY']
+      
+      sMinX = searchBBOX[0][0]
+      sMinY = searchBBOX[0][1]
+      sMaxX = searchBBOX[1][0]
+      sMaxY = searchBBOX[1][1]
+      
+      hoverlaps = True
+      voverlaps = True
+      if (sMinX > spsMaxX) or (sMaxX < spsMinX):
+         hoverlaps = False
+      if (sMaxY < spsMinY) or (sMinY > spsMaxY):
+         voverlaps = False
+          
+      return hoverlaps and voverlaps
+   
+   def pointInBBOX(self,searchBBOX, point):
+      
+      sMinX = searchBBOX[0][0]
+      sMinY = searchBBOX[0][1]
+      sMaxX = searchBBOX[1][0]
+      sMaxY = searchBBOX[1][1]
+      
+      
+      
+      pointX = point[0]
+      pointY = point[1]
+      
+      inside = False
+      #print '(%s >= %s and %s <= %s) and (%s <= %s and %s >= s%s' % (str(pointX), str(sMinX), str(pointX), str(sMaxX), str(pointY),str(sMaxY),str(pointY),str(sMinY))
+      if (pointX >= sMinX and pointX <= sMaxX) and (pointY <= sMaxY and pointY >= sMinY):
+         inside = True
+          
+      return inside
+   
+   @pyqtSlot(str)
+   def searchByBBOX(self,bboxStr):
+      print bboxStr
+      # prepare bbox
+      minsStr = bboxStr.split(';')[0]
+      maxsStr = bboxStr.split(';')[1]
+      
+      minX = float(minsStr.split(',')[0])
+      minY = float(minsStr.split(',')[1])
+      
+      maxX = float(maxsStr.split(',')[0])
+      maxY = float(maxsStr.split(',')[1])
+      
+      searchBBOX = ((minX,minY),(maxX,maxY))
+      sendToCallBack = []             
+      for mx in self.rangeByMtx: # data structure with coords
+         spsBBOXDict = self.rangeByMtx[mx][0]
+         if self.bboxCrossBbox(searchBBOX,spsBBOXDict):
+            for point in self.rangeByMtx[mx][1]:
+               if self.pointInBBOX(searchBBOX,point):
+                  spsName = self.tipsByMx[mx]['name']
+                  paValues = self.palookup[spsName]
+                  sendToCallBack.append(paValues)
+                  break
+            
+      self.callBack(sendToCallBack)
+         # if intersect, loop thru coords and get mx
+         # use name to get pa values, use palookup
+         # build pa object, don't have to do this
+      # send to pa objects to call back
       
    def prepareTreeForSearch(self):
       
@@ -867,12 +943,17 @@ class PAMDialog(QDialog, Ui_Dialog):
       print "C ",self.closeId
      
    def getPALayers(self,expId, presenceDict):
-      
+      ##  CAN"T PICKLE LM OBJECTS, requires live call for now 
       try:
-         palyrs = self.client.rad.getPALayers(expId)  
-      except:
+         palyrs = self.client.rad.getPALayers(expId)
+         #palyrs = [] 
+         if len(palyrs) == 0:
+            raise
+      except Exception, e:
+         print "EXCEPTION IN GET PA LAYERS ",str(e)
          self.palyrs = None # ?
       else:
+         print palyrs
          self.palyrs = palyrs # ?
          l = []
          d = {}
@@ -883,7 +964,7 @@ class PAMDialog(QDialog, Ui_Dialog):
             l.append(o)
             d[pa.name] = o
          self.folderHint.layers = l
-         self.palookup = d
+         self.palookup = d  #look up Folder objects/pa by name
       # RAD stats dynamic
       #self.buildStatsLookup()
       #pD = cPickle.load(open(presenceDict))
@@ -891,7 +972,7 @@ class PAMDialog(QDialog, Ui_Dialog):
       #self.getSpsStats()
       #self.buildStatsBySps()
       # replaced with pickle
-      self.rangeByMtx = cPickle.load(open("/home/jcavner/PAMBrowser/coordByMtx.pkl"))
+      self.rangeByMtx = cPickle.load(open("/home/jcavner/PAMBrowser/coordByMtx_2.pkl")) # _2 has bbox in first element
       self.statsBySps = cPickle.load(open("/home/jcavner/PAMBrowser/statsBySps.pkl"))
       # write pickle, just once
       #cPickle.dump(self.statsBySps,open("/home/jcavner/PAMBrowser/statsBySps.pkl","wb"))
