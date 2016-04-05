@@ -67,7 +67,7 @@ old_text = false;
 
 var m = [20, 120, 20, 120],
 w = 600 - m[1] - m[3],
-h = 400 - m[0] - m[2],
+h = 500 - m[0] - m[2],  //400 - m[0] - m[2] - orig
 i = 0,
 x = d3.scale.linear().domain([0,w]).range([0,w]),
 y = d3.scale.linear().domain([0,h]).range([h,0]),
@@ -76,7 +76,7 @@ root;
 
 
 var width = 600,
-   height = 300;
+   height = 500;  //300 - orig
 
 var cluster = d3.layout.cluster()
    .separation(function(a, b) { return a.parent == b.parent ? 3 : 3; })
