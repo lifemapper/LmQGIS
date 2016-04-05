@@ -359,69 +359,89 @@ class Ui_Dialog(object):
       self.folderTreeView.setModel(self.folderModel)
       self.folderTreeView.setObjectName("folderTreeView")
    
-   def callBack(self, items, fromTree=False):
+   def callBack(self, items, fromTree=False,fromBBOX=False):
       
       """
       @summary: call back from hint class, where items are used to populate tree
       @param items: list of hit items
       """
-      print "in call back"
-      self.treeMatchesinCallBack = []
-      if len(items) > 0:
-         if items[0].displayName == '':
-            self.folderModel.beginRemoveRows(self.folderModel.index(0,0,QModelIndex()), 0, self.folderModel.provider.childCount()-1)
-            self.folderModel.provider.childItems = []
-            self.folderModel.endRemoveRows()
-            self.table.tableView.setModel(PAMTableModel([['','','','']],self.header,[],[]))
-            if not fromTree:
-               self.treeWebView.page().mainFrame().evaluateJavaScript('clearSelection();')
-            #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))
-         else:
-            row = 0
-            tableLL = []
-            self.folderModel.provider.childItems = []
-            for sps in items:
-               
-               tableLL.append([sps.displayName,sps.percentPresence,sps.minPresence,sps.maxPresence])
-               
-               nameFolder = TreeItem(sps.displayName,sps.displayName,self.folderModel.provider)
-               
-               
-               presenceFolder = TreeItem('Presence Values','presence values',nameFolder)
-               
-               
-               TreeItem(sps.percentPresence,"percent presence - %s" % (sps.percentPresence),presenceFolder)
-               TreeItem(sps.minPresence,"min presence - %s" % (sps.minPresence),presenceFolder)
-               TreeItem(sps.maxPresence,"max presence - %s" % (sps.maxPresence),presenceFolder)
-               mx = -999
-               if sps.displayName.replace(" ","_") in self.tipsByName:
-                  if 'mx' in self.tipsByName[sps.displayName.replace(" ","_")]:
-                     mx = int(self.tipsByName[sps.displayName.replace(" ","_")]['mx'])
-               TreeItem(mx,'view presence',presenceFolder,type="MAP")
-               
-               statsFolder = TreeItem('RAD stats','RAD stats',nameFolder)
-               if sps.displayName in self.statsBySps:
-                  statDict = self.statsBySps[sps.displayName] # this is a dict
-                  for stat in statDict:
-                     label = " %s - %s" % (stat,str(statDict[stat]))
-                     TreeItem((stat,statDict[stat],sps.displayName),label,statsFolder,type="RAD")
-               
+      try:
+         print "in call back"
+         self.treeMatchesinCallBack = []  # put just sps names in here
+         if len(items) > 0:
+            if items[0].displayName == '':
+               #print "is in here right before it crashes?"
+               self.folderModel.beginRemoveRows(self.folderModel.index(0,0,QModelIndex()), 0, self.folderModel.provider.childCount()-1)
+               self.folderModel.provider.childItems = []
+               self.folderModel.endRemoveRows()
+               self.table.tableView.setModel(PAMTableModel([['','','','']],self.header,[],[]))
                if not fromTree:
-                  if " " in sps.displayName:
-                     self.treeMatchesinCallBack.append(sps.displayName.replace(" ","_"))
+                  self.treeWebView.page().mainFrame().evaluateJavaScript('clearSelection();')
+               #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl, self.closeId))
+            else:
+               row = 0
+               tableLL = []
+               
+               self.folderModel.beginRemoveRows(self.folderModel.index(0,0,QModelIndex()), 0, self.folderModel.provider.childCount()-1)
+               self.folderModel.provider.childItems = []
+               self.folderModel.endRemoveRows()
+               # old way, below
+               #self.folderModel.provider.childItems = [] # wonder if should clear like above
+               
+               #print "got here"
+               for sps in items:
+                  #print "and here"
+                  tableLL.append([sps.displayName,sps.percentPresence,sps.minPresence,sps.maxPresence])
                   
-               self.folderModel.insertRow(row, QModelIndex())      
-               row = row + 1
-                           
-            self.folderTreeView.expand(self.folderModel.index(0,0,QModelIndex()))
-            
-            if not fromTree:
-               if len(self.treeMatchesinCallBack) > 0:
-                  self.selectInTree()
+                  nameFolder = TreeItem(sps.displayName,sps.displayName,self.folderModel.provider)
                   
-            self.table.tableView.setModel(PAMTableModel(tableLL,self.header,[],[]))
-            self.table.tableView.resizeColumnsToContents()
-            self.table.tableView.horizontalHeader().setStretchLastSection(True)
+                  
+                  presenceFolder = TreeItem('Presence Values','presence values',nameFolder)
+                  
+                  
+                  TreeItem(sps.percentPresence,"percent presence - %s" % (sps.percentPresence),presenceFolder)
+                  TreeItem(sps.minPresence,"min presence - %s" % (sps.minPresence),presenceFolder)
+                  TreeItem(sps.maxPresence,"max presence - %s" % (sps.maxPresence),presenceFolder)
+                  mx = -999
+                  if sps.displayName.replace(" ","_") in self.tipsByName:
+                     if 'mx' in self.tipsByName[sps.displayName.replace(" ","_")]:
+                        mx = int(self.tipsByName[sps.displayName.replace(" ","_")]['mx'])
+                  TreeItem(mx,'view presence',presenceFolder,type="MAP")
+                  
+                  statsFolder = TreeItem('RAD stats','RAD stats',nameFolder)
+                  if sps.displayName in self.statsBySps:
+                     statDict = self.statsBySps[sps.displayName] # this is a dict
+                     for stat in statDict:
+                        label = " %s - %s" % (stat,str(statDict[stat]))
+                        TreeItem((stat,statDict[stat],sps.displayName),label,statsFolder,type="RAD")
+                  
+                  if not fromTree:
+                     if " " in sps.displayName:
+                        self.treeMatchesinCallBack.append(sps.displayName.replace(" ","_"))
+                     
+                  self.folderModel.insertRow(row, QModelIndex())      
+                  row = row + 1
+                  #print "and here"
+                             
+               self.folderTreeView.expand(self.folderModel.index(0,0,QModelIndex()))
+               #print "expanded"
+               if not fromTree:
+                  if len(self.treeMatchesinCallBack) > 0:
+                     if fromBBOX:
+                        if len(self.treeMatchesinCallBack) > 20:
+                           self.treeMatchesinCallBack = self.treeMatchesinCallBack[:20]
+                        print "len in treeMatchesinCallBack for BBOX ",len(self.treeMatchesinCallBack)
+                     self.selectInTree()
+                     
+               self.table.tableView.setModel(PAMTableModel(tableLL,self.header,[],[]))
+               self.table.tableView.resizeColumnsToContents()
+               self.table.tableView.horizontalHeader().setStretchLastSection(True)
+         else:
+            self.treeMatchesinCallBack = []
+            print "len = 0"
+      except Exception, e:
+         self.treeMatchesinCallBack = []
+         print "exception in call back"
             
    def setUpTable(self):
       
@@ -474,7 +494,7 @@ class PAMHint(Hint):
       @param    searchText: text to search for
       @todo:    needs a call back, probably set on init
       """
-      print "is this here?"
+      #print "is this here?"
       # use toUnicode(searchText).encode('utf-8') for search
       try:                                         
          matches = [v for v in self.layers if v.displayName.startswith(searchText)]    
@@ -576,41 +596,45 @@ class LMFolderTreeView(QTreeView):
    def handleEvent(self, index):
       
       # will need to get type
-      childRowIdx = index.row()
-      downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
-      
-      if downloadType == 'RAD': # check that it is only a stat, look at orig
-         stat,RADValue,sps = self.getDataFromDoubleClick(index)
-         barDataList = list(csv.reader(open("/home/jcavner/PAMBrowser/bar-data.csv",'r')))
-         barDataList[1][1] = RADValue
-         barDataList[1][0] = sps
-         if stat in self.RADAvg:
-            avg = self.RADAvg[stat]
-         else:
-            avg = 999
-         barDataList[2][1] = avg
-         wr = csv.writer(open("/home/jcavner/PAMBrowser/bar-data.csv",'w')) #, dialect='excel')
-         wr.writerows(barDataList)
-         self.ChartDialog = RADStatsDialog(stat)
-         self.ChartDialog.setModal(False)
-         self.ChartDialog.show()
+      try:
+         childRowIdx = index.row()
+         downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
          
-      if downloadType == 'MAP':
-         
-         mx = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData
-         print "trying to map ",mx
-         if int(mx) in self.coordByMtx:
-            print "in dict"
-            spsCSV = "/home/jcavner/PAMBrowser/presence-data_%s.csv" %(str(mx))
-            wr = csv.writer(open(spsCSV,'w'))
-            nl = list(self.coordByMtx[int(mx)][1])
-            for l in nl:
-               l.extend(['z','z','z'])
-            nl.insert(0,['lon','lat','code','city','country'])   
-            wr.writerows(nl)
-            if self.mapWebView is not None:
-               print "has mapView"
-               self.mapWebView.page().mainFrame().evaluateJavaScript('loadRange("%s");' % (spsCSV))
+         if downloadType == 'RAD': # check that it is only a stat, look at orig
+            stat,RADValue,sps = self.getDataFromDoubleClick(index)
+            barDataList = list(csv.reader(open("/home/jcavner/PAMBrowser/bar-data.csv",'r')))
+            barDataList[1][1] = RADValue
+            barDataList[1][0] = sps
+            if stat in self.RADAvg:
+               avg = self.RADAvg[stat]
+            else:
+               avg = 999
+            barDataList[2][1] = avg
+            wr = csv.writer(open("/home/jcavner/PAMBrowser/bar-data.csv",'w')) #, dialect='excel')
+            wr.writerows(barDataList)
+            self.ChartDialog = RADStatsDialog(stat)
+            self.ChartDialog.setModal(False)
+            self.ChartDialog.show()
+            
+         if downloadType == 'MAP':
+            
+            mx = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData
+            print "trying to map ",mx
+            if int(mx) in self.coordByMtx:
+               print "in dict"
+               spsCSV = "/home/jcavner/PAMBrowser/presence-data_%s.csv" %(str(mx))
+               wr = csv.writer(open(spsCSV,'w'))
+               nl = list(self.coordByMtx[int(mx)][1])
+               for l in nl:
+                  l.extend(['z','z','z'])
+               nl.insert(0,['lon','lat','code','city','country'])   
+               wr.writerows(nl)
+               if self.mapWebView is not None:
+                  print "has mapView"
+                  self.mapWebView.page().mainFrame().evaluateJavaScript('loadRange("%s");' % (spsCSV))
+                  
+      except Exception,e:
+         print "exception in folder event"
 
    def getDataFromDoubleClick(self, itemIdx):
       """
@@ -688,10 +712,7 @@ class PAMDialog(QDialog, Ui_Dialog):
    
    def bboxCrossBbox(self,searchBBOX,spsBBOXDict):
       
-      #r1 search
-      #r2 sps
-      # left,right = x
-      # top,bottom = y
+      
       spsMinX = spsBBOXDict['minX']
       spsMinY = spsBBOXDict['minY']
       spsMaxX = spsBBOXDict['maxX']
@@ -732,7 +753,8 @@ class PAMDialog(QDialog, Ui_Dialog):
    
    @pyqtSlot(str)
    def searchByBBOX(self,bboxStr):
-      print bboxStr
+      
+      #self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % ("/home/jcavner/WorkshopWS/AfricaMammals_1055/tree/tree.json",str(665)))
       # prepare bbox
       minsStr = bboxStr.split(';')[0]
       maxsStr = bboxStr.split(';')[1]
@@ -755,7 +777,7 @@ class PAMDialog(QDialog, Ui_Dialog):
                   sendToCallBack.append(paValues)
                   break
             
-      self.callBack(sendToCallBack)
+      self.callBack(sendToCallBack,fromTree=True,fromBBOX=True)
          # if intersect, loop thru coords and get mx
          # use name to get pa values, use palookup
          # build pa object, don't have to do this
