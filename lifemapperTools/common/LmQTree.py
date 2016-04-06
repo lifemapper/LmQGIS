@@ -21,8 +21,11 @@ class BrowserTreeModel(QAbstractItemModel):
 
 
    def insertRows(self, row, count, parent):
-      self.beginInsertRows(parent, row, (row + (count - 1)))
-      self.endInsertRows()
+      try:
+         self.beginInsertRows(parent, row, (row + (count - 1)))
+         self.endInsertRows()
+      except:
+         print "in insert rows"
       return True
 
 
@@ -117,7 +120,10 @@ class BrowserTreeModel(QAbstractItemModel):
       if node is None:
          print "Returning 0 in rowCount in Tree model"
          return 0
-      return len(node)
+      try:
+         return len(node)
+      except:
+         return 0
    
    def data(self, index, role):
       
