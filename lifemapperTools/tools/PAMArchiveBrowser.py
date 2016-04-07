@@ -68,6 +68,14 @@ class PAMTab(QTabWidget):
    def tabChanged(self,index):
       print index # nope
 
+class LmWebView(QWebView):
+   def __init__(self,parent=None):
+      QWebView.__init__()
+      self.loadFinished.connect(self.handleLoadFinished)
+      
+   def handleLoadFinished(self,):
+      pass
+
 class Ui_Dialog(object):
    
    def tabBarSetUp(self):
@@ -211,6 +219,7 @@ class Ui_Dialog(object):
       #################  Tree and Map  ############
       #  QWeb  put this in its own method?
       self.treeWebView = QWebView()
+      self.treeWebView.loadFinished.connect(self.handleLoadFinished)
       self.treeWebView.setMaximumSize(300, 600)
       self.treeWebView.setPage(WebPage())
       self.treeWebView.page().settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls,
@@ -325,7 +334,11 @@ class Ui_Dialog(object):
       MainLayout.addWidget(QWidget())  # spacer
       MainLayout.addWidget(self.tabWidget)  
       
+   def handleLoadFinished(self, ok): 
+      if ok:
+         self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % ("/home/jcavner/WorkshopWS/AfricaMammals_1055/tree/tree.json",str(665)))
    
+           
       
    def toggleZoomDraw(self,ZD):
       
@@ -711,7 +724,9 @@ class PAMDialog(QDialog, Ui_Dialog):
       self.getPALayers(expId,presenceDict)
    
    def bboxCrossBbox(self,searchBBOX,spsBBOXDict):
-      
+      """
+      @summary: returns true if bbox's intersect
+      """
       
       spsMinX = spsBBOXDict['minX']
       spsMinY = spsBBOXDict['minY']
@@ -975,7 +990,7 @@ class PAMDialog(QDialog, Ui_Dialog):
          print "EXCEPTION IN GET PA LAYERS ",str(e)
          self.palyrs = None # ?
       else:
-         print palyrs
+         #print palyrs
          self.palyrs = palyrs # ?
          l = []
          d = {}
@@ -1137,3 +1152,5 @@ if __name__ == "__main__":
    d.show()
    
    sys.exit(qApp.exec_())
+   
+      
