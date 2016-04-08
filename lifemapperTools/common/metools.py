@@ -37,7 +37,8 @@ from lifemapperTools.tools.preferences import PreferencesDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
 from lifemapperTools.tools.listPALayers import ListPALayersDialog
-from lifemapperTools.tools.uploadLayers import UploadDialog
+#from lifemapperTools.tools.uploadLayers import UploadDialog
+from lifemapperTools.tools.uploadGRIMLyrs import UploadDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.tools.postSDMExp import PostSDMExpDialog
 from lifemapperTools.tools.addSDMLayer import UploadSDMDialog
@@ -46,7 +47,7 @@ from lifemapperTools.tools.spatialStats import SpatialStatsDialog
 from lifemapperTools.tools.listSDMExperiments import  ListSDMExpDialog
 from lifemapperTools.tools.ui_listBuildScenariosDialog import ListBuildScenariosDialog
 from lifemapperTools.tools.ui_postEnvLayer import PostEnvLayerDialog
-from lifemapperTools.tools.uploadTreeOTL_Tashi import UploadTreeDialog #_Tashi
+from lifemapperTools.tools.uploadTreeOTL import UploadTreeDialog #_Tashi
 from lifemapperTools.tools.constructGrid import ConstructGridDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.communicate import Communicate
@@ -76,12 +77,16 @@ class MetoolsPlugin:
    def getInstances(self):
    
       try:
-         instanceObjs = LMClient().getAvailableInstances()
+         cl = LMClient()
+         instanceObjs = cl.getAvailableInstances()
       except:
          instanceObjs = False
-      else:            
-         instanceObjs.extend([('iDigBio', 'http://lifemapper.org')])     
-      return instanceObjs
+      else:    
+         newL = list(instanceObjs)       
+         #newL.extend([('iDigBio', 'http://lifemapper.org')])
+         newL.extend([('iDigBio', 'http://notyeti-192.lifemapper.org')])  
+            
+      return newL
      
    def initGui(self):
       self.signInDialog = None
