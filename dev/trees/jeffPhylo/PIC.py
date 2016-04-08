@@ -292,6 +292,8 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
    
    # put results here
    resultSemiPartial = np.zeros((NumberNodes,NumberPredictors))
+   resultRsqAdj = np.array([np.zeros(NumberNodes)]).T
+   resultFGlobal = np.array([np.zeros(NumberNodes)]).T                       
   
   
    def predictors(predictorCol, **kwargs):
@@ -438,7 +440,9 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
                #% adjustments based on effective degrees of freedom should be considered
                #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
                #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
-               
+               print "denom ",NumberSites-NumberPredictors-1
+               RsqAdj = 1-np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))
+               print "RsqAdj ",RsqAdj
                # semi partial correlations 
                d =  {'Predictors' :Predictors,'swDiagonoal': swDiagonoal, 'StdPSum':StdPSum,'resultRsq':resultRsq}
                result = np.apply_along_axis(predictors, 0, Predictors, **d)
@@ -447,8 +451,9 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
             else:
                result = np.array([np.zeros(NumberPredictors)])
       else:
-         result = np.array([np.zeros(NumberPredictors)])
-      resultSemiPartial[iDictNode['y']] = result[0] 
+         result = np.array([np.zeros(NumberPredictors)])  # if here, row of zeros's (because isnt' a good node?)
+      resultSemiPartial[iDictNode['y']] = result[0]
+      # calc FGlobal and RsqAdj here or above, probably above
       iDictNode['y'] += 1    
         
       return np.array([])      
@@ -753,14 +758,14 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
       path = os.path.join(jsP,fN)
       d = loadJSON(path)
       ##############
-      I = np.array([[1, 0, 0], 
-                    [0, 1, 1],  
-                    [0, 0, 0],  
-                    [0, 0, 1],  
-                    [0, 0, 0],  
-                    [0, 0, 0],  
-                    [1, 0, 0],  
-                    [0, 0, 0]])
+      I = np.array([[1, 0, 0],   #[1, 0, 0], # original
+                    [0, 1, 1],   #[0, 1, 1],  
+                    [0, 1, 0],   #[0, 0, 0],  
+                    [0, 0, 1],   #[0, 0, 1],  
+                    [0, 1, 0],   #[0, 0, 0],  
+                    [0, 1, 0],   #[0, 0, 0],  
+                    [1, 0, 0],   #[1, 0, 0],  
+                    [0, 0, 0]])  #[0, 0, 0]]
       bs = np.any(I,axis=0)  # bolean selection cloumn-wise logical OR
       delColPos = np.where(bs == False)[0]
       #I = np.delete(I,delColPos,axis=1)
@@ -841,6 +846,7 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    
    #BetaE_regression(PsigStd,Estd,Wn)
    #C = semiPartCorrelation(PsigStd,Estd,Wn)
+   #semiPartCorrelation_Leibold(I,E,P)
    semiPartCorrelation_Leibold_Vectorize(I,E,P)
    #print C
    #print
