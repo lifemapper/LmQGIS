@@ -1133,8 +1133,8 @@ class PAMDialog(QDialog, Ui_Dialog):
 
 if __name__ == "__main__":
 #  
-
-
+   #QTableWidget, can use setCellWidget() to put insert a button into a table
+   
    from LmClient.lmClientLib import LMClient
    client =  LMClient()
    client.login(userId='Workshop', pwd='Workshop')
