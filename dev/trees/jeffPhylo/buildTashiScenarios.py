@@ -1,7 +1,7 @@
 import os,sys
 import commands
 
-import_path = "/home/jcavner/workspace/lm3/components/LmClient/LmQGIS/V2/lifemapperTools/"
+import_path = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/"
 sys.path.append(os.path.join(import_path, 'LmShared'))
 configPath = os.path.join(import_path, 'config', 'config.ini') 
 os.environ["LIFEMAPPER_CONFIG_FILE"] = configPath
@@ -18,8 +18,8 @@ tiffPaths = res.split('\n')
 
 
 
-user = 'TashiTestMay'
-pwd = 'TashiTestMay'
+user = 'DermotYeti'
+pwd = 'DermotYeti'
 
 client = LMClient()
 client.login(user,pwd)
