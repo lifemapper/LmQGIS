@@ -120,6 +120,8 @@ class BrowserTreeModel(QAbstractItemModel):
       return len(node)
    
    def data(self, index, role):
+      print "row ",index.row()
+      print "role ",role
       if role == Qt.DecorationRole:
          return QVariant()
              
@@ -336,6 +338,8 @@ class Ui_MainWindow(object):
       MainWindow.setWindowTitle(QApplication.translate("MainWindow", 
                                                        "MainWindow", None, QApplication.UnicodeUTF8))
 
+      
+   
 
 if __name__ == "__main__":
    
