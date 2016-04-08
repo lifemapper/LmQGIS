@@ -335,6 +335,7 @@ class Ui_Dialog(object):
       MainLayout.addWidget(self.tabWidget)  
       
    def handleLoadFinished(self, ok): 
+      #handler
       if ok:
          self.treeWebView.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % ("/home/jcavner/WorkshopWS/AfricaMammals_1055/tree/tree.json",str(665)))
    
