@@ -308,6 +308,8 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
          resultRsq = kwargs['resultRsq']
          x = iDictPred['x']
          
+         print "Ith shape ",predictorCol.shape
+         print "All Predictors shape ",Predictors.shape
          
          IthPredictor = np.array([predictorCol]).T
          WithoutIthPredictor = np.delete(Predictors,x,axis=1)  
@@ -427,7 +429,7 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
             
             #TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
             #TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
-            
+            TotalPSumResidual = np.sum((StdPSum-Predicted)**2)
             # result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
             
             StdPSumSqrs = np.sum(StdPSum**2)
@@ -440,11 +442,17 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
                #% adjustments based on effective degrees of freedom should be considered
                #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
                #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
-               print "denom ",NumberSites-NumberPredictors-1
-               RsqAdj = 1-np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))
-               print "RsqAdj ",RsqAdj
+               
+               print "F GLOBAL  ",np.sum(Predicted**2)/TotalPSumResidual
+               if NumberSites-NumberPredictors-1 > 0:
+                  print "denom ",NumberSites-NumberPredictors-1
+                  RsqAdj = 1-np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))
+                  print "RsqAdj ",RsqAdj
+               else:
+                  RsqAdj = -999
                # semi partial correlations 
                d =  {'Predictors' :Predictors,'swDiagonoal': swDiagonoal, 'StdPSum':StdPSum,'resultRsq':resultRsq}
+               # sending whole Predictor mtx to predictors func, and feeding it to apply_along_axis, feeds one col. at a time, 0 axis
                result = np.apply_along_axis(predictors, 0, Predictors, **d)
                
                   
