@@ -35,6 +35,7 @@
 
 import os
 import sys
+import urlparse
 from urllib2 import HTTPError
 from PyQt4.QtGui import *
 from PyQt4.QtCore import QSettings,QObject,SIGNAL
@@ -52,7 +53,7 @@ from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
 
 
-SIGNUPURL = os.path.join(CURRENT_WEBSERVICES_ROOT,'signup')
+SIGNUPURL = urlparse.urljoin(CURRENT_WEBSERVICES_ROOT,'signup')
 
 
 class Ui_SubDialog(object):
