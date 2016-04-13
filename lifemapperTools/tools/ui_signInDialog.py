@@ -74,6 +74,7 @@ class Ui_Dialog(object):
       self.emaillabel.setObjectName("emaillabel")
       self.emaillabel.setText("Email (optional, job completion notify)")
       self.emailEdit = QtGui.QLineEdit(self.inputGroup)
+      self.emailEdit.setEnabled(False)
       self.emailEdit.setGeometry(QtCore.QRect(10, 270, 213, 25))
       self.emailEdit.setObjectName("emailEdit")
       
