@@ -255,6 +255,7 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
             self.namesInTable = []
             self.addOTLNamesToTable(phyloDict)
             self.phylo = phyloDict
+            #r = self.writeTree()
             self.inputGroup.setEnabled(True)                     
          
       else:
