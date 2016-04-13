@@ -18,7 +18,8 @@ from lifemapperTools.common.pluginconstants import ARCHIVE_DWL_TYPE
 PROVIDER = "Lifemapper"
 
 BANNER_ICONS = {'idigbio':':/plugins/lifemapperTools/icons/idigbio_logo_0.png',
-               'lifemapper':':/plugins/lifemapperTools/icons/lm_poster_276_45.png'}
+               'lifemapper':':/plugins/lifemapperTools/icons/lm_poster_276_45.png',
+               'bison':':/plugins/lifemapperTools/icons/USGS_4.png'}
 # ..........................
 
 def toUnicode(value, encoding='utf-8'):
@@ -712,12 +713,13 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       if iconPath is not None:
          self.logoPixMap = QPixmap(iconPath)
          self.logoLabel.setPixmap(self.logoPixMap)
+         
    # ..............................................................     
    def showHideBrowseDock(self,mainTog,fromMenu=False):
       """
       @summary: slot for icon in metools
       """
-      print "mainTog ",mainTog # this is the key for toggle from Main and maybe menu
+      #print "mainTog ",mainTog # this is the key for toggle from Main and maybe menu
       #print fromMenu
       server = None
       if not fromMenu and mainTog: # checks Lm in menu when main
