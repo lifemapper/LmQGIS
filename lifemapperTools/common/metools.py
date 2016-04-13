@@ -37,8 +37,8 @@ from lifemapperTools.tools.preferences import PreferencesDialog
 from lifemapperTools.tools.listExperiments import ListExperimentDialog
 from lifemapperTools.tools.listBuckets import ListBucketsDialog
 from lifemapperTools.tools.listPALayers import ListPALayersDialog
-#from lifemapperTools.tools.uploadLayers import UploadDialog
-from lifemapperTools.tools.uploadGRIMLyrs import UploadDialog
+from lifemapperTools.tools.uploadLayers import UploadDialog
+#from lifemapperTools.tools.uploadGRIMLyrs import UploadDialog
 from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.tools.postSDMExp import PostSDMExpDialog
 from lifemapperTools.tools.addSDMLayer import UploadSDMDialog
@@ -84,7 +84,7 @@ class MetoolsPlugin:
       else:    
          newL = list(instanceObjs)       
          #newL.extend([('iDigBio', 'http://lifemapper.org')])
-         newL.extend([('iDigBio', 'http://notyeti-192.lifemapper.org')])  
+         #newL.extend([('BISON', 'http://notyeti-192.lifemapper.org')])  
             
       return newL
      
