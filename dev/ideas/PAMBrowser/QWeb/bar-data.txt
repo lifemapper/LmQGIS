@@ -1,0 +1,3 @@
+date,value
+Hipposideros caffer,108590.0
+Avg,18882.66391184573
