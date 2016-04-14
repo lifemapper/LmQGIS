@@ -57,11 +57,11 @@ from LmClient.openTree import OTLClient
 from LmClient.rad import RADClient
 from LmClient.sdm import SDMClient
 
-from LmCommon.common.lmconstants import (Instances, LM_CLIENT_VERSION_URL, 
+from common.lmconstants import (Instances, LM_CLIENT_VERSION_URL, 
                                         LM_INSTANCES_URL, SHAPEFILE_EXTENSIONS)
-from LmCommon.common.lmXml import deserialize, fromstring
-from LmCommon.common.singleton import singleton
-from LmCommon.common.unicode import toUnicode
+from LmClient.common.lmXml import deserialize, fromstring
+from LmClient.common.singleton import singleton
+from LmClient.common.unicode import toUnicode
 
 # .............................................................................
 class OutOfDateException(Exception):

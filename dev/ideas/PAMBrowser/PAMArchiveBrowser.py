@@ -249,9 +249,9 @@ class Ui_Dialog(object):
       #pluginDir2 = os.path.dirname(os.path.realpath(__file__)) # gets the plugin tools directory
       mapUrl = os.path.join(self.currentDir,"QWeb","PAMMapSelect.html")
       if self.OSXLinux:
-         url = "file:///%s" % (mapUrl)
+         mapUrl = "file:///%s" % (mapUrl)
       else:
-         url = "file:///%s" % (os.path.normpath(mapUrl).replace("\\","/"))
+         mapUrl = "file:///%s" % (os.path.normpath(mapUrl).replace("\\","/"))
       
       self.mapWebView.load(QUrl(mapUrl))
       

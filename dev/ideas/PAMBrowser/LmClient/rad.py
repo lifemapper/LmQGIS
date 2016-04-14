@@ -40,7 +40,7 @@ import json
 from types import ListType
 
 from LmClient.constants import CONTENT_TYPES
-from LmCommon.common.unicode import toUnicode
+from LmClient.common.unicode import toUnicode
 
 # .............................................................................
 class RADClient(object):

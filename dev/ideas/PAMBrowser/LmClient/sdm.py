@@ -43,7 +43,7 @@ import json
 import re
 
 from LmClient.constants import CONTENT_TYPES
-from LmCommon.common.unicode import fromUnicode, toUnicode
+from LmClient.common.unicode import fromUnicode, toUnicode
 
 # .............................................................................
 class ParameterOutOfRange(Exception):

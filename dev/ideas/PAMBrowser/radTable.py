@@ -24,9 +24,10 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
-from lifemapperTools.common.pluginconstants import PER_PAGE
+
 import operator
 
+PER_PAGE = 80
 #...............................................................................
 #...............................................................................   
 class RADTable(QtGui.QWidget): 

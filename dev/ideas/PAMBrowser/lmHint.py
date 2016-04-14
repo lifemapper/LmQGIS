@@ -1,7 +1,7 @@
 import os, sys
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
-from lifemapperTools.common.lmListModel import LmListModel, EnterTextEventHandler
+from lmListModel import LmListModel, EnterTextEventHandler
 
 
 def toUnicode(value, encoding='utf-8'):
@@ -28,10 +28,10 @@ def fromUnicode(uItem, encoding="utf-8"):
 
 class LmCombo(QComboBox):
    # maybe init was causing seg fault
-   #def __init__(self, hit):
-   #   
+   def __init__(self):
+      QComboBox.__init__(self)   
    #   self.hit = hit
-   #   QComboBox.__init__(self)
+      
       
    def showPopup(self, *args, **kwargs):
       return None
@@ -74,6 +74,7 @@ class Hint:
       self.model = None
       self.namedTuples = None
       ######## combo #######
+      print "is this building custom combo?"
       self.combo = LmCombo()
       #self.combo = QLineEdit()
       #self.combo.setStyleSheet("""QComboBox::drop-down {width: 0px; border: none;} 
