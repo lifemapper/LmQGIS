@@ -275,29 +275,33 @@ def BetaE_regression(PsigStd,Estd,Wn):
             print 
             
 # ........................................
-def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx): 
+def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx, randomize=False, FresultsObserved={},
+                                          MatrixProbSemiPartial=None,VectorProbRsq=None): 
    """
    @summary: so far this is the most recent, follows Pedro's matlab code as far as loops
    that are necessary for treating nodes individually. Exceptions are mathematical changes
    for effeciency, and corrections for sps in tree but not in PAM, also fault checks.
    """
-   # NodeMtx = P
+   
    IncidenceMtx = I
-   NumberNodes = NodeMtx.shape[1]
-   VectorProbRsq = np.array([np.ones(NumberNodes)]) 
-   NumberPredictors = PredictorMtx.shape[1]
-   MatrixProbSemiPartial = np.ones((NumberNodes,NumberPredictors))  
+   NumberNodes = NodeMtx.shape[1] 
+   NumberPredictors = PredictorMtx.shape[1]  
    iDictPred = {}
    iDictNode = {'y':0}
    
-   # put results here
-   resultSemiPartialMtx = np.zeros((NumberNodes,NumberPredictors))
-   resultFSemiPartialMtx = np.zeros((NumberNodes,NumberPredictors))
-   resultRsqAdjMtx = np.array([np.zeros(NumberNodes)]).T
-   resultRsqMtx = np.array([np.zeros(NumberNodes)]).T
-   resultFGlobalMtx = np.array([np.zeros(NumberNodes)]).T                       
+   if not randomize:
+      # put results here
+      resultSemiPartialMtx = np.zeros((NumberNodes,NumberPredictors))
+      resultFSemiPartialMtx = np.zeros((NumberNodes,NumberPredictors))
+      resultRsqAdjMtx = np.array([np.zeros(NumberNodes)]).T
+      resultRsqMtx = np.array([np.zeros(NumberNodes)]).T
+      resultFGlobalMtx = np.array([np.zeros(NumberNodes)]).T                       
   
-  
+   else:
+      # THESE CAN"T BE IN HERE, WILL GET REINITIALIZED  !!
+      MatrixProbSemiPartial = np.zeros((NumberNodes,NumberPredictors))
+      VectorProbRsq = np.array([np.zeros(NumberNodes)])
+      
    def predictors(predictorCol, **kwargs):
       """
       @summary: applied across column axis for predictor matrix.
@@ -343,8 +347,13 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
             resultSP = np.array([0.0])
             
          FSemiPartial = (resultRsq - RemainingRsq)/TotalPSumResidual
-         resultFSemiPartialMtx[predNumber][nodeNumber] = FSemiPartial
-         
+         if not randomize:
+            resultFSemiPartialMtx[predNumber][nodeNumber] = FSemiPartial
+         else:
+            if 'FSemiPartial' in FresultsObserved:
+               if FSemiPartial >= FresultsObserved['FSemiPartial']:
+                  MatrixProbSemiPartial[nodeNumber][predNumber] = MatrixProbSemiPartial[nodeNumber][predNumber] +1
+                  
          iDictPred['x'] += 1
       except Exception, e:
          resultSP = np.array([0.0])
@@ -362,7 +371,13 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
       iDictPred['x'] = 0
       
       SpeciesPresentAtNode = np.where(nodeCol != 0)[0]
-      Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
+      
+      if randomize:
+         # move columns around
+         IncidenceMatrixRand =  np.random.permutation(IncidenceMtx.T).T
+         Incidence = IncidenceMatrixRand[:,range(0,SpeciesPresentAtNode.shape[0])]
+      else:
+         Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
       
       # added Jeff, find if any of the columns in sliced Incidence are all zero
       bs = np.any(Incidence, axis=0)
@@ -382,6 +397,11 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
          Predictors = PredictorMtx
          Predictors = np.delete(Predictors,EmptySites,0) # delete rows
          NumberSites = Incidence.shape[0]
+         
+         if randomize:
+            # move rows around
+            Incidence = np.random.permutation(Incidence)
+         
          #######################
          
          if NumberPredictors > (NumberSites -2):  # or is it, <
@@ -429,7 +449,9 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
             TotalPSumResidual = np.sum((StdPSum-Predicted)**2)
             
             StdPSumSqrs = np.sum(StdPSum**2)
+            
             if  StdPSumSqrs != 0:
+               ##### R Squared ####
                resultRsq = np.sum(Predicted**2)/StdPSumSqrs  
                resultRsqMtx[iDictNode['y']] = resultRsq
                ################################################3
@@ -439,12 +461,20 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
                #% adjustments based on effective degrees of freedom should be considered
                
                FGlobal = np.sum(Predicted**2)/TotalPSumResidual
-               if NumberSites-NumberPredictors-1 > 0:                  
-                  RsqAdj = 1 - np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))   
+               
+               if not randomize:
+                  if NumberSites-NumberPredictors-1 > 0:                  
+                     RsqAdj = 1 - np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))   
+                  else:
+                     RsqAdj = -999
+                     
+                  resultRsqAdjMtx[iDictNode['y']] = RsqAdj
+                  resultFGlobalMtx[iDictNode['y']] = FGlobal
                else:
-                  RsqAdj = -999
-               resultRsqAdjMtx[iDictNode['y']] = RsqAdj
-               resultFGlobalMtx[iDictNode['y']] = FGlobal
+                  if 'FGlobal' in FresultsObserved:
+                     if FGlobal >= FresultsObserved['FGlobal'][iDictNode['y']]:
+                        VectorProbRsq[iDictNode['y']] = VectorProbRsq[iDictNode['y']] + 1
+                        
                # semi partial correlations 
                d =  {'Predictors' :Predictors,'swDiagonoal': swDiagonoal, 
                      'StdPSum':StdPSum,'resultRsq':resultRsq,'TotalPSumResidual':TotalPSumResidual,
@@ -459,8 +489,8 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
                result = np.array([np.zeros(NumberPredictors)])
       else:
          result = np.array([np.zeros(NumberPredictors)])  # if here, row of zeros's (because isnt' a good node?)
-      
-      resultSemiPartialMtx[iDictNode['y']] = result[0]
+      if not randomize:
+         resultSemiPartialMtx[iDictNode['y']] = result[0]
       
       iDictNode['y'] += 1    
         
@@ -469,7 +499,7 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
    np.apply_along_axis(nodes, 0, NodeMtx)
    
    #### results
-   
+   # THESE WON"T BE ABLE TO BE RETURNED ON RANDOMIZE !!!
    print;print "FINAL Correlations"
    print resultSemiPartialMtx
    #bs = np.any(resultSemiPartialMtx,axis=1)
@@ -836,8 +866,8 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
          P,I = makeP(d,I)
          
       
-   colSumTest = np.sum(P,axis=0)
-   notZero = np.where(colSumTest != 0)[0]
+   #colSumTest = np.sum(P,axis=0)
+   #notZero = np.where(colSumTest != 0)[0]
    #print "doesn't sum to zero ",len(notZero)
    #P = np.delete(P,notZero,axis=1)
    #print "shape P after del ",P.shape
@@ -867,12 +897,24 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    #C = semiPartCorrelation(PsigStd,Estd,Wn)
    #semiPartCorrelation_Leibold(I,E,P)
    semiPartCorrelation_Leibold_Vectorize(I,E,P)
-   #print C
-   #print
-   #print C.min()
-   #print C.max()
-   #print C.shape
    
+   # have to get results from semi and send some to permute
+   # and buidl the following and send
+   #MatrixProbSemiPartial = np.zeros((NumberNodes,NumberPredictors))
+   #VectorProbRsq = np.array([np.zeros(NumberNodes)])
+   # loop through for permutations
+   numPermute = 4
+   for p in numPermute:
+      #semiPartCorrelation_Leibold_Vectorize(I,E,P), add new args
+      pass
+      
+
+def permute():
+  
+   ####
+   #ppa = np.random.permutation(pa) # returns randomized rows
+   #pppa = np.random.permutation(ppa.T).T  # returns randomized columns of randomized rows
+   pass   
    
 # ........................................   
 def loadJSON(path):
