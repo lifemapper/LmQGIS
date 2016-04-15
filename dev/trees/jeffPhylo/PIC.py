@@ -284,16 +284,18 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
    # NodeMtx = P
    IncidenceMtx = I
    NumberNodes = NodeMtx.shape[1]
-   VectorProbRsq = np.array([np.ones(NumberNodes)]) # supposed to column vector?, not sure where this is being used right now, looks like might be row vector
+   VectorProbRsq = np.array([np.ones(NumberNodes)]) 
    NumberPredictors = PredictorMtx.shape[1]
-   MatrixProbSemiPartial = np.ones((NumberNodes,NumberPredictors))  # holder array for results?
+   MatrixProbSemiPartial = np.ones((NumberNodes,NumberPredictors))  
    iDictPred = {}
    iDictNode = {'y':0}
    
    # put results here
-   resultSemiPartial = np.zeros((NumberNodes,NumberPredictors))
-   resultRsqAdj = np.array([np.zeros(NumberNodes)]).T
-   resultFGlobal = np.array([np.zeros(NumberNodes)]).T                       
+   resultSemiPartialMtx = np.zeros((NumberNodes,NumberPredictors))
+   resultFSemiPartialMtx = np.zeros((NumberNodes,NumberPredictors))
+   resultRsqAdjMtx = np.array([np.zeros(NumberNodes)]).T
+   resultRsqMtx = np.array([np.zeros(NumberNodes)]).T
+   resultFGlobalMtx = np.array([np.zeros(NumberNodes)]).T                       
   
   
    def predictors(predictorCol, **kwargs):
@@ -302,49 +304,53 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
       predictor matrix can be either env or hist biogeography
       """
       try:
+         # needs the node number
          Predictors = kwargs['Predictors']
          swDiagonoal = kwargs['swDiagonoal']
          StdPSum  = kwargs['StdPSum']
          resultRsq = kwargs['resultRsq']
-         x = iDictPred['x']
+         TotalPSumResidual = kwargs['TotalPSumResidual']
          
-         print "Ith shape ",predictorCol.shape
-         print "All Predictors shape ",Predictors.shape
+         nodeNumber = kwargs['nodeNumber']
+         predNumber = iDictPred['x']  # 'x' axis of results
+         
          
          IthPredictor = np.array([predictorCol]).T
-         WithoutIthPredictor = np.delete(Predictors,x,axis=1)  
+         WithoutIthPredictor = np.delete(Predictors,predNumber,axis=1)  
          
          # % slope for the ith predictor, Beta, regression coefficient
-         # [Q,R]=qr(IthPredictor'*SiteWeights*IthPredictor);
-         #Q,R = np.linalg.qr(np.dot(np.dot(IthPredictor.T,SiteWeights),IthPredictor)) # original
          Q,R = np.linalg.qr(np.dot(np.einsum('ij,j->ij',IthPredictor.T,swDiagonoal),IthPredictor))
-         #IthSlope=(R\Q')*IthPredictor'*SiteWeights*StdPSum;
+         
          RdivQT = np.linalg.lstsq(R,Q.T)[0]
          
          IthsSlope_part = np.dot(RdivQT,IthPredictor.T)
          IthsSlope_second_part = np.einsum('ij,j->ij',IthsSlope_part,swDiagonoal)
          IthSlope = np.dot(IthsSlope_second_part,StdPSum)
-         #IthSlope = np.dot(np.dot(np.dot(RdivQT,IthPredictor.T),SiteWeights),StdPSum)  # original
+         
          
          # % regression for the remaining predictors
-         #Q,R = np.linalg.qr(np.dot(np.dot(WithoutIthPredictor.T,SiteWeights),WithoutIthPredictor)) #original
          Q,R = np.linalg.qr(np.dot(np.einsum('ij,j->ij',WithoutIthPredictor.T,swDiagonoal),WithoutIthPredictor))
          RdivQT_r = np.linalg.lstsq(R,Q.T)[0]
          WithoutPredRQ_r = np.dot(WithoutIthPredictor,RdivQT_r)
          H_part = np.dot(WithoutPredRQ_r,WithoutIthPredictor.T)
          H = np.einsum('ij,j->ij',H_part,swDiagonoal)
-         #H = np.dot(np.dot(WithoutPredRQ_r,WithoutIthPredictor.T),SiteWeights) #original
          Predicted = np.dot(H,StdPSum)
-         #RemainingRsq = np.trace(np.dot(Predicted.T,Predicted))/np.trace(np.dot(StdPSum.T,StdPSum))
          RemainingRsq = np.sum(Predicted**2)/np.sum(StdPSum**2)
+         
          if (resultRsq - RemainingRsq) >= 0:
             resultSP = IthSlope * ((resultRsq - RemainingRsq)**.5) / np.absolute(IthSlope)
          else:
             resultSP = np.array([0.0])
+            
+         FSemiPartial = (resultRsq - RemainingRsq)/TotalPSumResidual
+         resultFSemiPartialMtx[predNumber][nodeNumber] = FSemiPartial
          
          iDictPred['x'] += 1
       except Exception, e:
          resultSP = np.array([0.0])
+         
+         
+      
       
       return resultSP
    
@@ -352,8 +358,7 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
       """
       @summary: operation to be performed on each node
       """
-      #print 
-      #print "node ",iDictNode['y']
+      
       iDictPred['x'] = 0
       
       SpeciesPresentAtNode = np.where(nodeCol != 0)[0]
@@ -390,19 +395,15 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
          SpeciesWeights = np.diag(SumSpecies) # Wk
          
          try:
-            
             # standardize Predictor, in this case Env matrix
             Ones = np.array([np.ones(NumberSites)]).T
             StdPredictors = stdMtx(SiteWeights, Predictors, Ones, Incidence)
             
             ## P standardize 
             Ones = np.array([np.ones(NumberSpecies)]).T
-            
-            #StdNode = stdMtx(SpeciesWeights, NodeMtx[SpeciesPresentAtNode,NodeNumber], Ones, Incidence)
             StdNode = stdMtx(SpeciesWeights, nodeCol[SpeciesPresentAtNode], Ones, Incidence)
               
          except:
-            
             result = np.array([np.zeros(NumberPredictors)])
          else:
             
@@ -425,34 +426,32 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
             H = np.einsum('ij,j->ij',H_first,swDiagonoal)
             
             Predicted =  np.dot(H,StdPSum)
-            
-            
-            #TotalPSumResidual=trace((StdPSum-Predicted)'*(StdPSum-Predicted));
-            #TotalPSumResidual = np.trace(np.dot((StdPSum-Predicted).T,(StdPSum-Predicted)))  # error for trace not 2 dimensional
             TotalPSumResidual = np.sum((StdPSum-Predicted)**2)
-            # result.Rsq(NodeNumber,1)=trace(Predicted'*Predicted)/trace(StdPSum'*StdPSum);
             
             StdPSumSqrs = np.sum(StdPSum**2)
             if  StdPSumSqrs != 0:
-               resultRsq = np.sum(Predicted**2)/StdPSumSqrs  # if  zero in denom , error obviously,
+               resultRsq = np.sum(Predicted**2)/StdPSumSqrs  
+               resultRsqMtx[iDictNode['y']] = resultRsq
                ################################################3
                
                #% adjusted Rsq  (classic method) should be interpreted with some caution as the degrees of
                #% freedom for weighted models are different from non-weighted models
                #% adjustments based on effective degrees of freedom should be considered
-               #result.RsqAdj(NodeNumber,1)=1-((NumberSites-1)/(NumberSites-NumberPredictors-1))*(1-result.Rsq(NodeNumber,1));
-               #result.FGlobal(NodeNumber,1)=trace(Predicted'*Predicted)/TotalPSumResidual;
                
-               print "F GLOBAL  ",np.sum(Predicted**2)/TotalPSumResidual
-               if NumberSites-NumberPredictors-1 > 0:
-                  print "denom ",NumberSites-NumberPredictors-1
-                  RsqAdj = 1-np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))
-                  print "RsqAdj ",RsqAdj
+               FGlobal = np.sum(Predicted**2)/TotalPSumResidual
+               if NumberSites-NumberPredictors-1 > 0:                  
+                  RsqAdj = 1 - np.dot(((NumberSites-1)/(NumberSites-NumberPredictors-1)),(1-resultRsq))   
                else:
                   RsqAdj = -999
+               resultRsqAdjMtx[iDictNode['y']] = RsqAdj
+               resultFGlobalMtx[iDictNode['y']] = FGlobal
                # semi partial correlations 
-               d =  {'Predictors' :Predictors,'swDiagonoal': swDiagonoal, 'StdPSum':StdPSum,'resultRsq':resultRsq}
+               d =  {'Predictors' :Predictors,'swDiagonoal': swDiagonoal, 
+                     'StdPSum':StdPSum,'resultRsq':resultRsq,'TotalPSumResidual':TotalPSumResidual,
+                     'nodeNumber':iDictNode['y']}
                # sending whole Predictor mtx to predictors func, and feeding it to apply_along_axis, feeds one col. at a time, 0 axis
+               # 3 significance done: resultRsq, RsqAdj,FGlobal
+               
                result = np.apply_along_axis(predictors, 0, Predictors, **d)
                
                   
@@ -460,18 +459,30 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx):
                result = np.array([np.zeros(NumberPredictors)])
       else:
          result = np.array([np.zeros(NumberPredictors)])  # if here, row of zeros's (because isnt' a good node?)
-      resultSemiPartial[iDictNode['y']] = result[0]
-      # calc FGlobal and RsqAdj here or above, probably above
+      
+      resultSemiPartialMtx[iDictNode['y']] = result[0]
+      
       iDictNode['y'] += 1    
         
       return np.array([])      
    
    np.apply_along_axis(nodes, 0, NodeMtx)
-   print;print "FINAL"
-   print resultSemiPartial
-   bs = np.any(resultSemiPartial,axis=1)
+   
+   #### results
+   
+   print;print "FINAL Correlations"
+   print resultSemiPartialMtx
+   #bs = np.any(resultSemiPartialMtx,axis=1)
+   #print
+   #print "good nodes ",len(np.where(bs == True)[0])
+   
+   print 
+   print "resultRsqAdjMtx"
+   print resultRsqAdjMtx
    print
-   print "good nodes ",len(np.where(bs == True)[0])
+   print "resultFSemiPartialMtx"
+   print resultFSemiPartialMtx
+   
 # ........................................
 def semiPartCorrelation_Leibold(I,PredictorMtx,NodeMtx): 
    # NodeMtx = P
