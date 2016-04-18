@@ -33,8 +33,8 @@ from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 
 ICON_VALUES = {'server':'SERVER'}
-#CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
-CONFIG = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when in qgis
+CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
+#CONFIG = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when in qgis
 SECTION = 'LmCommon - common'
 ITEM = 'CURRENT_WEBSERVICES_ROOT'
 
@@ -442,7 +442,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
             if server[1] == CURRENT_WEBSERVICES_ROOT:
                currentInInstances = True 
          #items.extend([(x,str(x)+"_server") for x in range(0,4)])
-         items.extend([('idigbio', 'http://lifemapper.org')])     
+         #items.extend([('idigbio', 'http://lifemapper.org')])     
          self.serverListModel.updateList(items)
       return currentInInstances
    
