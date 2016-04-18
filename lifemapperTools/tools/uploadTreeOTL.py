@@ -341,6 +341,7 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
                self.namesInTable = []
                self.addNamesToTable(phyloDict)
                print "no. Tips ",self.lengthOfExistingData
+               #r = self.writeTree()
                self.inputGroup.setEnabled(True)
          else:
             message = "No Newick"
@@ -641,8 +642,10 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
 # ..............................................................................
    def writeTree(self):
       treeDir = self.workspace.getTreeFolder(self.expId)
+      print "TD ",treeDir
       if not treeDir:
          treeDir = self.workspace.createTreeFolder(self.expId)
+         print "TD ",treeDir
       if treeDir:
          try:
             with open(os.path.join(treeDir,'tree.json'),'w') as f:
