@@ -1,3 +1,0 @@
-date,value
-Hipposideros beatus,33546.0
-Avg,18882.66391184573
