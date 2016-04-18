@@ -309,50 +309,63 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
       @summary: converts a Newick file as D3 tree JSON and populates
       layers with with layer names from leaves
       """
+      jsonP = "/home/jcavner/TashiTree_redo_March8_2016/tree_wo_mx.json"
+      treejson = open(jsonP).read()
+      phyloDict = json.loads(str(treejson)) # make the dict straight from the json (without mx's)
+      self.phylo = phyloDict
+      #wroteTreeLocally = self.writeTree()
       
-      treePath = str(self.treeLine.text())
-      if treePath == "":
-         message = "Please supply a file name"
-         msgBox = QMessageBox.information(self,
-                                               "Problem...",
-                                               message,
-                                               QMessageBox.Ok)  
-      else:
-         if os.path.exists(treePath):
-            try:             
-               tree = open(treePath,'r').read()
-               sh = Parser.from_string(tree)
-               parser = Parser(sh)
-               phyloDict,parentDicts = parser.parse() 
-               #########################              
-               #self.fullNames = fullLenNames
-               #nameParts = [x.split('_') for x in fullLenNames]
-               #justLast = [x[len(x)-2]+'_'+x[len(x)-1] for x in nameParts]
-               #self.justLast = justLast                             
-            except:
-               # stop the progress bar
-               message = "Couldn't Parse Tree"
-               msgBox = QMessageBox.information(self,
-                                               "Problem...",
-                                               message,
-                                               QMessageBox.Ok) 
-              
-            else:
-               self.phylo = phyloDict
-               wroteTreeLocally = self.writeTree()
-               print "WROTE TREE??? ",wroteTreeLocally
-               self.lengthOfExistingData =  len(self.table.tableView.model().data)
-               print "starting len ",self.lengthOfExistingData
-               self.namesInTable = []
-               self.addNamesToTable(phyloDict)
-               print "no. Tips ",self.lengthOfExistingData
-               self.inputGroup.setEnabled(True)
-         else:
-            message = "No Newick"
-            msgBox = QMessageBox.information(self,
-                                               "Problem...",
-                                               message,
-                                               QMessageBox.Ok)  
+      self.lengthOfExistingData =  len(self.table.tableView.model().data)
+      print "starting len ",self.lengthOfExistingData
+      self.namesInTable = []
+      self.addNamesToTable(phyloDict)
+      print "no. Tips ",self.lengthOfExistingData
+      self.inputGroup.setEnabled(True)
+      
+      
+      #treePath = str(self.treeLine.text())
+      #if treePath == "":
+      #   message = "Please supply a file name"
+      #   msgBox = QMessageBox.information(self,
+      #                                         "Problem...",
+      #                                         message,
+      #                                         QMessageBox.Ok)  
+      #else:
+      #   if os.path.exists(treePath):
+      #      try:             
+      #         tree = open(treePath,'r').read()
+      #         sh = Parser.from_string(tree)
+      #         parser = Parser(sh)
+      #         phyloDict,parentDicts = parser.parse() 
+      #         #########################              
+      #         #self.fullNames = fullLenNames
+      #         #nameParts = [x.split('_') for x in fullLenNames]
+      #         #justLast = [x[len(x)-2]+'_'+x[len(x)-1] for x in nameParts]
+      #         #self.justLast = justLast                             
+      #      except:
+      #         # stop the progress bar
+      #         message = "Couldn't Parse Tree"
+      #         msgBox = QMessageBox.information(self,
+      #                                         "Problem...",
+      #                                         message,
+      #                                         QMessageBox.Ok) 
+      #        
+      #      else:
+      #         self.phylo = phyloDict
+      #         #wroteTreeLocally = self.writeTree()
+      #         
+      #         self.lengthOfExistingData =  len(self.table.tableView.model().data)
+      #         print "starting len ",self.lengthOfExistingData
+      #         self.namesInTable = []
+      #         self.addNamesToTable(phyloDict)
+      #         print "no. Tips ",self.lengthOfExistingData
+      #         self.inputGroup.setEnabled(True)
+      #   else:
+      #      message = "No Newick"
+      #      msgBox = QMessageBox.information(self,
+      #                                         "Problem...",
+      #                                         message,
+      #                                         QMessageBox.Ok)  
    # ................................................ 
    def setLyrPath(self,index):
       print index
@@ -715,7 +728,8 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
                pxValues.append(val) 
          
        
-      return np.percentile(pxValues,percentile),max(pxValues)
+      #return np.percentile(pxValues,percentile),max(pxValues)
+      return np.percentile(pxValues,percentile),1.0
 # ..............................................................................       
    def accept(self):    
       empties = self.checkForEmpties()
@@ -762,7 +776,7 @@ class UploadTreeDialog( _Controller, QDialog, Ui_Dialog):
                       be able to upload them to this experiment.""" + namesString
          QMessageBox.warning(self, 'Layers CRS Wrong', message)
       
-      #postedTree = self.postTree()
+      postedTree = self.postTree()
       #wroteTreeLocally = self.writeTree()
             
       self.acceptBut.setEnabled(True)
