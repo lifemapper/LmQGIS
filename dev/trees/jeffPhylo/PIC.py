@@ -298,7 +298,7 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx, randomize=Fals
       resultFGlobalMtx = np.array([np.zeros(NumberNodes)]).T                       
   
    else:
-      # THESE CAN"T BE IN HERE, WILL GET REINITIALIZED  !!
+      
       MatrixProbSemiPartial = np.zeros((NumberNodes,NumberPredictors))
       VectorProbRsq = np.array([np.zeros(NumberNodes)])
       
@@ -374,8 +374,9 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx, randomize=Fals
       
       if randomize:
          # move columns around
-         IncidenceMatrixRand =  np.random.permutation(IncidenceMtx.T).T
-         Incidence = IncidenceMatrixRand[:,range(0,SpeciesPresentAtNode.shape[0])]
+         SpeciesPresentAtNodeRand = np.random.permutation(SpeciesPresentAtNode)
+         Incidence = IncidenceMtx[:,SpeciesPresentAtNodeRand]
+         
       else:
          Incidence = IncidenceMtx[:,SpeciesPresentAtNode]  # might want to use a take here
       
@@ -482,19 +483,19 @@ def semiPartCorrelation_Leibold_Vectorize(I,PredictorMtx,NodeMtx, randomize=Fals
                # sending whole Predictor mtx to predictors func, and feeding it to apply_along_axis, feeds one col. at a time, 0 axis
                # 3 significance done: resultRsq, RsqAdj,FGlobal
                
-               result = np.apply_along_axis(predictors, 0, Predictors, **d)
+               resultSemi = np.apply_along_axis(predictors, 0, Predictors, **d)
                
                   
             else:
-               result = np.array([np.zeros(NumberPredictors)])
+               resultSemi = np.array([np.zeros(NumberPredictors)])
       else:
-         result = np.array([np.zeros(NumberPredictors)])  # if here, row of zeros's (because isnt' a good node?)
+         resultSemi = np.array([np.zeros(NumberPredictors)])  # if here, row of zeros's (because isnt' a good node?)
       if not randomize:
-         resultSemiPartialMtx[iDictNode['y']] = result[0]
+         resultSemiPartialMtx[iDictNode['y']] = resultSemi[0]
       
       iDictNode['y'] += 1    
         
-      return np.array([])      
+      return np.array([]) # has to return an array? not using the return     
    
    np.apply_along_axis(nodes, 0, NodeMtx)
    
@@ -904,7 +905,7 @@ def startHere(testWithInputsFromPaper=False,shiftedTree=False):
    #VectorProbRsq = np.array([np.zeros(NumberNodes)])
    # loop through for permutations
    numPermute = 4
-   for p in numPermute:
+   for p in range(0,numPermute):
       #semiPartCorrelation_Leibold_Vectorize(I,E,P), add new args
       pass
       
