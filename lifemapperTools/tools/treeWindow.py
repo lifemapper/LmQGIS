@@ -28,6 +28,8 @@
 import sys
 import os
 import zipfile
+import cPickle
+import csv
 import logging
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -40,6 +42,7 @@ from lifemapperTools.common.qProgressThread import TaskThread
 from lifemapperTools.common.pluginconstants import RADStatTypes
 from lifemapperTools.common.lmListModel import LmListModel, EnterTextEventHandler
 from lifemapperTools.common.classifyQgisLyr import Classify
+from lifemapperTools.tools.spreadsheetView import SpreadSheet
 import lifemapperTools.icons.icons
 try: import simplejson as json 
 except: import json
@@ -193,15 +196,19 @@ class TreeWindow(QMainWindow):
             #self.jsonUrl = "file:///home/jcavner/Pooka8/Rodentia_628/tree/tree.json"
             #self.jsonUrl = "file:///home/jcavner/attrTree_1011.json"
             #searchJSON = "/home/jcavner/attrTree_1011.json"
-            self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"
-            searchJSON = "/home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"
-            
+            #self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"
+            #searchJSON = "/home/jcavner/PhyloXM_Examples/Liebold_notEverythinginMatrix.json"
+            #self.jsonUrl = "/home/jcavner/Pooka8/TestPhyloNames_1798/tree/tree.json"
+            #searchJSON = "//home/jcavner/Pooka8/TestPhyloNames_1798/tree/tree.json"
+            self.jsonUrl = "/home/jcavner/BiogeographyMtx_Inputs/Florida/tree_2_exp1800.json_withIds.json"
+            searchJSON = "/home/jcavner/BiogeographyMtx_Inputs/Florida/tree_2_exp1800.json_withIds.json"
             #filename =   "african_mammal_realDealMX.json"
             #filename  =   "mammalsWithLengthsandMX.json" 
             #filename  = 'amphibianJSONDirectTest.json'
             #filename   =  'newick_wNonAscii.json'
             #filename   = 'amphEdgeLenExponent.json'
             #filename  = 'newickFromPooka1.json'
+            #filename = "Liebold.json"
             #searchJSON = "/home/jcavner/PhyloXM_Examples/" + filename
             #self.jsonUrl = "file:///home/jcavner/PhyloXM_Examples/" + filename
          else:
@@ -246,6 +253,10 @@ class TreeWindow(QMainWindow):
       self.setWindowTitle('Phylo View')
       
       self.path = None
+      
+      self.spreadSheetBut = QPushButton("S")
+      self.spreadSheetBut.setMaximumWidth(50)
+      self.spreadSheetBut.clicked.connect(self.openSpreadSheet)
       
       icon = QIcon(":/plugins/lifemapperTools/icons/clearTreeSelection.png")
       self.clearSelectionBut = QPushButton(icon,"")
@@ -393,6 +404,7 @@ class TreeWindow(QMainWindow):
       botGridLayout.addWidget(self.pamBut)#,0,0,1,1)
       botGridLayout.addWidget(self.bottomRightWidgetCombo)#,0,1,1,1)
       botGridLayout.addWidget(self.bottomRighWidgetProgress)
+      botGridLayout.addWidget(self.spreadSheetBut)
       botGridLayout.addWidget(self.clearSelectionBut)
       botGridLayout.addWidget(self.backToPamSumButton)
       botGridLayout.addWidget(self.helpBut)
@@ -439,7 +451,41 @@ class TreeWindow(QMainWindow):
       
       #layout.addWidget(rootbutton)
       self.turnAllWidgetsOff()
+# ........................................................................
+   def  openSpreadSheet(self):
+      internalbase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/"
+      internal = cPickle.load(open(os.path.join(internalbase,'internal_2.pkl')))
       
+      #############
+      # pam #
+      pambase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/"
+      pam = np.load(os.path.join(pambase,"fullpam_float_2.npy"))
+      ########
+      
+      base = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/CSV_ForViewing/"
+      
+      #dataList_Str = list(csv.reader(open(os.path.join(base,"filteredJustBio_NewNodes.csv"))))
+      dataList_Str = list(csv.reader(open(os.path.join(base,"BioGeo2Viewing.csv")))) #BioGeo2Viewing.csv
+      dataList = [[float(value) for value in row] for row in dataList_Str]
+      
+      header = ["Node Number", "Apalachicola","Gulf/Atlantic","Pliocene","RsqrAdj"]
+      
+      numRows = len(dataList) +1 # add one because header is just a modified row
+      numCols = len(dataList[0]) 
+      
+      csvBase = "/home/jcavner/Florida_Flora_WS/Florida_Flora_1800"
+      pamCSV = os.path.join(csvBase,"pam_2532.csv")
+      
+      #app = QApplication(sys.argv)
+      self.sheet = SpreadSheet(numRows, numCols, dataList, header, internal, pam, 
+                               pamCSVPath=pamCSV, iface = self.iface)
+      #sheet.setWindowIcon(QIcon(QPixmap(":/images/interview.png")))
+      self.sheet.resize(640, 420)
+      #sheet.show()
+      #sys.exit(app.exec_()) 
+      self.sheet.show()
+      self.sheet.raise_() # !!!!
+      self.sheet.activateWindow()    
 # ........................................................................
    def turnAllWigetsOn(self):
       topRowCnt = self.hlayout.count()
