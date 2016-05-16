@@ -53,6 +53,7 @@ import os
 import csv
 from operator import itemgetter
 import cPickle
+from lifemapperTools.common.communicate import Communicate
 
 def decode_pos(pos):
    try:
@@ -316,6 +317,7 @@ class SpreadSheet(QMainWindow):
       self.pamCSVPath = pamCSVPath  # WHERE WILL THIS COME FROM if pam is never requested from Tree Window side?
       self.prepPAMcsv()
       self.iface = iface
+      self.buildPathLookUp()
       self.columnToggles = {k:False for k, name in enumerate(titles)}
       
       self.toolBar = QToolBar()
@@ -358,17 +360,66 @@ class SpreadSheet(QMainWindow):
       self.table.itemChanged.connect(self.updateLineEdit)
       self.setWindowTitle("Semi partial correlations")
    
-   def addPamToCanvas(self,downloaded, pamLayer):
+   def buildPathLookUp(self):
+      """
+      @note: probably won't need this
+      """
+      paths = {}
+      for internalId in self.internal.keys():
+         if internalId not in paths:
+            paths[self.internal[internalId][0]['pathId']] = self.internal[internalId][0]['path']
+            paths[self.internal[internalId][1]['pathId']] = self.internal[internalId][1]['path']
+      
+      self.internalPaths = paths
+         
+   def selectDescSpsinTree(self,nodeId):
+      
+      #pl    = clade["path"].split(',')  # for all the paths in the tips
+      #tip   = clade["pathId"]
+      #m     = map(int,pl[1:]) 
+      #if genus in self.genusDict:           
+      #   self.genusDict[genus][0].update(m)
+      #else:
+      #   self.genusDict[genus] = [set(m),tip]
+      
+      #pathList = list(self.genusDict[genus][0])
+      #pathList.sort(reverse=True)
+      #pathStr = ','.join(map(str,pathList))
+      from itertools import chain
+      
+      nodeIdLike = str(int(nodeId))
+      
+      allTipPaths = self.tipsoneSide[nodeIdLike][1] + self.tipsOtherSide[nodeIdLike][1]
+      #print "allTipPaths ",allTipPaths
+      pl = [path.split(',')[1:] for path in allTipPaths]
+      pl = list(chain.from_iterable(pl))
+      m = map(int,pl)
+      s = set(m)
+      pathList = list(s)
+      pathList.sort(reverse=True)
+      pathForNode = ','.join(map(str,pathList[1:]))
+      
+      print "PATH STRING SIM TO GENUS ",pathForNode
+      
+      tipsStr = ','.join(self.tipsoneSide[nodeIdLike][0] + self.tipsOtherSide[nodeIdLike][0])
+      print "tips String ",tipsStr
+      
+      Communicate.instance().descNodeSelected.emit(pathForNode,tipsStr)
+      
+      
+   
+   def addPamToCanvas(self,downloaded, pamLayer, nodeId):
       """
       @note came from tree window, 
       @param downloaded: unsure if we need this here
       """
       if downloaded:
          #pamLayer = self.buildCSVLayer() # builds csv and adds join
+         self.selectDescSpsinTree(nodeId)
          if pamLayer: 
             QgsMapLayerRegistry.instance().addMapLayer(pamLayer, False)  
             root = QgsProject.instance().layerTreeRoot() 
-            root.insertLayer(0,pamLayer)
+            root.insertLayer(2,pamLayer)
            
             #self.pamBut.setEnabled(False)
          else:
@@ -411,7 +462,7 @@ class SpreadSheet(QMainWindow):
       url.addQueryItem('xField','field_1')  # probably use a constant here
       url.addQueryItem('yField','field_2')  # probably use a constant here
       
-      pLayer = QgsVectorLayer(url.toString(),"FirstDaugher_%s" % (str(sideNo)),"delimitedtext")  # CHECK THIS TOSTRING() !!!
+      pLayer = QgsVectorLayer(url.toString(),"Node_%s_%s" % (str(nodeId),str(sideNo)),"delimitedtext")  # CHECK THIS TOSTRING() !!!
       if not(pLayer.isValid()):
          pLayer = False
       else:
@@ -427,7 +478,7 @@ class SpreadSheet(QMainWindow):
          
       return pLayer   
    
-   def findXY(self):
+   def findXY(self,nodeId):
       #if self.sortedXY:
       tipXY_0 = self.sortedXY[self.rowPos1,:]
       #tipXY_0 = np.insert(tipXY_0,[0],[0.0,1.0],axis=0)
@@ -441,8 +492,8 @@ class SpreadSheet(QMainWindow):
       np.savetxt("/home/jcavner/UnionedOutputsCharolettes/n_1.csv",tipXY_1,fmt='%.2f',
                  delimiter=',', newline='\n')
       
-      lyr_0 = self.buildCSVLayer("/home/jcavner/UnionedOutputsCharolettes/n_0.csv", "MY", 0)
-      lyr_1 = self.buildCSVLayer("/home/jcavner/UnionedOutputsCharolettes/n_1.csv", "MY", 1)
+      lyr_0 = self.buildCSVLayer("/home/jcavner/UnionedOutputsCharolettes/n_0.csv", nodeId, 0)
+      lyr_1 = self.buildCSVLayer("/home/jcavner/UnionedOutputsCharolettes/n_1.csv", nodeId, 1)
       
       if lyr_0 and lyr_1:
          
@@ -452,16 +503,19 @@ class SpreadSheet(QMainWindow):
          symbol = QgsMarkerSymbolV2.createSimple({'name': 'circle', 'color': 'blue','size':'1.5'})
          lyr_1.rendererV2().setSymbol(symbol)
          
-         legend = self.iface.legendInterface()
-         lyrs = [lyr for lyr in legend.layers() if "_0" in lyr.name() or "_1" in lyr.name()]
-         for lyr in lyrs:
-            root = QgsProject.instance().layerTreeRoot() 
-            lyrToDelete = root.findLayer(lyr.id()) # returns a QgsLayerTreeLayer
-            root.removeChildNode(lyrToDelete)
+         try:
+            legend = self.iface.legendInterface()
+            lyrs = [lyr for lyr in legend.layers() if "_0" in lyr.name() or "_1" in lyr.name()]
+            for lyr in lyrs:
+               root = QgsProject.instance().layerTreeRoot() 
+               lyrToDelete = root.findLayer(lyr.id()) # returns a QgsLayerTreeLayer
+               root.removeChildNode(lyrToDelete)
+         except:
+            pass
          
          
-         self.addPamToCanvas(True,lyr_0)
-         self.addPamToCanvas(True,lyr_1)
+         self.addPamToCanvas(True,lyr_0,nodeId)
+         self.addPamToCanvas(True,lyr_1,nodeId)
       else:
          print "NO LAYERS"
       #print "tips0 ",tipXY_0
@@ -474,12 +528,11 @@ class SpreadSheet(QMainWindow):
       #print "row ",index," ",self.dataList[int(index)-1]
       tmx = self.getMxIdxBothSides(self.dataList[int(index)-1][0])
       if tmx:   # NEED TO DOUBLE CHECK THIS
-         print "still here"
          if len(tmx[0]) > 0 and len(tmx[1]) > 0:
             twoUnions = self.unionDesc(tmx[0],tmx[1])
             if twoUnions:
                # call csv and display
-               self.findXY()
+               self.findXY(self.dataList[int(index)-1][0])
                pass
             else:
                print "two sides don't exist"  
@@ -510,7 +563,7 @@ class SpreadSheet(QMainWindow):
 
    
    def sortByColumn(self,index):
-      print len(self.dataList)
+      #print len(self.dataList)
       titleBackground = QColor(Qt.lightGray)
       titleFont = self.table.font()
       titleFont.setBold(True)
@@ -864,7 +917,7 @@ class SpreadSheet(QMainWindow):
       # set Column header, (normal row with styling)
       #print "is it getting here"
       for colIdx, title in enumerate(titles):   
-         print colIdx,' ',title  
+         #print colIdx,' ',title  
          titleItem = SpreadSheetItem(title)
          titleItem.setTextAlignment(Qt.AlignCenter)           
          self.table.setItem(0, colIdx, titleItem )  # first column, firs row will always be node number
@@ -878,27 +931,37 @@ class SpreadSheet(QMainWindow):
    
    def recurseToMx(self,clade):
       mxs = []
+      tipIds = []
+      tipPaths = []
       def recurseClade(clade):
          if "children" in clade:
             for child in clade["children"]:
                recurseClade(child)
          else:
             if "mx" in clade:
+               #tipIds.append(str(clade["pathId"]))  # this might need to be outside of mx check
                mxs.append(int(clade['mx']))
+            tipIds.append(str(clade["pathId"]))
+            tipPaths.append(clade['path'])
       recurseClade(clade)  
-      return mxs
+      return mxs, tipIds, tipPaths
         
    def getMxIdxBothSides(self, internalNodeId):
       
+      self.tipsoneSide = {}
+      self.tipsOtherSide = {}
       nodeId = str(int(internalNodeId))
       if nodeId in self.internal:
          oneSide = self.internal[nodeId][0]
          #print oneSide
          otherSide = self.internal[nodeId][1]
-         oneSideMx = self.recurseToMx(oneSide)
-         otherSideMx = self.recurseToMx(otherSide)
+         oneSideMx, tipsOneSide, pathsOneSide = self.recurseToMx(oneSide)
+         otherSideMx,tipsOtherSide, pathsOtherSide = self.recurseToMx(otherSide)
+         self.tipsoneSide[nodeId] = (tipsOneSide,pathsOneSide)
+         self.tipsOtherSide[nodeId] = (tipsOtherSide,pathsOtherSide)
          return oneSideMx,otherSideMx
       else:
+         self.tipIds = []
          print False
       
       
