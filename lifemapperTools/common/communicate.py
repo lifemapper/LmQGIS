@@ -51,6 +51,8 @@ class Communicate(QObject):
    RADSpsSelectedFromTree = pyqtSignal(list)
    RADSpsSelectFromPlot = pyqtSignal(list,list,list,bool)
    
+   descNodeSelected = pyqtSignal(str,str)
+   
    
    def __init__(self):
       super(Communicate, self).__init__()
