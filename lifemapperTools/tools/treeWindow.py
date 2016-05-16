@@ -142,6 +142,7 @@ class TreeWindow(QMainWindow):
                 activeLyr=None,renderer=None,registry=None, expEPSG=None, pamLyr=None):
       super(TreeWindow, self).__init__()
       Communicate.instance().setTreeExist.emit(self)
+      
       ##############
       self.paths = []
       self.ids = []
@@ -220,7 +221,7 @@ class TreeWindow(QMainWindow):
       
       # connect instance of the Tree Window to signal comming from plot for species
       Communicate.instance().RADSpsSelectFromPlot.connect(self.selectSpsTree)
-      
+      Communicate.instance().descNodeSelected.connect(self.selectFromSpreadSheet)
       
       ######## Data model and json load for hint service ############
       
@@ -452,7 +453,12 @@ class TreeWindow(QMainWindow):
       #layout.addWidget(rootbutton)
       self.turnAllWidgetsOff()
 # ........................................................................
-   def  openSpreadSheet(self):
+   def selectFromSpreadSheet(self,pathStr,tipsString):
+      print "in tree window for spreadsheet"
+      self.view.page().mainFrame().evaluateJavaScript('findClades("%s","%s");' % (pathStr,tipsString))
+
+# ........................................................................
+   def openSpreadSheet(self):
       internalbase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/"
       internal = cPickle.load(open(os.path.join(internalbase,'internal_2.pkl')))
       
@@ -821,6 +827,8 @@ class TreeWindow(QMainWindow):
          items.append(result)                               
                  
       for item in items:
+         #pItem->setForeground(Qt::red); // sets red text
+         #pItem->setBackground(Qt::green); // sets green background
          SelectedItem(item,self.list)
       self.plotButton.setEnabled(True)
       self.calcMNTD()
@@ -1200,7 +1208,8 @@ class TreeWindow(QMainWindow):
          if "_" not in spsName:
             if self.genusDict.has_key(spsName):
                tipsString = self.genusDict[spsName][1]
-               
+               print "tip string in genus ",tipsString
+               print path
                self.view.page().mainFrame().evaluateJavaScript('findClades("%s","%s");' % (path,tipsString))
             else:
                # Genus or single name at the tip level
