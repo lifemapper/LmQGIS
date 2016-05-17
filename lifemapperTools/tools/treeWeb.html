@@ -310,6 +310,21 @@ function recurseIds(pathArray,node){
 	
 };
 
+function findCladesSetColor(compositePathStr,lookFors,reds,blues){
+	
+	
+	if (reds != '' && blues != '')	{
+	redTips = reds.split(',');	
+	blueTips = blues.split(',');	
+	
+	}
+	findClades(compositePathStr,lookFors);
+	redTips = [];
+	blueTips = [];
+	
+};
+
+
 function findClades(compositePathStr,lookFors){
 	
 	if (lookFors != ''){ // empty selection
@@ -437,7 +452,9 @@ function update(source) {
                                 	   color = "lightsteelblue";
                                    } else {                                 	   
                                 	   //if (pathToToggle){d.pathId == lookingFor ? color = "red": color = "#fff"}else{
-                                		if (pathToToggle){lookingFor.indexOf(d.pathId) != -1 ? color = "#EEEE00": color = "#fff"}else{
+                                		if (pathToToggle){redTips.indexOf(d.pathId) != -1 ? color = "#EE0000" : blueTips.indexOf(d.pathId) != -1 ? color = '#0077EE' :
+                                			lookingFor.indexOf(d.pathId) != -1 ? color = "#EEEE00": color = "#fff"}else{
+                                		
                                 	   leafs[d.pathId] ? color = "#EEEE00" : color = "#fff";}}
                                    return color
                                   });
@@ -464,7 +481,8 @@ function update(source) {
                                   color = "lightsteelblue";
                                   } else {                                 	   
    	                               //if (pathToToggle){d.pathId == lookingFor ? color = "red": color = "#fff"}else{
-   	                            	 if (pathToToggle){lookingFor.indexOf(d.pathId) != -1 ? color = "#EEEE00": color = "#fff"}else{
+   	                            	 if (pathToToggle){redTips.indexOf(d.pathId) != -1 ? color = "#EE0000" : blueTips.indexOf(d.pathId) != -1 ? color = '#0077EE' :
+   	                            		lookingFor.indexOf(d.pathId) != -1 ? color = "#EEEE00": color = "#fff"}else{
    	                               leafs[d.pathId] ? color = "#EEEE00" : color = "#fff";}}
                                   return color
                                  });
