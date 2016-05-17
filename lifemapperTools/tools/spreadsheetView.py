@@ -317,7 +317,6 @@ class SpreadSheet(QMainWindow):
       self.pamCSVPath = pamCSVPath  # WHERE WILL THIS COME FROM if pam is never requested from Tree Window side?
       self.prepPAMcsv()
       self.iface = iface
-      self.buildPathLookUp()
       self.columnToggles = {k:False for k, name in enumerate(titles)}
       
       self.toolBar = QToolBar()
@@ -374,17 +373,7 @@ class SpreadSheet(QMainWindow):
          
    def selectDescSpsinTree(self,nodeId):
       
-      #pl    = clade["path"].split(',')  # for all the paths in the tips
-      #tip   = clade["pathId"]
-      #m     = map(int,pl[1:]) 
-      #if genus in self.genusDict:           
-      #   self.genusDict[genus][0].update(m)
-      #else:
-      #   self.genusDict[genus] = [set(m),tip]
       
-      #pathList = list(self.genusDict[genus][0])
-      #pathList.sort(reverse=True)
-      #pathStr = ','.join(map(str,pathList))
       from itertools import chain
       
       nodeIdLike = str(int(nodeId))
@@ -397,14 +386,14 @@ class SpreadSheet(QMainWindow):
       s = set(m)
       pathList = list(s)
       pathList.sort(reverse=True)
-      pathForNode = ','.join(map(str,pathList[1:]))
-      
-      print "PATH STRING SIM TO GENUS ",pathForNode
+      pathForNode = ','.join(map(str,pathList))  # need to look at this [1:]
       
       tipsStr = ','.join(self.tipsoneSide[nodeIdLike][0] + self.tipsOtherSide[nodeIdLike][0])
-      print "tips String ",tipsStr
       
-      Communicate.instance().descNodeSelected.emit(pathForNode,tipsStr)
+      redSide = self.tipsoneSide[nodeIdLike][0]
+      blueSide = self.tipsOtherSide[nodeIdLike][0]
+      
+      Communicate.instance().descNodeSelected.emit(pathForNode,tipsStr,redSide,blueSide)
       
       
    
@@ -415,7 +404,7 @@ class SpreadSheet(QMainWindow):
       """
       if downloaded:
          #pamLayer = self.buildCSVLayer() # builds csv and adds join
-         self.selectDescSpsinTree(nodeId)
+         
          if pamLayer: 
             QgsMapLayerRegistry.instance().addMapLayer(pamLayer, False)  
             root = QgsProject.instance().layerTreeRoot() 
@@ -470,11 +459,6 @@ class SpreadSheet(QMainWindow):
          crs.createFromOgcWmsCrs('EPSG:%s'% ('4326'))
          pLayer.setCrs(crs)
          
-         # Won't need a rule based renderer, will show all the points for each layer (numbering 2)
-         #self.renderer = self.buildRuleBasedRenderer(pLayer)
-         #self.renderer.rootRule().children()[0].setFilterExpression('sp_0 = -999')
-         #pLayer.setRendererV2(self.renderer)
-         #self.pamLayer = pLayer
          
       return pLayer   
    
@@ -497,10 +481,10 @@ class SpreadSheet(QMainWindow):
       
       if lyr_0 and lyr_1:
          
-         symbol = QgsMarkerSymbolV2.createSimple({'name': 'square', 'color': 'red','size':'2.1'})
+         symbol = QgsMarkerSymbolV2.createSimple({'name': 'square', 'color': 'red','size':'2.6'})
          lyr_0.rendererV2().setSymbol(symbol)
          
-         symbol = QgsMarkerSymbolV2.createSimple({'name': 'circle', 'color': 'blue','size':'1.5'})
+         symbol = QgsMarkerSymbolV2.createSimple({'name': 'circle', 'color': 'cyan','size':'1.5','outlineStyle':'0'})
          lyr_1.rendererV2().setSymbol(symbol)
          
          try:
@@ -513,17 +497,12 @@ class SpreadSheet(QMainWindow):
          except:
             pass
          
-         
+         self.selectDescSpsinTree(nodeId)
          self.addPamToCanvas(True,lyr_0,nodeId)
          self.addPamToCanvas(True,lyr_1,nodeId)
       else:
          print "NO LAYERS"
-      #print "tips0 ",tipXY_0
-      #print 
-      #print "tips1 ",tipXY_1
-      #else:
-      #   pass
-   
+      
    def lookForNode(self, index):
       #print "row ",index," ",self.dataList[int(index)-1]
       tmx = self.getMxIdxBothSides(self.dataList[int(index)-1][0])
