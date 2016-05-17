@@ -144,6 +144,9 @@ class TreeWindow(QMainWindow):
       Communicate.instance().setTreeExist.emit(self)
       
       ##############
+      self.reds = self.blues = []
+      
+      ##############
       self.paths = []
       self.ids = []
       ###############
@@ -453,9 +456,12 @@ class TreeWindow(QMainWindow):
       #layout.addWidget(rootbutton)
       self.turnAllWidgetsOff()
 # ........................................................................
-   def selectFromSpreadSheet(self,pathStr,tipsString):
-      print "in tree window for spreadsheet"
-      self.view.page().mainFrame().evaluateJavaScript('findClades("%s","%s");' % (pathStr,tipsString))
+   def selectFromSpreadSheet(self,pathStr,tipsString,redList,blueList):
+      self.blues = blueList
+      self.reds = redList
+      reds = ','.join(map(str,self.reds))
+      blues = ','.join(map(str,self.blues))
+      self.view.page().mainFrame().evaluateJavaScript('findCladesSetColor("%s","%s","%s","%s");' % (pathStr,tipsString,reds,blues))
 
 # ........................................................................
    def openSpreadSheet(self):
@@ -826,10 +832,11 @@ class TreeWindow(QMainWindow):
             result.setMatrix(d["mx"])
          items.append(result)                               
                  
-      for item in items:
+      for rowIdx, item in enumerate(items):
          #pItem->setForeground(Qt::red); // sets red text
          #pItem->setBackground(Qt::green); // sets green background
-         SelectedItem(item,self.list)
+         SelectedItem(item,self.list,reds=self.reds,blues=self.blues)
+      self.reds = self.blues = []
       self.plotButton.setEnabled(True)
       self.calcMNTD()
 # ....................................................................         
@@ -1420,16 +1427,55 @@ class SelectedResult(object):
       """
       return "%s" % (self.name)         
 
+class SelectedDelegate(QItemDelegate):
+   # also try QtWidgets.QStyledItemDelegate.__init__(self), especially for paint
+   def __init__(self, color, parent=None):
+      super(SelectedDelegate, self).__init__(parent)
+      
+   def paint(self, painter, option, index):
+      # rect to fill with backgroundcolor
+      itemRect = option.rect.adjusted(self.offset, self.offset, -self.offset, -self.offset)
+      # text of the item to be painted
+      text = self.parent().item(index.row()).text() 
+      painter.save()
+      # conditions for different backgroundcolors
+      if text[0] == 'a':
+         color = self.brush1
+      elif text[0] == 'C':
+         color = self.brush2
+      else:
+         color = self.brush
+      # paint backgroundcolor
+      painter.fillRect(itemRect,color)
+      # paint text
+      painter.setPen(self.textpen)
+      painter.drawText(itemRect, self.AlignmentFlag, text)
+      # paint bottom border
+      painter.setPen(self.linePen)
+      painter.drawLine(option.rect.bottomLeft(), option.rect.bottomRight())
+      painter.restore()
+
 class SelectedItem(QListWidgetItem):
    
-   def __init__(self,result,parent):
+   def __init__(self,result,parent,reds=None,blues=None,rowIdx=None):
       QListWidgetItem.__init__(self,result.name,parent,QListWidgetItem.UserType)
+      
+      
       self.dx = result.dx
       self.dy = result.dy
       self.path = result.path
       self.pathId = result.pathId
       self.length = result.length
       self.mtrxIdx = result.mtrxIdx
+      if self.pathId in reds:
+         self.setBackground(Qt.red) # sets red backdround
+         parent.setItemDelegateForRow(rowIdx,SelectedDelegate(Qt.red))
+      if self.pathId in blues:
+         self.setBackground(Qt.cyan)
+     
+   
+      print "parent delegate ",parent.setItemDelegate
+      
 
 class TreeSearchResult(object):
    """
