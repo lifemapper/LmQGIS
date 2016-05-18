@@ -262,6 +262,7 @@ class TreeWindow(QMainWindow):
       self.spreadSheetBut.setMaximumWidth(50)
       self.spreadSheetBut.clicked.connect(self.openSpreadSheet)
       
+      
       icon = QIcon(":/plugins/lifemapperTools/icons/clearTreeSelection.png")
       self.clearSelectionBut = QPushButton(icon,"")
       self.clearSelectionBut.setMaximumWidth(50)
@@ -508,7 +509,8 @@ class TreeWindow(QMainWindow):
                if not(widget.text() == 'See Leaves in Plot'):                  
                   widget.setEnabled(True)
       self.pamBut.setEnabled(True)
-      self.clearSelectionBut.setEnabled(True)      
+      self.clearSelectionBut.setEnabled(True)
+      self.spreadSheetBut.setEnabled(True)      
 # ........................................................................
    def turnAllWidgetsOff(self):
       topRowCnt = self.hlayout.count()
@@ -520,6 +522,7 @@ class TreeWindow(QMainWindow):
                   widget.setEnabled(False)
       self.pamBut.setEnabled(False)
       self.clearSelectionBut.setEnabled(False)
+      self.spreadSheetBut.setEnabled(False)
             
          
       
@@ -835,7 +838,7 @@ class TreeWindow(QMainWindow):
       for rowIdx, item in enumerate(items):
          #pItem->setForeground(Qt::red); // sets red text
          #pItem->setBackground(Qt::green); // sets green background
-         SelectedItem(item,self.list,reds=self.reds,blues=self.blues)
+         SelectedItem(item,self.list,reds=self.reds,blues=self.blues,rowIdx=rowIdx)
       self.reds = self.blues = []
       self.plotButton.setEnabled(True)
       self.calcMNTD()
@@ -1427,37 +1430,33 @@ class SelectedResult(object):
       """
       return "%s" % (self.name)         
 
-class SelectedDelegate(QItemDelegate):
+class SelectedDelegate(QStyledItemDelegate):
    # also try QtWidgets.QStyledItemDelegate.__init__(self), especially for paint
    def __init__(self, color, parent=None):
-      super(SelectedDelegate, self).__init__(parent)
+      #super(SelectedDelegate, self).__init__(parent)
+      QStyledItemDelegate.__init__(self)
+      self.color = color
       
    def paint(self, painter, option, index):
-      # rect to fill with backgroundcolor
-      itemRect = option.rect.adjusted(self.offset, self.offset, -self.offset, -self.offset)
-      # text of the item to be painted
-      text = self.parent().item(index.row()).text() 
-      painter.save()
-      # conditions for different backgroundcolors
-      if text[0] == 'a':
-         color = self.brush1
-      elif text[0] == 'C':
-         color = self.brush2
+      
+      if option.state & QStyle.State_Selected:
+         #  list widget is capturing this, doesn't get to this unless widget bannger is clicked 
+         background = index.model().data(index, Qt.BackgroundRole)
+         #background.value<QColor>()  # ??
+         # get rect to fill with backgroundcolor
+         itemRect = option.rect # ?.adjusted(self.offset, self.offset, -self.offset, -self.offset)
+         # text of the item to be painted
+         #text = self.parent().item(index.row()).text() 
+         #painter.save()  #don't know about this
+         ## paint backgroundcolor
+         painter.fillRect(itemRect,self.color)
+         #painter.restore()
       else:
-         color = self.brush
-      # paint backgroundcolor
-      painter.fillRect(itemRect,color)
-      # paint text
-      painter.setPen(self.textpen)
-      painter.drawText(itemRect, self.AlignmentFlag, text)
-      # paint bottom border
-      painter.setPen(self.linePen)
-      painter.drawLine(option.rect.bottomLeft(), option.rect.bottomRight())
-      painter.restore()
+         QStyledItemDelegate.paint(self,painter, option, index)
 
 class SelectedItem(QListWidgetItem):
    
-   def __init__(self,result,parent,reds=None,blues=None,rowIdx=None):
+   def __init__(self,result,parent,reds=[],blues=[],rowIdx=0):
       QListWidgetItem.__init__(self,result.name,parent,QListWidgetItem.UserType)
       
       
@@ -1469,12 +1468,10 @@ class SelectedItem(QListWidgetItem):
       self.mtrxIdx = result.mtrxIdx
       if self.pathId in reds:
          self.setBackground(Qt.red) # sets red backdround
-         parent.setItemDelegateForRow(rowIdx,SelectedDelegate(Qt.red))
+         #parent.setItemDelegateForRow(rowIdx,SelectedDelegate(Qt.red))  # doesn't work right now
       if self.pathId in blues:
          self.setBackground(Qt.cyan)
      
-   
-      print "parent delegate ",parent.setItemDelegate
       
 
 class TreeSearchResult(object):
