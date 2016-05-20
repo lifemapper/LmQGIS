@@ -160,6 +160,7 @@ class TreeWindow(QMainWindow):
       self.view.setPage(WebPage())
       self.view.page().settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls,
                                                True)
+      self.view.loadFinished.connect(self.handleLoadFinished)
       self.iface = iface
       self.activeLyr = activeLyr
       self.registry  = registry
@@ -260,7 +261,12 @@ class TreeWindow(QMainWindow):
       
       self.spreadSheetBut = QPushButton("S")
       self.spreadSheetBut.setMaximumWidth(50)
-      self.spreadSheetBut.clicked.connect(self.openSpreadSheet)
+      #self.spreadSheetBut.clicked.connect(self.openSpreadSheet)
+      
+      spreadSheetMenu = QMenu()
+      spreadSheetMenu.addAction("BioGeo",self.openSpreadSheet_BioGeo)
+      spreadSheetMenu.addAction("Environment",self.openSpreadSheet_Environment)
+      self.spreadSheetBut.setMenu(spreadSheetMenu)
       
       
       icon = QIcon(":/plugins/lifemapperTools/icons/clearTreeSelection.png")
@@ -269,7 +275,7 @@ class TreeWindow(QMainWindow):
       self.clearSelectionBut.setToolTip("clear selection")
       self.clearSelectionBut.clicked.connect(self.clearSelection)
       
-      self.reloadButton = QPushButton("Load Tree")
+      self.reloadButton = QPushButton("Reload Tree")
       self.reloadButton.setMaximumWidth(100)
       self.reloadButton.setToolTip("Load/Reload")
       self.reloadButton.clicked.connect(self.reload)
@@ -463,42 +469,165 @@ class TreeWindow(QMainWindow):
       reds = ','.join(map(str,self.reds))
       blues = ','.join(map(str,self.blues))
       self.view.page().mainFrame().evaluateJavaScript('findCladesSetColor("%s","%s","%s","%s");' % (pathStr,tipsString,reds,blues))
-
+# .......................................................................
+   def handleLoadFinished(self, ok): 
+      #handler
+      if ok:
+         self.view.page().mainFrame().evaluateJavaScript('loadTree("%s","%s");' % (self.jsonUrl,self.closeId))
+         self.turnAllWigetsOn()
+   
 # ........................................................................
-   def openSpreadSheet(self):
-      internalbase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/"
-      internal = cPickle.load(open(os.path.join(internalbase,'internal_2.pkl')))
+   def openSpreadSheet_BioGeo(self):
       
-      #############
-      # pam #
-      pambase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/"
-      pam = np.load(os.path.join(pambase,"fullpam_float_2.npy"))
-      ########
+      ####################################
+      #internalbase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/"
+      #internal = cPickle.load(open(os.path.join(internalbase,'internal_2.pkl')))
+      ##############
+      ## pam #
+      #pambase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/"
+      #pam = np.load(os.path.join(pambase,"fullpam_float_2.npy"))
+      #########
+      #base = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/CSV_ForViewing/"
+      ##dataList_Str = list(csv.reader(open(os.path.join(base,"BioGeo2Viewing.csv")))) #BioGeo2Viewing.csv
+      ##dataList = [[float(value) for value in row] for row in dataList_Str]
+      #correlationData = np.load(os.path.join(base,"Filtered_BioGeo_2_WEnv_Florida.npy"))
+      #dataList = [list(r) for r in correlationData[:,[0,1,2,3,9]]]
+      #
+      #header = ["Node Number", "Apalachicola","Gulf/Atlantic","Pliocene","RsqrAdj"]
+      #numRows = len(dataList) +1 # add one because header is just a modified row
+      #numCols = len(dataList[0]) 
+      #csvBase = "/home/jcavner/Florida_Flora_WS/Florida_Flora_1800"
+      #pamCSV = os.path.join(csvBase,"pam_2532.csv")
+      ####################################
       
-      base = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/CSV_ForViewing/"
+      # check for existence of paths
+      dataExists = False
+      if self.expDir is not None:
+         base = os.path.join(self.expDir,"biogeo_mcpa")  # if not use treePath sans tree folder?
+         if os.path.exists(base):
+            try:
+               pam = np.load(os.path.join(base,"fullpam_float_2.npy"))
+               internal = cPickle.load(open(os.path.join(base,'internal_2.pkl')))
+               correlationData = np.load(os.path.join(base,"Filtered_BioGeo_2_WEnv_Florida.npy"))
+               dataList = [list(r) for r in correlationData[:,[0,1,2,3,9]]]
+               pamCSV = os.path.join(base,"pam_2532.csv")
+            except:
+               pass
+            else:
+               dataExists = True
+      if not dataExists:
+         if self.jsonPath:
+            if "/tree" in self.jsonPath:
+               rep = self.jsonPath.replace("/tree","")
+               base = os.path.join(rep,"biogeo_mcpa")
+               if os.path.exists(base):
+                  try:
+                     pam = np.load(os.path.join(base,"fullpam_float_2.npy"))
+                     internal = cPickle.load(open(os.path.join(base,'internal_2.pkl')))
+                     correlationData = np.load(os.path.join(base,"Filtered_BioGeo_2_WEnv_Florida.npy"))
+                     dataList = [list(r) for r in correlationData[:,[0,1,2,3,9]]]
+                     pamCSV = os.path.join(base,"pam_2532.csv")
+                  except:
+                     pass
+                  else:
+                     dataExists = True
+               
+      ####################################
+      if dataExists:
+         header = ["Node Number", "Apalachicola","Gulf/Atlantic","Pliocene","RsqrAdj"]
+         numRows = len(dataList) +1 # add one because header is just a modified row
+         numCols = len(dataList[0]) 
+         self.sheet = SpreadSheet(numRows, numCols, dataList, header, internal, pam, 
+                                  pamCSVPath=pamCSV, iface = self.iface, 
+                                  expDir=self.expDir, corrType="Biogeographic Hypotheses")
+         self.sheet.resize(640, 420)
+         self.sheet.show()
+         self.sheet.raise_() # !!!!
+         self.sheet.activateWindow()  
+      else:
+         message = "No correlation data for this analysis"
+         msgBox = QMessageBox.information(QWidget(),
+                                             "Error...",
+                                             message,
+                                             QMessageBox.Ok)
       
-      #dataList_Str = list(csv.reader(open(os.path.join(base,"filteredJustBio_NewNodes.csv"))))
-      dataList_Str = list(csv.reader(open(os.path.join(base,"BioGeo2Viewing.csv")))) #BioGeo2Viewing.csv
-      dataList = [[float(value) for value in row] for row in dataList_Str]
+# ........................................................................
+
+   def openSpreadSheet_Environment(self):
       
-      header = ["Node Number", "Apalachicola","Gulf/Atlantic","Pliocene","RsqrAdj"]
+      #####################################
+      #internalbase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/"
+      #internal = cPickle.load(open(os.path.join(internalbase,'internal_2.pkl')))
+      ##############
+      ## pam #
+      #pambase = "/home/jcavner/BiogeographyMtx_Inputs/Florida/"
+      #pam = np.load(os.path.join(pambase,"fullpam_float_2.npy"))
+      #########
+      #base = "/home/jcavner/BiogeographyMtx_Inputs/Florida/outputs/CSV_ForViewing/"
+      ##dataList_Str = list(csv.reader(open(os.path.join(base,"BioGeo2Viewing.csv")))) #BioGeo2Viewing.csv
+      ##dataList = [[float(value) for value in row] for row in dataList_Str]
+      #correlationData = np.load(os.path.join(base,"Filtered_Env_2_Florida.npy"))
+      #dataList = [list(r) for r in correlationData]
+      #header = ["Node Number","BIO14","BIO13","BIO12","BIO6","BIO5","RsqrAdj"]
+      #numRows = len(dataList) +1 # add one because header is just a modified row
+      #numCols = len(dataList[0]) 
+      #csvBase = "/home/jcavner/Florida_Flora_WS/Florida_Flora_1800"
+      #pamCSV = os.path.join(csvBase,"pam_2532.csv")
+      ####################################
       
-      numRows = len(dataList) +1 # add one because header is just a modified row
-      numCols = len(dataList[0]) 
+      # check for existence of paths
+      dataExists = False
+      if self.expDir is not None:
+         base = os.path.join(self.expDir,"env_mcpa")  # if not use treePath sans tree folder?
+         if os.path.exists(base):
+            try:
+               pam = np.load(os.path.join(base,"fullpam_float_2.npy"))
+               internal = cPickle.load(open(os.path.join(base,'internal_2.pkl')))
+               correlationData = np.load(os.path.join(base,"Filtered_Env_2_Florida.npy"))
+               dataList = [list(r) for r in correlationData]
+               pamCSV = os.path.join(base,"pam_2532.csv")
+            except:
+               pass
+            else:
+               dataExists = True
+      if not dataExists:
+         if self.jsonPath:
+            if "/tree" in self.jsonPath:
+               rep = self.jsonPath.replace("/tree","")
+               base = os.path.join(rep,"env_mcpa")
+               if os.path.exists(base):
+                  try:
+                     pam = np.load(os.path.join(base,"fullpam_float_2.npy"))
+                     internal = cPickle.load(open(os.path.join(base,'internal_2.pkl')))
+                     correlationData = np.load(os.path.join(base,"Filtered_Env_2_Florida.npy"))
+                     dataList = [list(r) for r in correlationData]
+                     pamCSV = os.path.join(base,"pam_2532.csv")
+                  except:
+                     pass
+                  else:
+                     dataExists = True
       
-      csvBase = "/home/jcavner/Florida_Flora_WS/Florida_Flora_1800"
-      pamCSV = os.path.join(csvBase,"pam_2532.csv")
       
-      #app = QApplication(sys.argv)
-      self.sheet = SpreadSheet(numRows, numCols, dataList, header, internal, pam, 
-                               pamCSVPath=pamCSV, iface = self.iface)
-      #sheet.setWindowIcon(QIcon(QPixmap(":/images/interview.png")))
-      self.sheet.resize(640, 420)
-      #sheet.show()
-      #sys.exit(app.exec_()) 
-      self.sheet.show()
-      self.sheet.raise_() # !!!!
-      self.sheet.activateWindow()    
+      ####################################
+      if dataExists:
+         header = ["Node Number","BIO14","BIO13","BIO12","BIO6","BIO5","RsqrAdj"]
+         numRows = len(dataList) +1 # add one because header is just a modified row
+         numCols = len(dataList[0])
+         self.sheet2 = SpreadSheet(numRows, numCols, dataList, header, internal, pam, 
+                                  pamCSVPath = pamCSV, iface = self.iface, 
+                                  expDir = self.expDir, corrType="Environmental Variables")
+         self.sheet2.resize(640, 420)
+         self.sheet2.show()
+         self.sheet2.raise_() # !!!!
+         self.sheet2.activateWindow() 
+      else:
+         message = "No correlation data for this analysis"
+         msgBox = QMessageBox.information(QWidget(),
+                                             "Error...",
+                                             message,
+                                             QMessageBox.Ok)
+
+        
 # ........................................................................
    def turnAllWigetsOn(self):
       topRowCnt = self.hlayout.count()
@@ -518,7 +647,7 @@ class TreeWindow(QMainWindow):
          if isinstance(self.hlayout.itemAt(eIdx),QWidgetItem):
             widget = self.hlayout.itemAt(eIdx).widget()
             if isinstance(widget,QPushButton):
-               if not(widget.text() == 'Load Tree'):
+               if not(widget.text() == 'Reload Tree'):
                   widget.setEnabled(False)
       self.pamBut.setEnabled(False)
       self.clearSelectionBut.setEnabled(False)
