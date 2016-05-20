@@ -684,11 +684,12 @@ class LassoManager(object):
       self.lassoEvent = event
       
       if self.tool._active == 'LASSOSELECT':
-         self.lasso = Lasso(event.inaxes, (event.xdata, event.ydata), self.callback)
+         try:
+            self.lasso = Lasso(event.inaxes, (event.xdata, event.ydata), self.callback)
          #try:
-         self.canvas.widgetlock(self.tool)
-         #except:
-         #   pass
+            self.canvas.widgetlock(self.tool)
+         except:
+            pass
       else:
          #self.canvas.widgetlock.release(self.lasso)
          self._select_mode = None  # need to really check if this is necesarry
