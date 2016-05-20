@@ -45,7 +45,7 @@ from PyQt4.QtGui import QColor, QIcon, QKeySequence, QPainter, QPixmap
 from PyQt4.QtGui import (QAction, QActionGroup, QApplication, QColorDialog,
         QComboBox, QDialog, QFontDialog, QGroupBox, QHBoxLayout, QLabel,
         QLineEdit, QMainWindow, QMessageBox, QPushButton, QTableWidget,
-        QTableWidgetItem, QToolBar, QVBoxLayout)
+        QTableWidgetItem, QToolBar, QVBoxLayout,QWidget)
 #from PyQt4.QtPrintSupport import QPrinter, QPrintPreviewDialog
 from qgis.core import *
 import numpy as np
@@ -53,6 +53,7 @@ import os
 import csv
 from operator import itemgetter
 import cPickle
+from itertools import chain
 from lifemapperTools.common.communicate import Communicate
 
 def decode_pos(pos):
@@ -304,7 +305,8 @@ class SpreadSheet(QMainWindow):
    """
 
 
-   def __init__(self, rows, cols, dataList, titles, internal, pam, iface = None, pamCSVPath = None, parent = None):
+   def __init__(self, rows, cols, dataList, titles, internal, pam, expDir = None,
+                corrType = "",iface = None, pamCSVPath = None, parent = None):
       """
       @summary: constructore
       @note: might need to send this the iface
@@ -312,10 +314,11 @@ class SpreadSheet(QMainWindow):
       
       super(SpreadSheet, self).__init__(parent)
       
+      self.expDir = expDir
       self.internal = internal
       self.pam = pam
       self.pamCSVPath = pamCSVPath  # WHERE WILL THIS COME FROM if pam is never requested from Tree Window side?
-      self.prepPAMcsv()
+      pamExists = self.prepPAMcsv()
       self.iface = iface
       self.columnToggles = {k:False for k, name in enumerate(titles)}
       
@@ -337,9 +340,14 @@ class SpreadSheet(QMainWindow):
       self.tableHeaderView.sectionDoubleClicked.connect(self.sortByColumn)
       
       self.rowHeaderView = self.table.verticalHeader()
-      self.rowHeaderView.sectionDoubleClicked.connect(self.lookForNode)
-      
-      
+      if os.path.exists(str(expDir)) and pamExists:
+         self.rowHeaderView.sectionDoubleClicked.connect(self.lookForNode)
+      else:
+         message = "Experiment directory or PAM does not exist, will not be able to query by node."
+         msgBox = QMessageBox.information(QWidget(),
+                                             "Error...",
+                                             message,
+                                             QMessageBox.Ok)
       self.table.setItemPrototype(self.table.item(rows - 1, cols - 1))
       self.table.setItemDelegate(SpreadSheetDelegate(self))
       self.createActions()
@@ -357,7 +365,7 @@ class SpreadSheet(QMainWindow):
       self.table.itemChanged.connect(self.updateStatus)
       self.formulaInput.returnPressed.connect(self.returnPressed)
       self.table.itemChanged.connect(self.updateLineEdit)
-      self.setWindowTitle("Semi partial correlations")
+      self.setWindowTitle("Semi partial correlations %s"% (corrType))
    
    def buildPathLookUp(self):
       """
@@ -372,9 +380,6 @@ class SpreadSheet(QMainWindow):
       self.internalPaths = paths
          
    def selectDescSpsinTree(self,nodeId):
-      
-      
-      from itertools import chain
       
       nodeIdLike = str(int(nodeId))
       
@@ -403,16 +408,11 @@ class SpreadSheet(QMainWindow):
       @param downloaded: unsure if we need this here
       """
       if downloaded:
-         #pamLayer = self.buildCSVLayer() # builds csv and adds join
-         
          if pamLayer: 
             QgsMapLayerRegistry.instance().addMapLayer(pamLayer, False)  
             root = QgsProject.instance().layerTreeRoot() 
             root.insertLayer(2,pamLayer)
-           
-            #self.pamBut.setEnabled(False)
          else:
-            #self.pamBut.setEnabled(True)
             pass
       else:
          ### uncomment this for stats mapped into ranges ##
@@ -428,18 +428,29 @@ class SpreadSheet(QMainWindow):
       @summary: reads pam csv into a float pam numpy, 
       this is required because we need the (x,y)
       """
-      if os.path.exists(self.pamCSVPath):
-         ll = list(csv.reader(open(self.pamCSVPath,'rb')))
-         llsansH = ll[1:]
-         floatSansH = [[float(y) for y in x] for x in llsansH]
-         sortFloat = sorted(floatSansH, key=itemgetter(0))
-         sortFloatA = np.array(sortFloat,dtype=np.float)
-         self.sortedXY = sortFloatA[:,[1,2]]   # THIS NEEDS TO KNOW FOR SURE WHERE x,y ARE
-         
+      ok = False
+      try:
+         if os.path.exists(self.pamCSVPath):
+            ll = list(csv.reader(open(self.pamCSVPath,'rb')))
+            llsansH = ll[1:]
+            floatSansH = [[float(y) for y in x] for x in llsansH]
+            sortFloat = sorted(floatSansH, key=itemgetter(0))
+            sortFloatA = np.array(sortFloat,dtype=np.float)
+            self.sortedXY = sortFloatA[:,[1,2]]   # THIS NEEDS TO KNOW FOR SURE WHERE x,y ARE
+            
+         else:
+            # need an error and something to set pam too
+            self.sortedXY = False
+            raise Exception('pam csv path does not exist')
+      except Exception, e:
+         #message = "Problem with PAM csv data structure, will not be able to map nodes "+str(e)
+         #QMessageBox.warning(self,"status: ",
+         #                   message+" "+str(e))
+         # message will occur on exception in contructor
+         pass
       else:
-         # need an error and something to set pam too
-         self.sortedXY = False
-      
+         ok = True
+      return ok
       
    def buildCSVLayer(self,unionPath,nodeId,sideNo):
       """
@@ -457,67 +468,78 @@ class SpreadSheet(QMainWindow):
       else:
          crs = QgsCoordinateReferenceSystem()
          crs.createFromOgcWmsCrs('EPSG:%s'% ('4326'))
-         pLayer.setCrs(crs)
-         
-         
+         pLayer.setCrs(crs)   
       return pLayer   
    
-   def findXY(self,nodeId):
+   def mapXY(self,nodeId):
       #if self.sortedXY:
-      tipXY_0 = self.sortedXY[self.rowPos1,:]
-      #tipXY_0 = np.insert(tipXY_0,[0],[0.0,1.0],axis=0)
-      
-      tipXY_1 = self.sortedXY[self.rowPos2,:]
-      #tipXY_1 = np.insert(tipXY_1,[0],[0.0,1.0],axis=0)
-      
-      np.savetxt("/home/jcavner/UnionedOutputsCharolettes/n_0.csv",tipXY_0,fmt='%.2f',
-                 delimiter=',', newline='\n')
-      
-      np.savetxt("/home/jcavner/UnionedOutputsCharolettes/n_1.csv",tipXY_1,fmt='%.2f',
-                 delimiter=',', newline='\n')
-      
-      lyr_0 = self.buildCSVLayer("/home/jcavner/UnionedOutputsCharolettes/n_0.csv", nodeId, 0)
-      lyr_1 = self.buildCSVLayer("/home/jcavner/UnionedOutputsCharolettes/n_1.csv", nodeId, 1)
-      
-      if lyr_0 and lyr_1:
+      try:
+         tipXY_0 = self.sortedXY[self.rowPos1,:]
+         tipXY_1 = self.sortedXY[self.rowPos2,:]
          
-         symbol = QgsMarkerSymbolV2.createSimple({'name': 'square', 'color': 'red','size':'2.6'})
-         lyr_0.rendererV2().setSymbol(symbol)
+         n_0csv = os.path.join(self.expDir,"n_0.csv")
          
-         symbol = QgsMarkerSymbolV2.createSimple({'name': 'circle', 'color': 'cyan','size':'1.5','outlineStyle':'0'})
-         lyr_1.rendererV2().setSymbol(symbol)
+         np.savetxt(n_0csv,tipXY_0,fmt='%.2f',
+                    delimiter=',', newline='\n')
          
-         try:
-            legend = self.iface.legendInterface()
-            lyrs = [lyr for lyr in legend.layers() if "_0" in lyr.name() or "_1" in lyr.name()]
-            for lyr in lyrs:
-               root = QgsProject.instance().layerTreeRoot() 
-               lyrToDelete = root.findLayer(lyr.id()) # returns a QgsLayerTreeLayer
-               root.removeChildNode(lyrToDelete)
-         except:
-            pass
+         n_1csv = os.path.join(self.expDir,"n_1.csv")
          
-         self.selectDescSpsinTree(nodeId)
-         self.addPamToCanvas(True,lyr_0,nodeId)
-         self.addPamToCanvas(True,lyr_1,nodeId)
-      else:
-         print "NO LAYERS"
+         np.savetxt(n_1csv,tipXY_1,fmt='%.2f',
+                    delimiter=',', newline='\n')
+         
+         lyr_0 = self.buildCSVLayer(n_0csv, nodeId, 0)
+         lyr_1 = self.buildCSVLayer(n_1csv, nodeId, 1)
+         
+         if lyr_0 and lyr_1:
+            
+            symbol = QgsMarkerSymbolV2.createSimple({'name': 'square', 'color': 'red','size':'2.6'})
+            lyr_0.rendererV2().setSymbol(symbol)
+            
+            symbol = QgsMarkerSymbolV2.createSimple({'name': 'circle', 'color': 'cyan','size':'1.5','outlineStyle':'0'})
+            lyr_1.rendererV2().setSymbol(symbol)
+            
+            try:
+               legend = self.iface.legendInterface()
+               lyrs = [lyr for lyr in legend.layers() if "n_1.csv" in lyr.source() or "n_0.csv" in lyr.source()]
+               for lyr in lyrs:
+                  root = QgsProject.instance().layerTreeRoot() 
+                  lyrToDelete = root.findLayer(lyr.id()) # returns a QgsLayerTreeLayer
+                  root.removeChildNode(lyrToDelete)
+            except:
+               pass
+            
+            self.selectDescSpsinTree(nodeId)
+            self.addPamToCanvas(True,lyr_0,nodeId)
+            self.addPamToCanvas(True,lyr_1,nodeId)
+         else:
+            raise Exception("Invalid QGIS Layer")
+      except Exception, e:
+         message = "Problem constructing layers"
+         QMessageBox.warning(self,"status: ",
+                            message+" "+str(e))
       
    def lookForNode(self, index):
       #print "row ",index," ",self.dataList[int(index)-1]
+      message = False
       tmx = self.getMxIdxBothSides(self.dataList[int(index)-1][0])
       if tmx:   # NEED TO DOUBLE CHECK THIS
          if len(tmx[0]) > 0 and len(tmx[1]) > 0:
             twoUnions = self.unionDesc(tmx[0],tmx[1])
             if twoUnions:
                # call csv and display
-               self.findXY(self.dataList[int(index)-1][0])
-               pass
+               self.mapXY(self.dataList[int(index)-1][0])
             else:
-               print "two sides don't exist"  
+               message = "Species don't exist on both sides of node"  
          else:
             self.rowPos2 = self.rowPos1 = False  ### PROBABLY DON"T NEED THIS
-            print "oh no you didn't"
+            message = "Missing matrix indexes"
+      else:
+         message = "Node Id not in subtree data structure"
+      if message:
+         msgBox = QMessageBox.information(QWidget(),
+                                             "Error...",
+                                             message,
+                                             QMessageBox.Ok)
    
    def unionDesc(self,mx1,mx2):
       """
@@ -927,12 +949,11 @@ class SpreadSheet(QMainWindow):
         
    def getMxIdxBothSides(self, internalNodeId):
       
-      self.tipsoneSide = {}
+      self.tipsoneSide = {}  # should incrementally build these up and check if key exists for node
       self.tipsOtherSide = {}
       nodeId = str(int(internalNodeId))
       if nodeId in self.internal:
          oneSide = self.internal[nodeId][0]
-         #print oneSide
          otherSide = self.internal[nodeId][1]
          oneSideMx, tipsOneSide, pathsOneSide = self.recurseToMx(oneSide)
          otherSideMx,tipsOtherSide, pathsOtherSide = self.recurseToMx(otherSide)
@@ -941,7 +962,7 @@ class SpreadSheet(QMainWindow):
          return oneSideMx,otherSideMx
       else:
          self.tipIds = []
-         print False
+         return False
       
       
       
