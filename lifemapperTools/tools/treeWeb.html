@@ -60,8 +60,12 @@ path.link {
   
 togCount = 1
 pathToToggle = false;
+//nodesAllReadyToggled = [];
 leafs = {}; 
 visibleNodes = false;
+visiblePathIds = [];
+visibleWith_children = [];
+skips = {};
 old_circle = false;
 old_text = false;
 redTips = [];
@@ -147,33 +151,27 @@ var rect = vis.append("rect")
 
 
 
-function resizeCanvas(deltax,deltay){
-	//cluster.size([h+deltay,w+deltax])
-	/*
-	cx = cluster.size()[1]
-	cy = cluster.size()[0]
-	vs = d3.select("#svg")
-	cW = vs[0][0].clientWidth
-	cH = vs[0][0].clientHeight
-	
-	*/
+/*function resizeCanvas(deltax,deltay){
 	
 	var vs = d3.select("#svg");	
 	vis.attr("transform", "translate(" + vs.style("width").replace("px", "")/4 + "," + vs.style("height").replace("px", "")/4 + ")")
-}
+} */
 
 
 function loadTree(jsonUrl,closeId) {
 	// amphibians_re_path.json //african_mammal_realDealMX.json, BTW this has all mammals in tree, but mx for everything in the PAM
 	// file:///home/jcavner/PhyloXM_Examples/bats_re_path.json
-   
+     
 	visibleNodes = false;
+	visiblePathIds = []; // not being used
+	visibleWith_children = [];
 	i = 0;
 	leafs = {};
-	
+	globalUrl = jsonUrl;
+	closeThis = closeId;
 	cluster.size([h, w]); 
 	
-	var loadTips = [];
+	var loadTips = [];  // not being used
 	
 	//console.log(cluster.size())
 	d3.json(jsonUrl, function(json) {
@@ -219,6 +217,8 @@ function loadTree(jsonUrl,closeId) {
 		 
 	  }
 	  
+	  
+	  
 	  //toggleAll2(visibleNodes[18])// this will select leaves; update(visibleNodes[18])
 	  cx = cluster.size()[1]
 	  cy = cluster.size()[0]
@@ -227,7 +227,7 @@ function loadTree(jsonUrl,closeId) {
 	  cH = vs[0][0].clientHeight
 	  
 	  if (cW > cx){
-	   resizeCanvas();
+	   //resizeCanvas();
 	  }
 	  
 	});
@@ -248,19 +248,20 @@ var jsonify=function(o){
 
 
 function visible(foundnode){
-	
+	newskips = []
 	var found = false;
 	if (foundnode.children){
 		
-		foundnode.children.forEach(function(d){ if (lookingFor.indexOf(d.pathId) != -1){found = true;} })
-		
-		if (found){
-			return found;
-		}
+		foundnode.children.forEach(function(d){ if (lookingFor.indexOf(d.pathId) != -1){skips[d.pathId] = d; newskips.push(d.pathId)} })
+		if (newskips.length > 0){return true;} else {return false;} //REALLY NEED TO LOOK AT THIS !!
+		//if (found){
+		//	return found;
+		//}
 	}else{
 		// if it does not have children but foundnode is what we are looking for
 		
 		if (lookingFor.indexOf(foundnode.pathId) != -1){
+			leafs[foundnode.pathId] = foundnode; // this is new June1, 2016, 4:17 pm
 			return true;
 		} else {
 			return false;
@@ -275,8 +276,9 @@ function recurseIds(pathArray,node){
 	
 	var tipInt = parseInt(pathArray[0]);
 	if (typeof node === 'undefined') 
-	{ var vN = visibleNodes; } else{
-	  var vN = node.children
+	{ var vN = visibleNodes; } else{  // consider limiting a copy of visibleNodes to just ones with ._children e.g. visibleWith_children --> this doesn't work for single sps query, and doesn't help speed up 2nd query
+	  var vN = node.children // 
+	  //console.log(pathArray.length)
 	}
    
 	for (var i = 0; i < pathArray.length; i++) {
@@ -284,28 +286,43 @@ function recurseIds(pathArray,node){
 		 // pathArray length keeps it from toggling root if leaf node is a direct desc of root 
 		 for (var y = 0; y < vN.length; y++){
 			 
-			
+			 
 			 if (vN[y].pathId == pathArray[i]){
-				 				 
-				 				 
-				 toggleAll2(vN[y]); 
-				 update(vN[y]);
-				 				 				
-				 
+				 	if (vN[y]._children){			 
+				 	 toggleAll2(vN[y]); // THIS WILL TOGGLE ALL THE WAY OUT TO THE TIPS on initial query if no sub-nodes are closed, but every query closes
+				 	 // some sub-nodes 
+					 update(vN[y]); 
+				 	} else {
+				 		if (lookingFor.indexOf(vN[y].pathId) != -1) {  // if it is a tip
+				 	    leafs[vN[y].pathId] = vN[y]
+				 	    update(vN[y]); 
+				 	    break;
+				 	    } 
+				 		idx = pathArray.indexOf(pathArray[i]);
+						pathArray.splice(idx,1);
+				 		recurseIds(pathArray,vN[y]) //speeds up initial query?
+				 		
+				 	}
+				 		
+				 	
 				 if (visible(vN[y])){  // this used to not have an argument
-					
+				    // this, in part, checks if the children of this node are in lookFors...why, because if they are
+					// it doesn't skip over those found tips right?
 					return;
 				 } else {
-					 //console.log('calling itself')
-					 if (vN[y].children){						
+					 
+					 if (vN[y].children){	
+						idx = pathArray.indexOf(pathArray[i]);
+						pathArray.splice(idx,1);
 					 	recurseIds(pathArray,vN[y]);
-					 } else {
-						recurseIds(pathArray,vN[y].parent)
+					 } else { 
+						 
 					 }
 					 
 				 } 
 				return; 
-			 }	 		 
+			 }  // end of (if match btw visible node and node in unioned path)
+			
 		 }
 	  }	// end of tip check
 	}	
@@ -320,7 +337,8 @@ function findCladesSetColor(compositePathStr,lookFors,reds,blues){
 	blueTips = blues.split(',');	
 	
 	}
-	findClades(compositePathStr,lookFors);
+	//findClades(compositePathStr,lookFors);
+	findClades_genus_ss(compositePathStr,lookFors);
 	redTips = [];
 	blueTips = [];
 	
@@ -329,24 +347,79 @@ function findCladesSetColor(compositePathStr,lookFors,reds,blues){
 
 function findClades(compositePathStr,lookFors){
 	
+	loadTree(globalUrl,closeThis);
+	
+	skips = {};  // this is new June1, 2016, 4:17 pm, was inside of searchTree
+	if (lookFors != ''){ // empty selection
+		tips = lookFors.split(',');
+		lookingFor = tips;
+		leafs = {};
+		var lt = tips.length;
+		console.log("total len "+lt)
+		function searchTree(qo,l){
+			//skips = {};
+			for (var i = qo; i < l; i++){
+			
+			  if (Object.keys(skips).indexOf(tips[i]) == -1){//(visiblePathIds.indexOf(tips[i]) == -1) { // visiblePathIds slows things way down, skips doesn't but doesn't add much either
+				if (Object.keys(leafs).indexOf(tips[i]) == -1){  // this means the tip in not in the leaves
+					
+					var compositeTiplessPath = compositePathStr.split(',');
+					compositeTiplessPath.splice(0,0,tips[i]) // adds the tips
+					pathToToggle = compositeTiplessPath; 
+					recurseIds(pathToToggle);	
+				} 	
+			  } 
+			  
+			}
+			
+			Object.keys(skips).forEach(function(s){update(skips[s]);leafs[skips[s].pathId] = skips[s]});
+			addSubtractToPythonList();
+	        pathToToggle = false;	
+			
+		}  // end func lookTips
+	if (lt > 6){ var q = Math.floor(lt / 6); r = lt % 2;}
+	
+	//searchTree(0,q)	
+	setTimeout(searchTree, 250, 0, tips.length);
+	//setTimeout(searchTree, 250, q, q*2);
+	//setTimeout(searchTree, 250, q*2, q*3);
+	//setTimeout(searchTree, 250, q*3, q*4);
+	//setTimeout(searchTree, 250, q*4, tips.length);
+	
+	
+	} else {
+		clearSelection();		
+	}
+	//addSubtractToPythonList();
+	//pathToToggle = false;		
+	
+};	
+	
+	
+function findClades_genus_ss(compositePathStr,lookFors){
+	//nodesAllReadyToggled = [];
+	//loadTree(globalUrl,closeThis);
+	skips = {};
 	if (lookFors != ''){ // empty selection
 		var tips = lookFors.split(',');
 		lookingFor = tips;
 		leafs = {};
 		for (var i = 0; i < tips.length; i++){
-			
+		  if (Object.keys(skips).indexOf(tips[i]) == -1){//(visiblePathIds.indexOf(tips[i]) == -1) { // visiblePathIds slows things way down, skips doesn't but doesn't add much either
 			if (Object.keys(leafs).indexOf(tips[i]) == -1){  // this means the tip in not in the leaves
 				
 				var compositeTiplessPath = compositePathStr.split(',');
 				compositeTiplessPath.splice(0,0,tips[i]) // adds the tips
 				pathToToggle = compositeTiplessPath; 
+				console.log('TIP '+tips[i])
 				recurseIds(pathToToggle);			
-			}	
-			
+			} //else { idx = visiblePathIds.indexOf(tips[i]); update(visibleNodes[idx]); leafs[visibleNodes[idx].pathId] = visibleNodes[idx]}	
+		  } else { update(skips[tips[i]]);leafs[tips[i]] = skips[tips[i]] }	
 		}
 	} else {
 		clearSelection();		
 	}
+	console.log('SKPS '+Object.keys(skips).length)
 	addSubtractToPythonList();
 	pathToToggle = false;		
 	
@@ -410,7 +483,7 @@ function reportLeafs(){
 
 
 function update(source) {
-	
+  visiblePathIds = [];
   l = Object.keys(leafs).length;
   //console.log("no leaves "+l)
   if (visibleNodes){ 
@@ -423,7 +496,7 @@ function update(source) {
   //console.log(h+all*16)
   cluster.size([h+all*16,w])
   
-  var duration = d3.event && d3.event.altKey ? 50 : 50;
+  var duration = d3.event && d3.event.altKey ? 1 : 1; // was 50:50
 
   // Compute the new tree layout.
     var nodes = cluster.nodes(root).reverse();
@@ -432,7 +505,7 @@ function update(source) {
     //nL = nodes.length;
     //console.log(nL)
     
-    
+  //console.log('done calcing vN clustersize, starting selectors'); 
   // Normalize for fixed-depth.
   // nodes.forEach(function(d) { d.y = d.depth * 180; });
   
@@ -460,7 +533,7 @@ function update(source) {
                                 	   leafs[d.pathId] ? color = "#EEEE00" : color = "#fff";}}
                                    return color
                                   });
- 
+  //console.log('done appending circles');
   nodeEnter.append("svg:text")
       .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
       .attr("id",function(d){return "textId"+d.pathId})
@@ -475,7 +548,7 @@ function update(source) {
   var nodeUpdate = node.transition()
       .duration(duration)
       .attr("transform", function(d) { return "translate(" + d.y  + "," + d.x + ")"; });
-
+  //console.log('done transit for nodes')
   nodeUpdate.select("circle")
       .attr("r", 5)
       .attr("id",function(d){return "pathId"+d.pathId})
@@ -543,39 +616,17 @@ function update(source) {
   
   visibleNodes = nodes;
   
+  visibleNodes.forEach(function(d){
+	  visiblePathIds.push(d.pathId); 
+	  //if (d._children) {visibleWith_children.push(d)}
+	  visibleWith_children.push(d)
+  });
+  
+  
+  //console.log("vN len "+visibleNodes.length)
    
 }  //end of update
 
-/*
-    function zoom(d) {  // this was for svg based zoom, not canvas zoom
-        var nodes = vis.selectAll("g.node");
-        nodes.attr("transform", transform);
-
-        // Update the links...
-        var link = vis.selectAll("path.link");
-        link.attr("d", translate);  
-    };
-
-    function transform(d) {
-        return "translate(" + x(d.y) + "," + y(d.x) + ")";
-        //return "translate(" + y(d.y) + "," + x(d.x) + ")";
-    };
-
-    function translate(d) {
-        var sourceX = x(d.target.parent.y);
-        var sourceY = y(d.target.parent.x);
-        var targetX = x(d.target.y);
-        var targetY = (sourceX + targetX)/2;
-        var linkTargetY = y(d.target.x0);
-        //var result = "M"+sourceY+","+sourceX+" C"+targetX+","+sourceY+" "+targetY+","+y(d.target.x0)+" "+targetX+","+linkTargetY+"";
-       
-      var result =  "M" + sourceY + "," + sourceX + "V" + targetX + "H" + targetY;
-      // console.log(result)
-
-       
-       return result;
-    };
- */   
 
 function removeLeaves(d){
     
@@ -630,6 +681,7 @@ function toggleAll2(d) {
 	    		 if (leafs[d.pathId]){
 	    			 
 	    			 //addSubtractToPythonList(d,false);
+	    			 //console.log('removing')
 	    			 delete leafs[d.pathId];
 	    			 
 	    			 
@@ -699,7 +751,7 @@ function zoomToLeaf(dy,dx,did){
 }
 
 function addSubtractToPythonList(){
-	
+	console.log('jsonifying')
 	send = jsonify(leafs);
 	TreeWindowObj.addList(send);
 			
@@ -710,12 +762,16 @@ function toggle(d) {
   if (d.children) {
     d._children = d.children;
     d.children = null;
+    //console.log(d.pathId)
     
   } else { 
     d.children = d._children;
     d._children = null;
     togCount = togCount + 1
+    //console.log("open "+d.pathId)
   }
+  //for (var y = 0; y < visibleNodes.length; y++){console.log("R "+visibleNodes[y].pathId)}
+//console.log(visibleNodes.length)  
 }
 //loadTree();
     </script>
