@@ -1254,10 +1254,10 @@ class TreeWindow(QMainWindow):
       deltay = str(ny-oy)
       deltax = str(nx-ox)
       
-      try:
-         self.view.page().mainFrame().evaluateJavaScript('resizeCanvas("%s","%s");' % (deltax,deltay))
-      except:
-         pass
+      #try:
+      #   self.view.page().mainFrame().evaluateJavaScript('resizeCanvas("%s","%s");' % (deltax,deltay))
+      #except:
+      #   pass
    
    def clearSelection(self):
       
@@ -1317,12 +1317,18 @@ class TreeWindow(QMainWindow):
       tipsString = ','.join(self.ids)     
       
       # make a list of lists of the tipless paths 
-      llTiplessPaths = [map(int,ps.split(',')[1:]) for ps in self.paths]                  
-      pathsUnionList = list(set().union(*llTiplessPaths))
-      pathsUnionList.sort(reverse=True)
-            
+      llTiplessPaths = [set(map(int,ps.split(',')[1:])) for ps in self.paths]                  
+      pathsIntersectionList = list(set.intersection(*llTiplessPaths))
+      pathsIntersectionList.sort(reverse=True)     
       # now convert to a string
-      unionString = ','.join(map(str,pathsUnionList))
+      intersectionString = ','.join(map(str,pathsIntersectionList))
+      
+      llTiplessPaths = [map(int,ps.split(',')[1:]) for ps in self.paths]                  
+      pathsunionList = list(set().union(*llTiplessPaths))
+      pathsunionList.sort(reverse=True)     
+      # now convert to a string
+      unionString = ','.join(map(str,pathsunionList))
+      
       try:        
          self.view.page().mainFrame().evaluateJavaScript('findClades("%s","%s");' % (unionString,tipsString))
       except:
@@ -1349,7 +1355,7 @@ class TreeWindow(QMainWindow):
                tipsString = self.genusDict[spsName][1]
                print "tip string in genus ",tipsString
                print path
-               self.view.page().mainFrame().evaluateJavaScript('findClades("%s","%s");' % (path,tipsString))
+               self.view.page().mainFrame().evaluateJavaScript('findClades_genus_ss("%s","%s");' % (path,tipsString))
             else:
                # Genus or single name at the tip level
       
