@@ -51,7 +51,7 @@ class LMtree():
    
    def checkUltraMetric(self):
       """
-      @summary: check to see if tree is ultrametric
+      @summary: check to see if tree is ultrametric, all the way to the root
       """
       tipPaths,treeLengths,subTrees = self.getTipPaths(self.tree)
       toSet = []
@@ -63,7 +63,7 @@ class LMtree():
          s = sum(toSum)
          toSet.append(s)
       count = len(set(toSet))
-      return bool(1/count)
+      return bool(1//count)
    
    @property
    def polytomies(self):
@@ -92,7 +92,7 @@ class LMtree():
       
    @property
    def binary(self):
-      return bool(1/(self.tipCount - self.internalCount))
+      return bool(1//(self.tipCount - self.internalCount))
       
    @property
    def branchLengths(self):
