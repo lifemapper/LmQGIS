@@ -21,14 +21,14 @@ def makeP(treeDict,I,branchLengths=False):
    new PAM (I) in addition to P
    """
    ######### make P ###########
-   tips, internal, tipsNotInMtx, lengths = buildTips(treeDict,I.shape[1])
+   tips, internal, tipsNotInMtx, lengths,tipPaths = buildTips(treeDict,I.shape[1])
+   negsDict = processInternalNodes(internal)
+   tipIds,internalIds = getIds(tips,internalDict=internal)
+   matrix = initMatrix(len(tipIds),len(internalIds))
    if branchLengths:
       sides = getSides(internal,lengths)
-      P = buildP_WithBranch(sides) 
+      P = buildP_WithBranch(matrix,sides,tips,internalIds,lengths,tipPaths)
    else:
-      negsDict = processInternalNodes(internal)
-      tipIds,internalIds = getIds(tips,internalDict=internal)
-      matrix = initMatrix(len(tipIds),len(internalIds))
       P = buildPMatrix(matrix,internalIds,tips, negsDict)
    
    if len(tipsNotInMtx) > 0:
@@ -51,6 +51,7 @@ def buildTips(clade, noColPam):
    tipsNotInMatrix = []
    internal = {}
    lengths = {}
+   tipPaths = {}
    def buildLeaves(clade):
    
       if "children" in clade: 
@@ -66,13 +67,6 @@ def buildTips(clade, noColPam):
       else: 
          if "mx" in clade: 
             castClade = clade.copy()
-            #if layersPresent is not None:
-            #   if layersPresent[int(clade['mx'])]:
-            #      castClade["mx"] = sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])
-            #      tips.append(castClade)
-            #   else:
-            #      pass
-            #else:
             castClade["mx"] = int(castClade["mx"])
             tips.append(castClade)
             
@@ -83,11 +77,12 @@ def buildTips(clade, noColPam):
             tipsNotInMatrix.append(castClade)
             noMx['c'] = noMx['c'] + 1
          if "length" in clade:
-            lengths[int(clade["pathId"])] = float(clade["length"])   
+            lengths[int(clade["pathId"])] = float(clade["length"]) 
+         tipPaths[clade['pathId']] = clade['path']  
    buildLeaves(clade)  
    tips.sort(key=operator.itemgetter('mx'))   
    tipsNotInMatrix.sort(key=operator.itemgetter('mx'))
-   return tips, internal, tipsNotInMatrix, lengths
+   return tips, internal, tipsNotInMatrix, lengths, tipPaths
 
 
 # ..........................
@@ -225,27 +220,75 @@ def getSides(internal,lengths):
    def goToTip(clade):
       
       if "children" in clade:
-         lengthsfromSide.append(float(clade["length"]))
+         lengthsfromSide[int(clade["pathId"])] = float(clade["length"])
          for child in clade["children"]:
-            goToTip[clade["children"]]
+            goToTip(child)
       else:
          # tips
-         lengthsfromSide.append(float(clade["length"]))
+         lengthsfromSide[int(clade["pathId"])] = float(clade["length"])
+         #pass
    # for each key (pathId) in internal recurse each side
    sides = {}
    for pi in internal:
-      sides[pi] = {}
-      lengthsfromSide = []
-      goToTip(internal[pi][0])
-      sides[pi][0] = lengthsfromSide
+      sides[int(pi)] = []
       
-      lengthsfromSide = []
+      lengthsfromSide = {}
+      goToTip(internal[pi][0])
+      sides[int(pi)].append(lengthsfromSide)
+      
+      lengthsfromSide = {}
       goToTip(internal[pi][1])
-      sides[pi][1] = lengthsfromSide
+      sides[int(pi)].append(lengthsfromSide)
+   print sides
+   print
    return sides
 
-def buildP_WithBranch(sides):
-   pass
+
+def buildP_WithBranch(emptyMtx, sides, tipsDictList, internalIds, lengths, tipPaths):
+   """
+   @param tipsDictList: list of tip dict clades orders by key 'mx'
+   @param internalIds: ordered by appearance in P
+   @param tipPaths: dict by tip pathId with path for each tip
+   """
+   tipIds = [int(tp["pathId"]) for tp in tipsDictList] #.sort() # sorted by mx in buildTips
+   # will need to order sides by using sorted(keys())
+   for pi in sorted(sides.keys()):
+      # one side
+      posSide = sides[pi][0] # dictionary
+      den = sum(posSide.values())  # some for each tip on one side
+      tipsInSide = [k for k in posSide.keys() if k in tipIds]
+      for tip in tipsInSide:
+         #tipPath = [int(x) for x in tipPaths[str(tip)].split(",")][1:] # unsure of this
+         pass
+   
+   print
+   return 'done'
+
+def buildP_WithBranch_nope(emptyMtx, sides, tipsDictList, internalIds, lengths):
+   
+   for ri,tip in enumerate(tipsDictList):
+      newRow = np.zeros(len(internalIds),dtype=np.float)
+      withIdx = [int(x) for x in tip["path"].split(",")]
+      pathList = [int(x) for x in tip["path"].split(",")][1:] # this will have both the root (0) and tip
+      toSum = []
+      tipId = tip["pathId"]
+      pathList.pop() #taking off root (for now)
+      for i,n in enumerate(pathList):
+         toSum.append(lengths[n]/(withIdx.index(n+1)))
+         #num = sum(toSum[:i+1])
+         #print
+         print n," ",ri," ",toSum
+         #print toSum
+         #if i != 0:  # to keep it from doing the tip
+         #   idx = internalIds.index(n)
+         #   if tipId in sides[str(n)][0]:
+         #      newRow[idx] = num/sum(sides[str(n)][0].values()) * 1
+         #   else:
+         #      newRow[idx] = num/sum(sides[str(n)][1].values()) * -1
+         #else:
+         #   pass
+      emptyMtx[ri] = newRow
+   return emptyMtx
 
 def buildP_WithBranch_dep(emptyMtx, internalIds, tipsDictList, whichSide, lengths):
    #negs = {'0': [1,2,3,4,5,6,7], '2': [3, 4, 5], '1':[2,3,4,5,6],
@@ -283,27 +326,30 @@ if __name__ == "__main__":
                                                 {"pathId":"3","length":".65","path":"3,2,1,0",
                                                  
                                                  "children":[
-                                                             {"pathId":"4","length":".2","path":"4,3,2,1,0"},
-                                                             {"pathId":"5","length":".2","path":"5,3,2,1,0"}
+                                                             {"pathId":"4","length":".2","path":"4,3,2,1,0","mx":"0"},
+                                                             {"pathId":"5","length":".2","path":"5,3,2,1,0","mx":"1"}
                                                              ]
                                                  
                                                  },
                                                 
-                                                {"pathId":"6","length":".85","path":"6,2,1,0"}
+                                                {"pathId":"6","length":".85","path":"6,2,1,0","mx":"2"}
                                                 
                                                 ]
                                     
                                     },
-                                    {"pathId":"7","length":"1.0","path":"7,1,0"}
+                                    {"pathId":"7","length":"1.0","path":"7,1,0","mx":"3"}
                                    
                                    ] },
                        
 
                        {"pathId":"8","length":".9","path":"8,0",
-                        "children":[{"pathId":"9","length":".5","path":"9,5,0"},{"pathId":"10","length":".5","path":"10,5,0"}] } 
+                        "children":[{"pathId":"9","length":".5","path":"9,8,0","mx":"4"},{"pathId":"10","length":".5","path":"10,8,0","mx":"5"}] } 
                        ]
            
            }
-
-
+   
+   I = np.random.choice(2,24).reshape(4,6)
+   
+   P, I, internal = makeP(tree,I,branchLengths=True)
+   print P
 
