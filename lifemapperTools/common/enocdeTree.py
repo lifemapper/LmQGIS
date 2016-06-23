@@ -24,11 +24,13 @@ def makeP(treeDict,I,branchLengths=False):
    tips, internal, tipsNotInMtx, lengths,tipPaths = buildTips(treeDict,I.shape[1])
    negsDict = processInternalNodes(internal)
    tipIds,internalIds = getIds(tips,internalDict=internal)
-   matrix = initMatrix(len(tipIds),len(internalIds))
+   #matrix = initMatrix(len(tipIds),len(internalIds))
    if branchLengths:
       sides = getSides(internal,lengths)
+      matrix = np.zeros((len(tipIds),len(internalIds)),dtype=np.float)  # consider it's own init func
       P = buildP_WithBranch(matrix,sides,tips,internalIds,lengths,tipPaths)
    else:
+      matrix = initMatrix(len(tipIds),len(internalIds))
       P = buildPMatrix(matrix,internalIds,tips, negsDict)
    
    if len(tipsNotInMtx) > 0:
@@ -198,7 +200,7 @@ def buildPMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
    #        '3':[4],'8':[9]}
    negs = whichSide
    for ri,tip in enumerate(tipsDictList):
-      newRow = np.zeros(len(internalIds),dtype=np.float)
+      newRow = np.zeros(len(internalIds),dtype=np.float)  # need these as zeros since init mtx is autofil
       pathList = [int(x) for x in tip["path"].split(",")][1:]
       tipId = tip["pathId"]
       for i,n in enumerate(pathList):
@@ -213,7 +215,7 @@ def buildPMatrix(emptyMtx, internalIds, tipsDictList, whichSide):
    return emptyMtx  
 
 
-def getSides(internal,lengths):
+def getSides_0(internal,lengths):
    """
    has to have complete lengths
    """
@@ -243,6 +245,42 @@ def getSides(internal,lengths):
    print
    return sides
 
+def getSides(internal,lengths):
+   """
+   has to have complete lengths
+   """
+   def goToTip(clade):
+      
+      if "children" in clade:
+         lengthsfromSide[int(clade["pathId"])] = float(clade["length"])
+         for child in clade["children"]:
+            goToTip(child)
+      else:
+         # tips
+         lengthsfromSide[int(clade["pathId"])] = float(clade["length"])
+         #pass
+   # for each key (pathId) in internal recurse each side
+   sides = {}
+   ik = [int(k) for k in internal.keys()]  # int version of internal keys
+   all_keys = list(set(lengths.keys() + ik))
+   for pi in all_keys:  # 0 doesn't have a lengh so isn't in lengths
+      sides[int(pi)] = []
+      if str(pi) in internal:
+         lengthsfromSide = {}
+         goToTip(internal[str(pi)][0])
+         sides[pi].append(lengthsfromSide)
+      else:
+         sides[pi].append({pi:lengths[pi]})
+      if str(pi) in internal:
+         lengthsfromSide = {}
+         goToTip(internal[str(pi)][1])
+         sides[pi].append(lengthsfromSide)
+      else:
+         sides[pi].append({pi:lengths[pi]})
+   print sides
+   print
+   return sides
+
 
 def buildP_WithBranch(emptyMtx, sides, tipsDictList, internalIds, lengths, tipPaths):
    """
@@ -254,15 +292,56 @@ def buildP_WithBranch(emptyMtx, sides, tipsDictList, internalIds, lengths, tipPa
    # will need to order sides by using sorted(keys())
    for pi in sorted(sides.keys()):
       # one side
-      posSide = sides[pi][0] # dictionary
-      den = sum(posSide.values())  # some for each tip on one side
-      tipsInSide = [k for k in posSide.keys() if k in tipIds]
-      for tip in tipsInSide:
-         #tipPath = [int(x) for x in tipPaths[str(tip)].split(",")][1:] # unsure of this
-         pass
+      if pi not in tipIds:
+         posSide = sides[pi][0] # dictionary
+         den = sum(posSide.values())  # some for each tip on one side
+         
+         tipsInSide = [k for k in posSide.keys() if k in tipIds]
+         for tip in tipsInSide:
+            tipPath = [int(x) for x in tipPaths[str(tip)].split(",")] # unsure of this
+            idx = tipPath.index(pi)
+            pathsToWorkWith = tipPath[:idx]  # this really means minus one
+            
+            #r = sum([ posSide[t]/len(sides[t][0]) for i,t in enumerate(pathsToWorkWith)])/den
+            toSum = []
+            for t in pathsToWorkWith:
+               if t not in tipIds:
+                  len_tips = len([k for k in sides[t][0].keys()+sides[t][1].keys() if k in tipIds])
+               else:
+                  len_tips = 1
+               #print t," & ",len_tips
+               toSum.append(posSide[t]/len_tips)
+            r = sum(toSum)/den * -1
+            
+            emptyMtx[tipIds.index(tip)][internalIds.index(pi)] = r
+            
+            #print pi," ",tip," ",den," ",r
+            
+         ##############
+         
+         negSide = sides[pi][1] # dictionary
+         den = sum(negSide.values())  # some for each tip on one side
+         
+         tipsInSide = [k for k in negSide.keys() if k in tipIds]
+         for tip in tipsInSide:
+            tipPath = [int(x) for x in tipPaths[str(tip)].split(",")] # unsure of this
+            idx = tipPath.index(pi)
+            pathsToWorkWith = tipPath[:idx]  # this really means minus one
+            
+            #r = sum([ negSide[t]/len(sides[t][0]) for i,t in enumerate(pathsToWorkWith)])/den
+            toSum = []
+            for t in pathsToWorkWith:
+               if t not in tipIds:
+                  len_tips = len([k for k in sides[t][0].keys()+sides[t][1].keys() if k in tipIds])
+               else:
+                  len_tips = 1
+               #print t," & ",len_tips
+               toSum.append(negSide[t]/len_tips)
+            r = sum(toSum)/den 
+            #print pi," ",tip," ",den," ",r
+            emptyMtx[tipIds.index(tip)][internalIds.index(pi)] = r
    
-   print
-   return 'done'
+   return emptyMtx
 
 def buildP_WithBranch_nope(emptyMtx, sides, tipsDictList, internalIds, lengths):
    
