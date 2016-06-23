@@ -343,54 +343,8 @@ def buildP_WithBranch(emptyMtx, sides, tipsDictList, internalIds, lengths, tipPa
    
    return emptyMtx
 
-def buildP_WithBranch_nope(emptyMtx, sides, tipsDictList, internalIds, lengths):
-   
-   for ri,tip in enumerate(tipsDictList):
-      newRow = np.zeros(len(internalIds),dtype=np.float)
-      withIdx = [int(x) for x in tip["path"].split(",")]
-      pathList = [int(x) for x in tip["path"].split(",")][1:] # this will have both the root (0) and tip
-      toSum = []
-      tipId = tip["pathId"]
-      pathList.pop() #taking off root (for now)
-      for i,n in enumerate(pathList):
-         toSum.append(lengths[n]/(withIdx.index(n+1)))
-         #num = sum(toSum[:i+1])
-         #print
-         print n," ",ri," ",toSum
-         #print toSum
-         #if i != 0:  # to keep it from doing the tip
-         #   idx = internalIds.index(n)
-         #   if tipId in sides[str(n)][0]:
-         #      newRow[idx] = num/sum(sides[str(n)][0].values()) * 1
-         #   else:
-         #      newRow[idx] = num/sum(sides[str(n)][1].values()) * -1
-         #else:
-         #   pass
-      emptyMtx[ri] = newRow
-   return emptyMtx
 
-def buildP_WithBranch_dep(emptyMtx, internalIds, tipsDictList, whichSide, lengths):
-   #negs = {'0': [1,2,3,4,5,6,7], '2': [3, 4, 5], '1':[2,3,4,5,6],
-   #        '3':[4],'8':[9]}
-   negs = whichSide
-   for ri,tip in enumerate(tipsDictList):
-      newRow = np.zeros(len(internalIds),dtype=np.float)
-      pathList = [int(x) for x in tip["path"].split(",")] #[1:]
-      tipId = tip["pathId"]
-      toSum = []
-      for i,n in enumerate(pathList):
-         m = 1
-         #print n
-         if int(tipId) in negs[str(n)]:
-            m = -1
-         den = i + 1.0
-         toSum.append(lengths[n]/den)
-         #idx = internalIds.index(n)
-         #newRow[idx] = (.5**i) * m
-      s = sum(toSum)
-      emptyMtx[ri] = newRow  
-   
-   return emptyMtx
+
 
 if __name__ == "__main__":
    
