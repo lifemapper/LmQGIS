@@ -28,8 +28,9 @@ from matplotlib.figure import Figure
 from matplotlib.backend_bases import cursors
 from matplotlib.widgets import Lasso
 from matplotlib.path import Path
+# NavigationToolbar2QTAgg
 from matplotlib.backends.backend_qt4agg import \
- FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QTAgg as NavigationToolbar
+ FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import QObject, pyqtSignal
 from qgis.core import *
