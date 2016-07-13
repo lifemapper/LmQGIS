@@ -2,19 +2,51 @@ import os
 import cPickle
 import simplejson as json
 from itertools import combinations
+from NwkToJSON import Parser
 
 class LMtree():
    
    NO_BRANCH_LEN = 0
    MISSING_BRANCH_LEN = 1
    HAS_BRANCH_LEN = 2
+   JSON_EXT = ".json"
+   NHX_EXT = [".nhx",".tre"]
    
    def __init__(self,treeDict):
       
       self.tree = treeDict
       self._polytomy = False
       self._numberMissingLengths = 0
-   
+      
+   @classmethod
+   def fromFile(cls,dLoc):
+      if os.path.exists(dLoc):
+         f,e = os.path.splitext(dLoc)
+         if e == cls.JSON_EXT:
+            with open(dLoc,'r') as f:
+               jsonstr = f.read()
+            return cls(json.loads(jsonstr))
+         elif e in cls.NHX_EXT:
+            phyloDict = cls.convertFromNewick(dLoc) 
+            if  isinstance(phyloDict,Exception):
+               raise ValueError("Expected an python dictionary "+str(phyloDict))
+            else:
+               return cls(phyloDict)          
+      else:
+         pass # ?
+      
+   @classmethod
+   def convertFromNewick(cls,dLoc):
+      
+      try:
+         tree = open(dLoc,'r').read()
+         sh = Parser.from_string(tree)
+         parser = Parser(sh)
+         result,parentDicts = parser.parse()
+      except Exception, e:
+         result = e
+      return result
+      
    def getTipPaths(self,clade):
       """
       @summary: performs one recursion for all tree info objects
