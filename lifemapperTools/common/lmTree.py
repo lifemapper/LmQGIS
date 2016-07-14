@@ -12,11 +12,15 @@ class LMtree():
    JSON_EXT = ".json"
    NHX_EXT = [".nhx",".tre"]
    
+   
    def __init__(self,treeDict):
       
       self.tree = treeDict
       self._polytomy = False
       self._numberMissingLengths = 0
+      self._subTrees = False
+      self.tipPaths = False
+      self.whichNPoly = []
       
    @classmethod
    def fromFile(cls,dLoc):
@@ -65,6 +69,7 @@ class LMtree():
             subTrees[int(clade['pathId'])] = clade["children"]
             if len(clade["children"]) > 2:
                self._polytomy = True
+               self.whichNPoly.append(int(clade["pathId"]))
             for child in clade["children"]:
                recurseClade(child)
          else:
@@ -81,6 +86,18 @@ class LMtree():
       return tipPaths, lengths, subTrees
    
    
+   def _truncate(self,f, n):
+      """
+      @summary: Truncates/pads a float f to n decimal places without rounding
+      """
+      
+      s = '{}'.format(f)
+      if 'e' in s or 'E' in s:
+         return '{0:.{1}f}'.format(f, n)
+      i, p, d = s.partition('.')
+      return '.'.join([i, (d+'0'*n)[:n]])
+   
+   
    def checkUltraMetric(self):
       """
       @summary: check to see if tree is ultrametric, all the way to the root
@@ -88,11 +105,13 @@ class LMtree():
       tipPaths,treeLengths,subTrees = self.getTipPaths(self.tree)
       toSet = []
       for tip in tipPaths:
-         path = tipPaths[tip].pop()  # removes internal pathId from path list for root of tree
+         copytipPath = list(tipPaths[tip])
+         copytipPath.pop()  # removes internal pathId from path list for root of tree
          toSum = []
-         for pathId in path:
+         for pathId in copytipPath:
             toSum.append(treeLengths[pathId])
-         s = sum(toSum)
+         urs = sum(toSum)
+         s = self._truncate(urs, 3)
          toSet.append(s)
       count = len(set(toSet))
       return bool(1//count)
@@ -100,7 +119,7 @@ class LMtree():
    @property
    def polytomies(self):
       if not self.subTrees:
-         self.getTipPaths(self.tree)
+         self.subTrees = self.getTipPaths(self.tree)[2]
       return self._polytomy
    
    @property
@@ -108,6 +127,7 @@ class LMtree():
       if not self.subTrees:
          self.subTrees = self.getTipPaths(self.tree)[2]
       return len(self.subTrees)   
+   
    @property
    def subTrees(self):
       return self._subTrees
@@ -119,7 +139,7 @@ class LMtree():
    @property
    def tipCount(self):
       if not self.tipPaths:
-         self.getTipPaths(self.tree)  
+         self.subTrees = self.getTipPaths(self.tree)[2]  
       return len(self.tipPaths)
       
    @property
@@ -129,7 +149,7 @@ class LMtree():
    @property
    def branchLengths(self):
       if not self.tipPaths:
-         self.getTipPaths(self.tree) 
+         self.subTrees = self.getTipPaths(self.tree)[2] 
       if self._numberMissingLengths == 0:
          return self.HAS_BRANCH_LEN
       else:    
@@ -138,5 +158,14 @@ class LMtree():
          else:
             return self.MISSING_BRANCH_LEN
       
-      
+if __name__ == "__main__":
+   
+   p = "/home/jcavner/Charolettes_Data/Trees/RAxML_bestTree.12.15.14.1548tax.ultrametric.tre"
+   to = LMtree.fromFile(p)
+   print to.checkUltraMetric()
+   print len(to.whichNPoly)
+   
+   
+   
+         
    
