@@ -3,7 +3,7 @@ import cPickle
 import simplejson as json
 from itertools import combinations
 from operator import itemgetter
-from NwkToJSON import Parser
+from lifemapperTools.common.NwkToJSON import Parser
 import numpy as np
 from random import randint
 
@@ -170,7 +170,66 @@ class LMtree():
             return self.MISSING_BRANCH_LEN
    
    
-   def makeClades(self, edge):
+   def makePaths(self, tree):
+      #li.insert(0, value)
+      p = {'c':0}   
+      def recursePaths(clade, parent):
+         if "children" in clade:
+            clade['path'].insert(0,str(p['c']))
+            clade['path'] = clade['path'] + parent 
+            clade['pathId'] = str(p['c'])
+            clade['name'] = str(p['c'])
+            for child in clade["children"]:
+               p['c'] = p['c'] + 1
+               recursePaths(child,clade['path'])
+         else:
+            # tips
+            clade['path'].insert(0,str(p['c']))
+            clade['path'] = clade['path'] + parent
+            clade['pathId'] = str(p['c'])
+            clade['name'] = str(p['c'])
+            
+      recursePaths(tree,[])
+      
+      def fixPaths(clade):
+         if "children" in clade:
+            clade['path'] = ','.join(clade['path'])
+            for child in clade["children"]:
+               fixPaths(child)
+         else:
+            clade['path'] = ','.join(clade['path'])
+      fixPaths(tree)
+      
+   def makeClades(self, edge, n):
+      tips = range(1,n+1)
+      iNodes = list(set(edge[:,0]))
+      m = {}
+      for iN in iNodes:
+         dx = np.where(edge[:,0]==iN)[0]
+         le = list(edge[dx][:,1])
+         m[iN] = le
+      #print m
+      #m = {k[0]:list(k) for k in edge }
+      tree = {'pathId':str(n+1),'path':[],'children':[],"name":str(n+1)}
+      def recurse(clade,l):
+         for x in l:
+            if 'children' in clade:
+               nc = {'pathId':str(x),'path':[],"name":str(x)}
+               if x not in tips:
+                  nc['children'] = []
+               clade['children'].append(nc)
+               if x not in tips:
+                  recurse(nc,m[x])
+      recurse(tree,m[n+1])
+      self.makePaths(tree)
+      
+      
+      treeDir = "/home/jcavner/PhyloXM_Examples/"
+      with open(os.path.join(treeDir,'tree_random_2.json'),'w') as f:
+               f.write(json.dumps(tree,sort_keys=True, indent=4))
+      
+      
+   def makeClades_dep(self, edge):
       
       iNodes = list(set(edge[:,0])) #.sort()  # unique internal nodes from edges
       terminalEdges = [list(r) for r in edge if r[0] > r[1]]
@@ -247,12 +306,12 @@ class LMtree():
       edge.fill(-999)
       nod = {'nc': n + 1}
       generate(n,0)
-      print edge
-      print
+     
       idx = np.where(edge[:,1]==-999)[0]
       for i,x in enumerate(idx):
          edge[x][1] = i + 1
       print edge
+      print
       return edge
       
       
@@ -262,8 +321,8 @@ if __name__ == "__main__":
    to = LMtree.fromFile(p)
    #print to.checkUltraMetric()
    #print len(to.whichNPoly)
-   edges = to.rTree(7)
-   to.makeClades(edges)
+   edges = to.rTree(5)
+   to.makeClades(edges,5)
    
    
    
