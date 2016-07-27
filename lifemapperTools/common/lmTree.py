@@ -3,7 +3,8 @@ import cPickle
 import simplejson as json
 from itertools import combinations
 from operator import itemgetter
-from lifemapperTools.common.NwkToJSON import Parser
+#from lifemapperTools.common.NwkToJSON import Parser
+from NwkToJSON import Parser
 import numpy as np
 from random import randint
 
@@ -108,18 +109,23 @@ class LMtree():
       @summary: check to see if tree is ultrametric, all the way to the root
       """
       tipPaths,treeLengths,subTrees = self.getTipPaths(self.tree)
-      toSet = []
-      for tip in tipPaths:
-         copytipPath = list(tipPaths[tip])
-         copytipPath.pop()  # removes internal pathId from path list for root of tree
-         toSum = []
-         for pathId in copytipPath:
-            toSum.append(treeLengths[pathId])
-         urs = sum(toSum)
-         s = self._truncate(urs, 3)
-         toSet.append(s)
-      count = len(set(toSet))
-      return bool(1//count)
+      self._subTrees = subTrees
+      
+      if self.branchLengths == self.HAS_BRANCH_LEN:
+         toSet = []
+         for tip in tipPaths:
+            copytipPath = list(tipPaths[tip])
+            copytipPath.pop()  # removes internal pathId from path list for root of tree
+            toSum = []
+            for pathId in copytipPath:
+               toSum.append(treeLengths[pathId])
+            urs = sum(toSum)
+            s = self._truncate(urs, 3)
+            toSet.append(s)
+         count = len(set(toSet))
+         return bool(1//count)
+      else:
+         return self.NO_BRANCH_LEN  # need to think about this
    
    @property
    def polytomies(self):
@@ -135,11 +141,15 @@ class LMtree():
    
    @property
    def subTrees(self):
+      if not self._subTrees:
+         self.checkUltraMetric()
       return self._subTrees
          
    @subTrees.setter  
    def subTrees(self, subTrees):
-      self._subTrees = subTrees      
+      
+      self._subTrees = subTrees   
+         
    
    @property
    def lengths(self):
@@ -171,7 +181,9 @@ class LMtree():
    
    
    def makePaths(self, tree):
-      #li.insert(0, value)
+      """
+      @summary: makes paths by recursing tree and appending parent to new pathId
+      """
       p = {'c':0}   
       def recursePaths(clade, parent):
          if "children" in clade:
@@ -200,7 +212,7 @@ class LMtree():
             clade['path'] = ','.join(clade['path'])
       fixPaths(tree)
       
-   def makeClades(self, edge, n):
+   def _makeCladeFromEdges(self, edge, n):
       tips = range(1,n+1)
       iNodes = list(set(edge[:,0]))
       m = {}
@@ -229,8 +241,10 @@ class LMtree():
                f.write(json.dumps(tree,sort_keys=True, indent=4))
       
       
-   def makeClades_dep(self, edge):
-      
+   def makeClades(self, edge):
+      """
+      @deprecated: false start but has some good ideas in it
+      """
       iNodes = list(set(edge[:,0])) #.sort()  # unique internal nodes from edges
       terminalEdges = [list(r) for r in edge if r[0] > r[1]]
       terminalLookUp = {}
@@ -241,40 +255,18 @@ class LMtree():
             terminalLookUp[pt] = {'pathId':pt,'path':'','children':[child]}   
          else:
             terminalLookUp[pt]['children'].append(child)
-      print
-      #for f in terminalLookUp.items():
-      #   print f   
+      
       le = [[x[0],x[1]] for x in edge] 
       le.sort(key=itemgetter(0)) 
       print le
-      tree = {'pathId':le[0][0],'path':'','children':[]} 
-      if le[0][1] in terminalLookUp:
-         tree['children'].append(terminalLookUp[le[0][1]])
-      if le[1][1] in terminalLookUp:
-         tree['children'].append(terminalLookUp[le[1][1]])
-      if le[0][0] in terminalLookUp:
-         tree['children'].append(terminalLookUp[le[0][0]]['children'][0])
       
-      # here is also needs to check if if child is tip, e.g.   
-      # [[8, 1], [8, 9], [9, 10], [9, 12], [10, 2], [10, 11], [11, 3], [11, 4], [12, 5], [12, 13], [13, 6], [13, 7]]
-      # {'pathId': 8, 'path': '', 'children': []}
-      print tree
-      
-      def recurse(clade):
-         if 'children' in clade:
-            if len(clade['children']) == 1:
-               pass
-            for child in clade:
-               recurse(clade)
-         else:
-            pass
-         
-         
-         
+                
       
       
    def rTree(self, n, rooted=True):
       """
+      @summary: given the number of tips generate a random binary tree by randomly splitting edges
+      @param n: number of tips
       @note: this is just for <= 4 so far
       """
       def generate(n, pos):
@@ -310,6 +302,8 @@ class LMtree():
       idx = np.where(edge[:,1]==-999)[0]
       for i,x in enumerate(idx):
          edge[x][1] = i + 1
+         
+      #self._makeCladeFromEdges(edge)
       print edge
       print
       return edge
@@ -322,7 +316,7 @@ if __name__ == "__main__":
    #print to.checkUltraMetric()
    #print len(to.whichNPoly)
    edges = to.rTree(5)
-   to.makeClades(edges,5)
+   to._makeCladeFromEdges(edges,5)
    
    
    
