@@ -64,6 +64,7 @@ class LMtree():
       tipPaths = {}
       lengths =  {}
       subTrees = {}
+      self.polyPos = {}
       def recurseClade(clade):
          if "children" in clade:
             # do stuff in here
@@ -76,6 +77,13 @@ class LMtree():
             if len(clade["children"]) > 2:
                self._polytomy = True
                self.whichNPoly.append(int(clade["pathId"]))
+               polydesc = {}
+               for p in clade["children"]:
+                  if 'length' in p:
+                     polydesc[int(p["pathId"])] = p['length']
+                  else:
+                     polydesc[int(p["pathId"])] = ''
+               self.polyPos[clade["pathId"]] = {'path':clade["path"],"desc":polydesc}
             for child in clade["children"]:
                recurseClade(child)
          else:
@@ -84,7 +92,7 @@ class LMtree():
                self._numberMissingLengths +=1
             else:
                lengths[int(clade["pathId"])] = float(clade["length"]) 
-            tipPaths[clade["pathId"]] = [int(x) for x in clade["path"].split(',')]
+            tipPaths[clade["pathId"]] = ([int(x) for x in clade["path"].split(',')],clade["name"])
               
       recurseClade(clade)
       self.tipPaths = tipPaths
@@ -114,7 +122,7 @@ class LMtree():
       if self.branchLengths == self.HAS_BRANCH_LEN:
          toSet = []
          for tip in tipPaths:
-            copytipPath = list(tipPaths[tip])
+            copytipPath = list(tipPaths[tip][0])
             copytipPath.pop()  # removes internal pathId from path list for root of tree
             toSum = []
             for pathId in copytipPath:
@@ -129,8 +137,8 @@ class LMtree():
    
    @property
    def polytomies(self):
-      if not self.subTrees:
-         self.subTrees = self.getTipPaths(self.tree)[2]
+      #if not self.subTrees:
+      self.subTrees = self.getTipPaths(self.tree)[2]
       return self._polytomy
    
    @property
@@ -203,14 +211,14 @@ class LMtree():
             
       recursePaths(tree,[])
       
-      def fixPaths(clade):
+      def stringifyPaths(clade):
          if "children" in clade:
             clade['path'] = ','.join(clade['path'])
             for child in clade["children"]:
-               fixPaths(child)
+               stringifyPaths(child)
          else:
             clade['path'] = ','.join(clade['path'])
-      fixPaths(tree)
+      stringifyPaths(tree)
       
    def _makeCladeFromEdges(self, edge, n):
       tips = range(1,n+1)
@@ -222,24 +230,24 @@ class LMtree():
          m[iN] = le
       #print m
       #m = {k[0]:list(k) for k in edge }
-      tree = {'pathId':str(n+1),'path':[],'children':[],"name":str(n+1)}
+      tree = {'pathId':str(n+1),'path':[],'children':[],"name":str(n+1),"length":"0"}
       def recurse(clade,l):
          for x in l:
             if 'children' in clade:
-               nc = {'pathId':str(x),'path':[],"name":str(x)}
+               nc = {'pathId':str(x),'path':[],"name":str(x),"length":'0'}
                if x not in tips:
                   nc['children'] = []
                clade['children'].append(nc)
                if x not in tips:
                   recurse(nc,m[x])
       recurse(tree,m[n+1])
-      self.makePaths(tree)
+      #self.makePaths(tree)
       
       
       treeDir = "/home/jcavner/PhyloXM_Examples/"
-      with open(os.path.join(treeDir,'tree_random_2.json'),'w') as f:
+      with open(os.path.join(treeDir,'tree_withoutNewPaths_2.json'),'w') as f:
                f.write(json.dumps(tree,sort_keys=True, indent=4))
-      
+      return tree
       
    def makeClades(self, edge):
       """
@@ -259,9 +267,62 @@ class LMtree():
       le = [[x[0],x[1]] for x in edge] 
       le.sort(key=itemgetter(0)) 
       print le
+   
+   def _getRTips(self,rt):
       
-                
+      tips = []
+      def findTips(clade):
+         if 'children' in clade:
+            clade['name'] = ''
+            for child in clade['children']:
+               findTips(child)
+         else:
+            # tips
+            clade['name'] = ''
+            tips.append(clade)
+            #clade["pathId"] = t[0]
+            #clade["length"] = t[1]
+            # if not in sef.tree tips
+            # asign childrent from sub tree
+      findTips(rt)
+      return tips    
+      #for t in tips:
+      #   findTips(rt)
       
+   def resolvePoly(self):
+      st = self.subTrees
+         #self.getTipPaths(self.tree)  
+      # want resolve in order polytomies (keys in self.polyPos
+      print len(self.polyPos.keys())
+      print len(self.whichNPoly)
+      for k in [self.polyPos.keys()[0]]:
+         pTips =  self.polyPos[k]['desc'].items()  # these are integers
+         n = len(pTips)          
+         rt = self.rTree(n)
+         tips = self._getRTips(rt)
+         for pt, t in zip(pTips,tips):
+            #print pt," ",t
+            t['pathId'] = pt[0]
+            t['length'] = pt[1]
+            if str(pt[0]) not in self.tipPaths:
+               print "in here"
+               t['children'] = self.subTrees[pt[0]]
+            else:
+               t['name'] = self.tipPaths[str(pt[0])][1]
+         # now at this level get the two childrend of the random root
+         c1 = rt['children'][0]
+         c2 = rt['children'][1]
+         self._subTrees[int(k)][0] = c1
+         self._subTrees[int(k)][1] = c2
+         
+      # needs to recurse whole tree and replace paths with empty lists, probably in makePaths
+      self.makePaths(self.tree)
+      #print
+      #print rt
+      print len(self.polytomies)  # temp modified self.polytomies to rebuild tipPaths
+         # now assign desc tip ids to pathId of rt
+         # now get two sides of rt
+         
       
    def rTree(self, n, rooted=True):
       """
@@ -303,10 +364,8 @@ class LMtree():
       for i,x in enumerate(idx):
          edge[x][1] = i + 1
          
-      #self._makeCladeFromEdges(edge)
-      print edge
-      print
-      return edge
+      rt = self._makeCladeFromEdges(edge, n)
+      return rt
       
       
 if __name__ == "__main__":
@@ -315,8 +374,10 @@ if __name__ == "__main__":
    to = LMtree.fromFile(p)
    #print to.checkUltraMetric()
    #print len(to.whichNPoly)
-   edges = to.rTree(5)
-   to._makeCladeFromEdges(edges,5)
+   #edges = to.rTree(5)
+   #to._makeCladeFromEdges(edges,5)
+   
+   to.resolvePoly()
    
    
    
