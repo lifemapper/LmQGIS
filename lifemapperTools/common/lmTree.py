@@ -65,6 +65,7 @@ class LMtree():
       lengths =  {}
       subTrees = {}
       self.polyPos = {}
+      print "called getTipPaths"
       def recurseClade(clade):
          if "children" in clade:
             # do stuff in here
@@ -137,8 +138,8 @@ class LMtree():
    
    @property
    def polytomies(self):
-      #if not self.subTrees:
-      self.subTrees = self.getTipPaths(self.tree)[2]
+      if not self.subTrees:
+         self.subTrees = self.getTipPaths(self.tree)[2]
       return self._polytomy
    
    @property
@@ -192,13 +193,14 @@ class LMtree():
       """
       @summary: makes paths by recursing tree and appending parent to new pathId
       """
+      print "in make Paths"
       p = {'c':0}   
       def recursePaths(clade, parent):
          if "children" in clade:
             clade['path'].insert(0,str(p['c']))
             clade['path'] = clade['path'] + parent 
             clade['pathId'] = str(p['c'])
-            clade['name'] = str(p['c'])
+            #clade['name'] = str(p['c'])
             for child in clade["children"]:
                p['c'] = p['c'] + 1
                recursePaths(child,clade['path'])
@@ -207,8 +209,21 @@ class LMtree():
             clade['path'].insert(0,str(p['c']))
             clade['path'] = clade['path'] + parent
             clade['pathId'] = str(p['c'])
-            clade['name'] = str(p['c'])
+            #clade['name'] = str(p['c'])
             
+      def takeOutStrPaths(clade):
+         
+         if "children" in clade:
+            clade["path"] = []
+            clade["pathId"] = ''
+            for child in clade["children"]:
+               takeOutStrPaths(child)
+         else:
+            clade["path"] = []
+            clade["pathId"] = ''
+      
+      takeOutStrPaths(tree)    
+      
       recursePaths(tree,[])
       
       def stringifyPaths(clade):
@@ -218,7 +233,9 @@ class LMtree():
                stringifyPaths(child)
          else:
             clade['path'] = ','.join(clade['path'])
-      stringifyPaths(tree)
+            
+      #stringifyPaths(tree)
+      
       
    def _makeCladeFromEdges(self, edge, n):
       tips = range(1,n+1)
@@ -244,9 +261,9 @@ class LMtree():
       #self.makePaths(tree)
       
       
-      treeDir = "/home/jcavner/PhyloXM_Examples/"
-      with open(os.path.join(treeDir,'tree_withoutNewPaths_2.json'),'w') as f:
-               f.write(json.dumps(tree,sort_keys=True, indent=4))
+      #treeDir = "/home/jcavner/PhyloXM_Examples/"
+      #with open(os.path.join(treeDir,'tree_withoutNewPaths_2.json'),'w') as f:
+      #         f.write(json.dumps(tree,sort_keys=True, indent=4))
       return tree
       
    def makeClades(self, edge):
@@ -269,7 +286,9 @@ class LMtree():
       print le
    
    def _getRTips(self,rt):
-      
+      """
+      @summary: recurses a random subtree and returns a list of its tips
+      """
       tips = []
       def findTips(clade):
          if 'children' in clade:
@@ -280,55 +299,97 @@ class LMtree():
             # tips
             clade['name'] = ''
             tips.append(clade)
-            #clade["pathId"] = t[0]
-            #clade["length"] = t[1]
-            # if not in sef.tree tips
-            # asign childrent from sub tree
+            
       findTips(rt)
       return tips    
-      #for t in tips:
-      #   findTips(rt)
+   
+   def tempCountPoly(self, tree):
+      pc = {'c':0}
+      self.internalNo = {'ic':0}
+      self.tipCo = {'tc':0}
+      tmpPaths = {}
+      def recurseCount(clade):
+         tmpPaths[clade["pathId"]] = clade["path"]
+         if "children" in clade:
+            if type(clade) == str:
+               print clade
+            if len(clade["children"]) > 2:
+               pc['c'] = pc['c'] + 1
+            self.internalNo['ic'] = self.internalNo['ic'] + 1
+            for child in clade["children"]:
+               recurseCount(child)
+         else:
+            self.tipCo['tc'] = self.tipCo['tc'] + 1
+      recurseCount(tree)
+      return pc, tmpPaths
       
    def resolvePoly(self):
-      st = self.subTrees
-         #self.getTipPaths(self.tree)  
+      st_copy = self.subTrees.copy()
+      
       # want resolve in order polytomies (keys in self.polyPos
-      print len(self.polyPos.keys())
+     
       print len(self.whichNPoly)
-      for k in [self.polyPos.keys()[0]]:
+      for k in self.polyPos.keys():
          pTips =  self.polyPos[k]['desc'].items()  # these are integers
          n = len(pTips)          
          rt = self.rTree(n)
          tips = self._getRTips(rt)
          for pt, t in zip(pTips,tips):
             #print pt," ",t
-            t['pathId'] = pt[0]
+            t['pathId'] = str(pt[0])  # might not need this
             t['length'] = pt[1]
             if str(pt[0]) not in self.tipPaths:
-               print "in here"
                t['children'] = self.subTrees[pt[0]]
             else:
                t['name'] = self.tipPaths[str(pt[0])][1]
+               print pt," ",t
          # now at this level get the two childrend of the random root
          c1 = rt['children'][0]
          c2 = rt['children'][1]
-         self._subTrees[int(k)][0] = c1
-         self._subTrees[int(k)][1] = c2
          
+         st_copy[int(k)] = []
+         st_copy[int(k)].append(c1)
+         st_copy[int(k)].append(c2)
+      print "finihsed loop"   
       # needs to recurse whole tree and replace paths with empty lists, probably in makePaths
-      self.makePaths(self.tree)
-      #print
-      #print rt
-      print len(self.polytomies)  # temp modified self.polytomies to rebuild tipPaths
+      
+      def replaceInTree(clade):
+         if "children" in clade:
+            if clade["pathId"] in self.polyPos.keys():
+               clade["children"] = st_copy[int(clade["pathId"])]
+            for child in clade["children"]:
+               replaceInTree(child)
+               
+      t = self.tree.copy()
+      replaceInTree(t)  
+      #self.makePaths(t)
+      #pc, tmpPaths = self.tempCountPoly(t)
+      
+      #print pc
+      #print "BINARY ", bool(1//(self.tipCo['tc'] - self.internalNo['ic']))
+      #
+      #for k in tmpPaths:
+      #   l = [x for x in tmpPaths[k].split(',')]
+      #   if '' in l:
+      #      #print tmpPaths[k]
+      #      print l
+      #      break
+      
+      #self._subTrees = False
+      #print "poly ",self.polytomies
+      #print len(self.whichNPoly)
+      #self.tree = t  
+      #print self.tempCountPoly(self.tree)
          # now assign desc tip ids to pathId of rt
          # now get two sides of rt
-         
+        
       
    def rTree(self, n, rooted=True):
       """
-      @summary: given the number of tips generate a random binary tree by randomly splitting edges
+      @summary: given the number of tips generate a random binary tree by randomly splitting edges, 
+      equal to foo branch in ape's rtree
       @param n: number of tips
-      @note: this is just for <= 4 so far
+      @note: this is just for >= 4 so far, but not be a problem
       """
       def generate(n, pos):
          n1 = randint(1,n-1)
@@ -372,14 +433,17 @@ if __name__ == "__main__":
    
    p = "/home/jcavner/Charolettes_Data/Trees/RAxML_bestTree.12.15.14.1548tax.ultrametric.tre"
    to = LMtree.fromFile(p)
-   #print to.checkUltraMetric()
-   #print len(to.whichNPoly)
-   #edges = to.rTree(5)
-   #to._makeCladeFromEdges(edges,5)
+   
+   #rt = to.rTree(125)
+   #to.makePaths(to.tree)
+   #to._subTrees = False
+   #print to.polytomies   
    
    to.resolvePoly()
    
    
-   
+   treeDir = "/home/jcavner/PhyloXM_Examples/"
+   with open(os.path.join(treeDir,'tree_withoutNewPaths_2.json'),'w') as f:
+      f.write(json.dumps(to.tree,sort_keys=True, indent=4))
          
    
