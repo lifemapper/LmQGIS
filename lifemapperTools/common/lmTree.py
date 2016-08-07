@@ -7,6 +7,7 @@ from operator import itemgetter
 from NwkToJSON import Parser
 import numpy as np
 from random import randint
+from __builtin__ import False
 
 
 class LMtree():
@@ -200,7 +201,7 @@ class LMtree():
             clade['path'].insert(0,str(p['c']))
             clade['path'] = clade['path'] + parent 
             clade['pathId'] = str(p['c'])
-            #clade['name'] = str(p['c'])
+            clade['name'] = str(p['c'])
             for child in clade["children"]:
                p['c'] = p['c'] + 1
                recursePaths(child,clade['path'])
@@ -209,7 +210,7 @@ class LMtree():
             clade['path'].insert(0,str(p['c']))
             clade['path'] = clade['path'] + parent
             clade['pathId'] = str(p['c'])
-            #clade['name'] = str(p['c'])
+            #clade['name'] = str(p['c'])  #take this out for real
             
       def takeOutStrPaths(clade):
          
@@ -234,7 +235,7 @@ class LMtree():
          else:
             clade['path'] = ','.join(clade['path'])
             
-      #stringifyPaths(tree)
+      stringifyPaths(tree)
       
       
    def _makeCladeFromEdges(self, edge, n):
@@ -311,8 +312,6 @@ class LMtree():
       def recurseCount(clade):
          tmpPaths[clade["pathId"]] = clade["path"]
          if "children" in clade:
-            if type(clade) == str:
-               print clade
             if len(clade["children"]) > 2:
                pc['c'] = pc['c'] + 1
             self.internalNo['ic'] = self.internalNo['ic'] + 1
@@ -324,11 +323,16 @@ class LMtree():
       return pc, tmpPaths
       
    def resolvePoly(self):
+      
+      
+      #self.makePaths(self.tree)
+      self._subTrees = False
       st_copy = self.subTrees.copy()
       
       # want resolve in order polytomies (keys in self.polyPos
      
       print len(self.whichNPoly)
+      
       for k in self.polyPos.keys():
          pTips =  self.polyPos[k]['desc'].items()  # these are integers
          n = len(pTips)          
@@ -342,7 +346,7 @@ class LMtree():
                t['children'] = self.subTrees[pt[0]]
             else:
                t['name'] = self.tipPaths[str(pt[0])][1]
-               print pt," ",t
+               #print pt," ",t
          # now at this level get the two childrend of the random root
          c1 = rt['children'][0]
          c2 = rt['children'][1]
@@ -352,21 +356,32 @@ class LMtree():
          st_copy[int(k)].append(c2)
       print "finihsed loop"   
       # needs to recurse whole tree and replace paths with empty lists, probably in makePaths
-      
+      removeList = list(self.polyPos.keys())
       def replaceInTree(clade):
          if "children" in clade:
-            if clade["pathId"] in self.polyPos.keys():
+            #if clade["pathId"] in self.polyPos.keys():
+            if clade["pathId"] in removeList:
+               idx = removeList.index(clade['pathId'] )
+               del removeList[idx]
+            #if clade["pathId"] == polyKey:
                clade["children"] = st_copy[int(clade["pathId"])]
+               #return
             for child in clade["children"]:
                replaceInTree(child)
-               
-      t = self.tree.copy()
-      replaceInTree(t)  
-      #self.makePaths(t)
-      #pc, tmpPaths = self.tempCountPoly(t)
+         else:
+            pass    
+         
       
-      #print pc
-      #print "BINARY ", bool(1//(self.tipCo['tc'] - self.internalNo['ic']))
+      #newTree = {'pathId':'0','path':[],'children':st_copy[0]}
+           
+      newTree = self.tree.copy()
+      
+      replaceInTree(newTree)  
+      self.makePaths(newTree)
+      pc, tmpPaths = self.tempCountPoly(newTree)
+      self.tree = newTree  
+      print pc
+      print "BINARY ", bool(1//(self.tipCo['tc'] - self.internalNo['ic']))
       #
       #for k in tmpPaths:
       #   l = [x for x in tmpPaths[k].split(',')]
@@ -378,7 +393,7 @@ class LMtree():
       #self._subTrees = False
       #print "poly ",self.polytomies
       #print len(self.whichNPoly)
-      #self.tree = t  
+      
       #print self.tempCountPoly(self.tree)
          # now assign desc tip ids to pathId of rt
          # now get two sides of rt
@@ -432,7 +447,18 @@ class LMtree():
 if __name__ == "__main__":
    
    p = "/home/jcavner/Charolettes_Data/Trees/RAxML_bestTree.12.15.14.1548tax.ultrametric.tre"
+   
+   #p = "/home/jcavner/PhyloXM_Examples/test_poly.json"
+   
    to = LMtree.fromFile(p)
+   
+   print "first tips ", to.tipCount
+   print "first internal ",to.internalCount
+   print
+   
+   #treeDir = "/home/jcavner/PhyloXM_Examples/"
+   #with open(os.path.join(treeDir,'Charolettetree_withPoly_2.json'),'w') as f:
+   #   f.write(json.dumps(to.tree,sort_keys=True, indent=4))
    
    #rt = to.rTree(125)
    #to.makePaths(to.tree)
@@ -442,8 +468,16 @@ if __name__ == "__main__":
    to.resolvePoly()
    
    
+   
+   
    treeDir = "/home/jcavner/PhyloXM_Examples/"
-   with open(os.path.join(treeDir,'tree_withoutNewPaths_2.json'),'w') as f:
+   with open(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'),'w') as f:
       f.write(json.dumps(to.tree,sort_keys=True, indent=4))
+      
+   to2 = LMtree.fromFile(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'))
+   
+   print "after tips ", to2.tipCount
+   print "after internal ",to2.internalCount
+   
          
    
