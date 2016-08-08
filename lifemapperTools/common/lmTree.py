@@ -7,7 +7,7 @@ from operator import itemgetter
 from NwkToJSON import Parser
 import numpy as np
 from random import randint
-from __builtin__ import False
+
 
 
 class LMtree():
@@ -101,6 +101,28 @@ class LMtree():
       self._lengths = lengths
       return tipPaths, lengths, subTrees
    
+   def _getEdges(self):
+      
+      if self.tipPaths:
+         
+         edgeDict = {}
+         nE = 2 * self.internalCount
+         print "nE ",nE
+
+         def recurseEdge(clade):
+            if "children" in clade:
+               childIds = [int(c['pathId']) for c in clade['children']]
+               if int(clade['pathId']) not in edgeDict:
+                  edgeDict[int(clade['pathId'])] = childIds
+               for child in clade["children"]:
+                  recurseEdge(child)        
+         recurseEdge(self.tree)
+         
+         edge_ll = []
+         for e in edgeDict.items():
+            for t in e[1]:
+               edge_ll.append([e[0],t])
+         print "len edges ",len(edge_ll)
    
    def _truncate(self,f, n):
       """
@@ -239,9 +261,16 @@ class LMtree():
       
       
    def _makeCladeFromEdges(self, edge, n):
+      """
+      @summary: makes a tree dict from a nx2 numpy matrix, does not add branch len
+      but should have an option, paths and PathIds for complete reconst. like will
+      happen for prune may have to call makePaths, but edges have pathIds
+      @param edge: numpy array of edges
+      @param n: number of tips
+      """
       tips = range(1,n+1)
       iNodes = list(set(edge[:,0]))
-      m = {}
+      m = {}  # key is internal node, value is list of terminating nodes
       for iN in iNodes:
          dx = np.where(edge[:,0]==iN)[0]
          le = list(edge[dx][:,1])
@@ -259,12 +288,7 @@ class LMtree():
                if x not in tips:
                   recurse(nc,m[x])
       recurse(tree,m[n+1])
-      #self.makePaths(tree)
       
-      
-      #treeDir = "/home/jcavner/PhyloXM_Examples/"
-      #with open(os.path.join(treeDir,'tree_withoutNewPaths_2.json'),'w') as f:
-      #         f.write(json.dumps(tree,sort_keys=True, indent=4))
       return tree
       
    def makeClades(self, edge):
@@ -380,23 +404,14 @@ class LMtree():
       self.makePaths(newTree)
       pc, tmpPaths = self.tempCountPoly(newTree)
       self.tree = newTree  
-      print pc
-      print "BINARY ", bool(1//(self.tipCo['tc'] - self.internalNo['ic']))
-      #
-      #for k in tmpPaths:
-      #   l = [x for x in tmpPaths[k].split(',')]
-      #   if '' in l:
-      #      #print tmpPaths[k]
-      #      print l
-      #      break
+      #print pc
+      #print "***"
+      #print self.internalNo
+      #print self.tipCo
+      #print "***"
+      #print "BINARY ", bool(1//(self.tipCo['tc'] - self.internalNo['ic']))
       
-      #self._subTrees = False
-      #print "poly ",self.polytomies
-      #print len(self.whichNPoly)
-      
-      #print self.tempCountPoly(self.tree)
-         # now assign desc tip ids to pathId of rt
-         # now get two sides of rt
+      return newTree
         
       
    def rTree(self, n, rooted=True):
@@ -452,9 +467,9 @@ if __name__ == "__main__":
    
    to = LMtree.fromFile(p)
    
-   print "first tips ", to.tipCount
-   print "first internal ",to.internalCount
-   print
+   #print "first tips ", to.tipCount
+   #print "first internal ",to.internalCount
+   #print
    
    #treeDir = "/home/jcavner/PhyloXM_Examples/"
    #with open(os.path.join(treeDir,'Charolettetree_withPoly_2.json'),'w') as f:
@@ -467,17 +482,19 @@ if __name__ == "__main__":
    
    to.resolvePoly()
    
+   to.subTrees = False
+   st = to.subTrees
    
+   to._getEdges()
    
+   #treeDir = "/home/jcavner/PhyloXM_Examples/"
+   #with open(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'),'w') as f:
+   #   f.write(json.dumps(to.tree,sort_keys=True, indent=4))
+   #   
+   #to2 = LMtree.fromFile(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'))
    
-   treeDir = "/home/jcavner/PhyloXM_Examples/"
-   with open(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'),'w') as f:
-      f.write(json.dumps(to.tree,sort_keys=True, indent=4))
-      
-   to2 = LMtree.fromFile(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'))
-   
-   print "after tips ", to2.tipCount
-   print "after internal ",to2.internalCount
+   #print "after tips ", to.tipCount
+   #print "after internal ",to.internalCount
    
          
    
