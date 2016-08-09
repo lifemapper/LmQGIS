@@ -106,8 +106,6 @@ class LMtree():
       if self.tipPaths:
          
          edgeDict = {}
-         nE = 2 * self.internalCount
-         print "nE ",nE
 
          def recurseEdge(clade):
             if "children" in clade:
@@ -122,7 +120,8 @@ class LMtree():
          for e in edgeDict.items():
             for t in e[1]:
                edge_ll.append([e[0],t])
-         print "len edges ",len(edge_ll)
+         edge = np.array(edge_ll)
+         return edge
    
    def _truncate(self,f, n):
       """
@@ -258,9 +257,46 @@ class LMtree():
             clade['path'] = ','.join(clade['path'])
             
       stringifyPaths(tree)
+   
+   
+   def _makeCladeFromEdges(self, edge, lengths=False):
+      """
+      @summary: MORE GENERIC VERSION,makes a tree dict from a nx2 numpy matrix, does not add branch len
+      but should have an option, paths and PathIds for complete reconst. like will
+      happen for prune may have to call makePaths, but edges have pathIds
+      @param edge: numpy array of edges (integers)
+      @param n: number of tips
+      """
+      tips = self.tipPaths.keys()
+      iNodes = list(set(edge[:,0]))
+      m = {}  # key is internal node, value is list of terminating nodes
+      for iN in iNodes:
+         dx = np.where(edge[:,0]==iN)[0]
+         le = list(edge[dx][:,1])
+         m[iN] = le
+      #print m
+      #m = {k[0]:list(k) for k in edge }
+      tree = {'pathId':str(0),'path':[],'children':[],"name":str(0)}  # will take out name for internal after testing
+      def recurse(clade,l):
+         for x in l:
+            if 'children' in clade:
+               nc = {'pathId':str(x),'path':[],"name":str(x)} # will take out name for internal after testing
+               if lengths:
+                  nc["length"] = self.lengths[str(x)]
+               if x not in tips:
+                  nc['children'] = []
+               else:
+                  nc["name"] = self.tipPaths[str(x)][1]
+               clade['children'].append(nc)
+               if x not in tips:
+                  recurse(nc,m[x])
+      recurse(tree,m[0])
+      
+      return tree
+   
       
       
-   def _makeCladeFromEdges(self, edge, n):
+   def _makeCladeFromRandomEdges(self, edge, n):
       """
       @summary: makes a tree dict from a nx2 numpy matrix, does not add branch len
       but should have an option, paths and PathIds for complete reconst. like will
@@ -455,7 +491,7 @@ class LMtree():
       for i,x in enumerate(idx):
          edge[x][1] = i + 1
          
-      rt = self._makeCladeFromEdges(edge, n)
+      rt = self._makeCladeFromRandomEdges(edge, n)
       return rt
       
       
