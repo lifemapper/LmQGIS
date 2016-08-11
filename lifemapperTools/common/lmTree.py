@@ -27,6 +27,8 @@ class LMtree():
       self._subTrees = False
       self._lengths = False
       self.tipPaths = False
+      self.internalPaths = False
+      self.labels = False
       self.whichNPoly = []
       
    @classmethod
@@ -63,6 +65,7 @@ class LMtree():
       @summary: performs one recursion for all tree info objects
       """
       tipPaths = {}
+      internalPaths = {}
       lengths =  {}
       subTrees = {}
       self.polyPos = {}
@@ -75,6 +78,7 @@ class LMtree():
             else:
                if int(clade['pathId']) != 0:
                   self._numberMissingLengths +=1
+            internalPaths[clade['pathId']] = [int(x) for x in clade["path"].split(',')]
             subTrees[int(clade['pathId'])] = clade["children"]
             if len(clade["children"]) > 2:
                self._polytomy = True
@@ -98,11 +102,86 @@ class LMtree():
               
       recurseClade(clade)
       self.tipPaths = tipPaths
+      self.internalPaths = internalPaths
       self._lengths = lengths
+      self.labelIds = np.array(sorted([int(tl) for tl in self.tipPaths.keys()],reverse=True))
+      # this makes certain that labels are in in the order ape phy$labels presents them (bottom up)
+      self.labels = np.array([self.tipPaths[str(li)][1] for li in self.labelIds])
+      
       return tipPaths, lengths, subTrees
    
-   def _getEdges(self):
+   def dropTips(self, tips ):
+      """
+      @param tips: list or array of tip names to be removed
+      """
       
+      edge = self._getEdges()
+      
+      #tips = np.where(np.in1d(self.labels,tips)) # might not need this, see below
+      
+      # HAVE TO REORDER HERE CLADEWISE, note: don't know if want edge before or after
+      # though eges might already be ordered cladewise
+      
+      nTips = len(self.labels) #Ntip
+      nInternal = self.internalCount # Nnode
+      nEdge = edge.shape[0]
+      NEWROOT = ROOT = nTips + 1
+      edge_1 = edge[:,0] 
+      edge_2 = edge[:,1]
+      
+      #keep[match(tip, edge2)] <- FALSE
+      labelmask = np.in1d(self.labels,tips)
+      tips = self.labelIds[labelmask]
+      keep =  np.ones(nEdge,dtype=bool)
+      keep[tips] = False 
+      
+      
+      int_edge2 = [x for x in edge_2 if str(x) in self.internalPaths]
+      ints = np.in1d(edge_2,int_edge2)
+      e1Keep = edge_1[keep]
+      e2WithE1Keep_not =  np.logical_not(np.in1d(edge_2,e1Keep))
+      
+      while True:
+         sel = reduce(np.logical_and,(e2WithE1Keep_not,ints,keep))
+         if not(sum(sel)):
+            break
+         keep[sel] = False
+      newEdges = edge[keep]
+      print 
+      print newEdges
+      
+      # find which in newEdges[:,1] are terminal, build boolean
+      terms = []
+      for n in newEdges[:,1]:
+         if str(n) in self.tipPaths:
+            terms.append(True)
+         else:
+            terms.append(False)
+      TERMS = np.array(terms)
+      print 
+      print TERMS
+      
+      # now want to stash old ids of terms
+      #oldNo.ofNewTips <- phy$edge[TERMS, 2]
+      oldIdOfNewTips = newEdges[:,1][TERMS]
+      # n <- length(oldNo.ofNewTips)
+      n = len(oldIdOfNewTips)
+      #phy$edge[TERMS, 2] <- rank(phy$edge[TERMS, 2])  # this changes the numbering
+      #phy$tip.label <- phy$tip.label[-tip]
+      
+      #tree = self._makeCladeFromEdges(newEdges, lengths=True)  # this relies on old data structures
+      # so only want it to put in lengths and names?
+      
+      #treeDir = "/home/jcavner/PhyloXM_Examples/"
+      #with open(os.path.join(treeDir,'test_dropTips.json'),'w') as f:
+      #   f.write(json.dumps(tree,sort_keys=True, indent=4))
+      
+         
+   def _getEdges(self):
+      """
+      @summary: makes a (2 * No. internal Nodes) x 2 matrix representation of the tree 
+      """
+      st = self.subTrees
       if self.tipPaths:
          
          edgeDict = {}
@@ -121,6 +200,7 @@ class LMtree():
             for t in e[1]:
                edge_ll.append([e[0],t])
          edge = np.array(edge_ll)
+         print edge
          return edge
    
    def _truncate(self,f, n):
@@ -210,7 +290,7 @@ class LMtree():
          else:
             return self.MISSING_BRANCH_LEN
    
-   
+# .........................................................................   
    def makePaths(self, tree):
       """
       @summary: makes paths by recursing tree and appending parent to new pathId
@@ -258,15 +338,14 @@ class LMtree():
             
       stringifyPaths(tree)
    
-   
+# .........................................................................   
    def _makeCladeFromEdges(self, edge, lengths=False):
       """
-      @summary: MORE GENERIC VERSION,makes a tree dict from a nx2 numpy matrix, does not add branch len
-      but should have an option, paths and PathIds for complete reconst. like will
-      happen for prune may have to call makePaths, but edges have pathIds
+      @summary: MORE GENERIC VERSION,makes a tree dict from a (2 * No. internal node) x 2 numpy matrix
       @param edge: numpy array of edges (integers)
-      @param n: number of tips
+      @param lengths: boolean for adding lengths
       """
+      sT = self.subTrees
       tips = self.tipPaths.keys()
       iNodes = list(set(edge[:,0]))
       m = {}  # key is internal node, value is list of terminating nodes
@@ -276,35 +355,33 @@ class LMtree():
          m[iN] = le
       #print m
       #m = {k[0]:list(k) for k in edge }
-      tree = {'pathId':str(0),'path':[],'children':[],"name":str(0)}  # will take out name for internal after testing
+      tree = {'pathId':str(0),'path':"0",'children':[],"name":str(0)}  # will take out name for internal after testing
       def recurse(clade,l):
          for x in l:
             if 'children' in clade:
                nc = {'pathId':str(x),'path':[],"name":str(x)} # will take out name for internal after testing
                if lengths:
-                  nc["length"] = self.lengths[str(x)]
-               if x not in tips:
+                  nc["length"] = self.lengths[x]
+               if str(x) not in tips:
                   nc['children'] = []
+                  nc["path"] = ','.join([str(pI) for pI in self.internalPaths[str(x)]])
                else:
                   nc["name"] = self.tipPaths[str(x)][1]
+                  nc["path"] = ','.join([str(pI) for pI in self.tipPaths[str(x)][0]])
                clade['children'].append(nc)
-               if x not in tips:
+               if str(x) not in tips:
                   recurse(nc,m[x])
       recurse(tree,m[0])
       
       return tree
-   
-      
-      
+# .........................................................................        
    def _makeCladeFromRandomEdges(self, edge, n):
       """
-      @summary: makes a tree dict from a nx2 numpy matrix, does not add branch len
-      but should have an option, paths and PathIds for complete reconst. like will
-      happen for prune may have to call makePaths, but edges have pathIds
+      @summary: makes a tree dict from a (2 * No. internal node) x 2 numpy matrix
       @param edge: numpy array of edges
       @param n: number of tips
       """
-      tips = range(1,n+1)
+      tips = range(1,n+1)  # based on numbering convention in R
       iNodes = list(set(edge[:,0]))
       m = {}  # key is internal node, value is list of terminating nodes
       for iN in iNodes:
@@ -499,7 +576,7 @@ if __name__ == "__main__":
    
    p = "/home/jcavner/Charolettes_Data/Trees/RAxML_bestTree.12.15.14.1548tax.ultrametric.tre"
    
-   #p = "/home/jcavner/PhyloXM_Examples/test_poly.json"
+   p = "/home/jcavner/PhyloXM_Examples/test_poly.json"
    
    to = LMtree.fromFile(p)
    
@@ -516,16 +593,21 @@ if __name__ == "__main__":
    #to._subTrees = False
    #print to.polytomies   
    
-   to.resolvePoly()
+   #######################
+   #to.resolvePoly()
    
-   to.subTrees = False
-   st = to.subTrees
+   #to.subTrees = False
+   #st = to.subTrees
+   #####################
    
-   to._getEdges()
+   #edges = to._getEdges()
+   #tree = to._makeCladeFromEdges(edges,lengths=True)
+   
+   to.dropTips(['B','D'])
    
    #treeDir = "/home/jcavner/PhyloXM_Examples/"
-   #with open(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'),'w') as f:
-   #   f.write(json.dumps(to.tree,sort_keys=True, indent=4))
+   #with open(os.path.join(treeDir,'tree_fromEdges.json'),'w') as f:
+   #   f.write(json.dumps(tree,sort_keys=True, indent=4))
    #   
    #to2 = LMtree.fromFile(os.path.join(treeDir,'tree_withoutNewPaths_2_YES.json'))
    
