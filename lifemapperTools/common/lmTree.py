@@ -69,7 +69,7 @@ class LMtree():
       lengths =  {}
       subTrees = {}
       self.polyPos = {}
-      print "called getTipPaths"
+      
       def recurseClade(clade):
          if "children" in clade:
             # do stuff in here
@@ -112,34 +112,14 @@ class LMtree():
    
    def dropTips(self, tips ):
       """
-      @param tips: list or array of tip names to be removed
+      @summary: dropt tips from current tree returns new tree
+      @param tips: list or array of tip (label) names to be removed
       """
       
       edge = self._getEdges()
       
-      tips = ['A','C','D']
-      edge = np.array([[ 7,    8],
-                      [ 8,    1], 
-                      [ 8,    2], 
-                      [ 8,    9], 
-                      [ 9,    3], 
-                      [ 9,    4], 
-                      [ 7,   10], 
-                      [10,    5], 
-                      [10,    6]] )
-      
-      self.labels = np.array(["A","B","C","D","L","Z"])
-      self.labelIds = np.array([1,2,3,4,5,6])
-      self.internalPaths = ['7','8','9','10']
-      
-      
-      # HAVE TO REORDER HERE CLADEWISE, note: don't know if want edge before or after
-      # though eges might already be ordered cladewise
-      
       nTips = len(self.labels) #Ntip
-      nInternal = self.internalCount # Nnode
       nEdge = edge.shape[0]
-      NEWROOT = ROOT = nTips + 1
       edge_1 = edge[:,0] 
       edge_2 = edge[:,1]
       
@@ -147,14 +127,14 @@ class LMtree():
       labelmask = np.in1d(self.labels,tips)
       tips = self.labelIds[labelmask]
       tips = np.where(np.in1d(edge_2,tips))
-      print tips
+      #print tips
       keep =  np.ones(nEdge,dtype=bool)
       keep[tips] = False 
-      print keep
+      #print keep
       
       int_edge2 = [x for x in edge_2 if str(x) in self.internalPaths]
       ints = np.in1d(edge_2,int_edge2)
-      print ints
+      #print ints
       
       e1Keep = edge_1[keep]
       e2WithE1Keep_not =  np.logical_not(np.in1d(edge_2,e1Keep))
@@ -165,40 +145,57 @@ class LMtree():
             break
          keep[sel] = False
       newEdges = edge[keep]
-      print "new keep ",keep
+     
       print 
       print newEdges
       
-      # find which in newEdges[:,1] are terminal, build boolean
-      terms = []
-      for n in newEdges[:,1]:
-         if str(n) in self.tipPaths:
-            terms.append(True)
-         else:
-            terms.append(False)
-      TERMS = np.array(terms)
-      print 
-      #print TERMS
+      if self.branchLengths == self.HAS_BRANCH_LEN:
+         len_copy = self.lengths.copy()
+      else:
+         len_copy = False
       
-      # now want to stash old ids of terms
-      #oldNo.ofNewTips <- phy$edge[TERMS, 2]
-      oldIdOfNewTips = newEdges[:,1][TERMS]
-      # n <- length(oldNo.ofNewTips)
-      n = len(oldIdOfNewTips)
-      #phy$edge[TERMS, 2] <- rank(phy$edge[TERMS, 2])  # this changes the numbering
-      #phy$tip.label <- phy$tip.label[-tip]
-      
-      ### for testing build list of tips in new edges
-      
-      t = [2,5,6]
       #######
+      ne_copy = np.copy(newEdges)
+      rowsToDelete = []
+      for i,r in enumerate(newEdges):
+         iN = r[0]  # internal node
+         count = len(np.where(newEdges[:,0] == iN)[0])
+         if count == 1:
+            # then find if iN or r[1]? is in newEdges[:,1]
+            if len(np.where(newEdges[:,1] == iN)[0]) == 0:
+               # then iN has no parent and can be deleted
+               rowsToDelete.append(i) 
+            else:
+               tN = r[1]
+               if len_copy:
+                  newLen = self.lengths[iN] + self.lengths[tN]
+                  len_copy[tN] = newLen
+               parentI = np.where(newEdges[:,1] == iN)[0][0]
+               parent = newEdges[parentI][0]
+               find = np.array([parent,iN])
+               parentRow = np.where(np.all(newEdges==find,axis=1))[0][0]
+               ne_copy[parentRow][1] = tN
+               rowsToDelete.append(i)
+               
+      newEdges =  np.delete(ne_copy,np.array(rowsToDelete),axis=0)
+      ###############
+      print
+      print newEdges
       
-      tree = self._makeCladeFromEdges_tips(newEdges, lengths=True,tips=t)  # this relies on old data structures
-      ## so only want it to put in lengths and names?
-      #
-      treeDir = "/home/jcavner/PhyloXM_Examples/"
-      with open(os.path.join(treeDir,'test_dropTips.json'),'w') as f:
-         f.write(json.dumps(tree,sort_keys=True, indent=4))
+      eI = newEdges[:,0]
+      eT = newEdges[:,1]
+      tipPos = np.where(np.logical_not(np.in1d(eT,eI)))[0]
+      newtips = eT[tipPos]
+      
+      #######
+      tree = self._makeCladeFromEdges(newEdges, lengths=len_copy,tips=newtips)  # this relies on old data structures
+      self.makePaths(tree)
+      #treeDir = "/home/jcavner/PhyloXM_Examples/"
+      #with open(os.path.join(treeDir,'test_dropTips_R.json'),'w') as f:
+      #   f.write(json.dumps(tree,sort_keys=True, indent=4))
+      
+      # this needs to return LmTree object, same with with resolve poly
+      return LMtree(tree)
       
          
    def _getEdges(self):
@@ -326,7 +323,7 @@ class LMtree():
             clade['path'].insert(0,str(p['c']))
             clade['path'] = clade['path'] + parent 
             clade['pathId'] = str(p['c'])
-            clade['name'] = str(p['c'])
+            #clade['name'] = str(p['c'])
             for child in clade["children"]:
                p['c'] = p['c'] + 1
                recursePaths(child,clade['path'])
@@ -363,14 +360,13 @@ class LMtree():
       stringifyPaths(tree)
    
 # .........................................................................   
-   def _makeCladeFromEdges(self, edge, lengths=False):
+   def _makeCladeFromEdges(self, edge, lengths=False, tips=False):
       """
       @summary: MORE GENERIC VERSION,makes a tree dict from a (2 * No. internal node) x 2 numpy matrix
       @param edge: numpy array of edges (integers)
       @param lengths: boolean for adding lengths
       """
-      sT = self.subTrees
-      tips = self.tipPaths.keys()
+      
       iNodes = list(set(edge[:,0]))
       m = {}  # key is internal node, value is list of terminating nodes
       for iN in iNodes:
@@ -379,23 +375,25 @@ class LMtree():
          m[iN] = le
       #print m
       #m = {k[0]:list(k) for k in edge }
-      tree = {'pathId':str(0),'path':"0",'children':[],"name":str(0)}  # will take out name for internal after testing
+      tree = {'pathId':str(0),'path':'','children':[]}  # will take out name for internal after testing
       def recurse(clade,l):
          for x in l:
             if 'children' in clade:
-               nc = {'pathId':str(x),'path':[],"name":str(x)} # will take out name for internal after testing
+               nc = {'pathId':str(x),'path':''} # will take out name for internal after testing
                if lengths:
-                  nc["length"] = self.lengths[x]
-               if str(x) not in tips:
+                  nc["length"] = lengths[x]
+               if x not in tips:
                   nc['children'] = []
-                  nc["path"] = ','.join([str(pI) for pI in self.internalPaths[str(x)]])
+                  #nc["path"] = ','.join([str(pI) for pI in self.internalPaths[str(x)]])
+                  nc["path"] = ''
                else:
                   nc["name"] = self.tipPaths[str(x)][1]
-                  nc["path"] = ','.join([str(pI) for pI in self.tipPaths[str(x)][0]])
+                  #nc["path"] = ','.join([str(pI) for pI in self.tipPaths[str(x)][0]])
+                  nc["path"] = ''
                clade['children'].append(nc)
-               if str(x) not in tips:
+               if x not in tips:
                   recurse(nc,m[x])
-      recurse(tree,m[0])
+      recurse(tree,m[edge[0][0]])
       
       return tree
 # .........................................................................
@@ -406,7 +404,7 @@ class LMtree():
       @param lengths: boolean for adding lengths
       """
       sT = self.subTrees
-      
+      # these paths are for tips and internal for R sample tree 
       self.internalPaths = {
                             '7':[7],
                             '10':[10,7],
@@ -518,91 +516,60 @@ class LMtree():
             
       findTips(rt)
       return tips    
-   
-   def tempCountPoly(self, tree):
-      pc = {'c':0}
-      self.internalNo = {'ic':0}
-      self.tipCo = {'tc':0}
-      tmpPaths = {}
-      def recurseCount(clade):
-         tmpPaths[clade["pathId"]] = clade["path"]
-         if "children" in clade:
-            if len(clade["children"]) > 2:
-               pc['c'] = pc['c'] + 1
-            self.internalNo['ic'] = self.internalNo['ic'] + 1
-            for child in clade["children"]:
-               recurseCount(child)
-         else:
-            self.tipCo['tc'] = self.tipCo['tc'] + 1
-      recurseCount(tree)
-      return pc, tmpPaths
-      
-   def resolvePoly(self):
-      
-      
-      #self.makePaths(self.tree)
-      self._subTrees = False
-      st_copy = self.subTrees.copy()
-      
-      # want resolve in order polytomies (keys in self.polyPos
      
-      print len(self.whichNPoly)
-      
-      for k in self.polyPos.keys():
-         pTips =  self.polyPos[k]['desc'].items()  # these are integers
-         n = len(pTips)          
-         rt = self.rTree(n)
-         tips = self._getRTips(rt)
-         for pt, t in zip(pTips,tips):
-            #print pt," ",t
-            t['pathId'] = str(pt[0])  # might not need this
-            t['length'] = pt[1]
-            if str(pt[0]) not in self.tipPaths:
-               t['children'] = self.subTrees[pt[0]]
-            else:
-               t['name'] = self.tipPaths[str(pt[0])][1]
+   def resolvePoly(self):
+      """
+      @summary: resolves polytomies against tree object
+      @return: new tree object 
+      """ 
+      if len(self.polyPos.keys()) > 0:
+         
+         st_copy = self.subTrees.copy()
+         # loops through polys and makes rnd tree and attaches as children in subtree
+         for k in self.polyPos.keys():
+            pTips =  self.polyPos[k]['desc'].items()  # these are integers
+            n = len(pTips)          
+            rt = self.rTree(n)
+            tips = self._getRTips(rt)
+            for pt, t in zip(pTips,tips):
                #print pt," ",t
-         # now at this level get the two childrend of the random root
-         c1 = rt['children'][0]
-         c2 = rt['children'][1]
-         
-         st_copy[int(k)] = []
-         st_copy[int(k)].append(c1)
-         st_copy[int(k)].append(c2)
-      print "finihsed loop"   
-      # needs to recurse whole tree and replace paths with empty lists, probably in makePaths
-      removeList = list(self.polyPos.keys())
-      def replaceInTree(clade):
-         if "children" in clade:
-            #if clade["pathId"] in self.polyPos.keys():
-            if clade["pathId"] in removeList:
-               idx = removeList.index(clade['pathId'] )
-               del removeList[idx]
-            #if clade["pathId"] == polyKey:
-               clade["children"] = st_copy[int(clade["pathId"])]
-               #return
-            for child in clade["children"]:
-               replaceInTree(child)
-         else:
-            pass    
-         
+               t['pathId'] = str(pt[0])  # might not need this
+               t['length'] = pt[1]
+               if str(pt[0]) not in self.tipPaths:
+                  t['children'] = self.subTrees[pt[0]]
+               else:
+                  t['name'] = self.tipPaths[str(pt[0])][1]
+                  #print pt," ",t
+            # now at this level get the two children of the random root
+            c1 = rt['children'][0]
+            c2 = rt['children'][1]
+            
+            st_copy[int(k)] = []
+            st_copy[int(k)].append(c1)
+            st_copy[int(k)].append(c2)
+            
+         removeList = list(self.polyPos.keys())
+         def replaceInTree(clade):
+            if "children" in clade:
+               #if clade["pathId"] in self.polyPos.keys():
+               if clade["pathId"] in removeList:
+                  idx = removeList.index(clade['pathId'] )
+                  del removeList[idx]
+               #if clade["pathId"] == polyKey:
+                  clade["children"] = st_copy[int(clade["pathId"])]
+                  #return
+               for child in clade["children"]:
+                  replaceInTree(child)
+            else:
+               pass    
+         newTree = self.tree.copy()
+         replaceInTree(newTree)  
+         self.makePaths(newTree)
+            
+         return LMtree(newTree)
       
-      #newTree = {'pathId':'0','path':[],'children':st_copy[0]}
-           
-      newTree = self.tree.copy()
-      
-      replaceInTree(newTree)  
-      self.makePaths(newTree)
-      pc, tmpPaths = self.tempCountPoly(newTree)
-      self.tree = newTree  
-      #print pc
-      #print "***"
-      #print self.internalNo
-      #print self.tipCo
-      #print "***"
-      #print "BINARY ", bool(1//(self.tipCo['tc'] - self.internalNo['ic']))
-      
-      return newTree
+      else:
+         return self
         
       
    def rTree(self, n, rooted=True):
