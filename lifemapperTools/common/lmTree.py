@@ -30,6 +30,7 @@ class LMtree():
       self.internalPaths = False
       self.labels = False
       self.whichNPoly = []
+      self.getTreeInfo(self.tree)
       
    @classmethod
    def fromFile(cls,dLoc):
@@ -60,7 +61,7 @@ class LMtree():
          result = e
       return result
       
-   def getTipPaths(self,clade):
+   def getTreeInfo(self,clade):
       """
       @summary: performs one recursion for all tree info objects
       """
@@ -107,8 +108,8 @@ class LMtree():
       self.labelIds = np.array(sorted([int(tl) for tl in self.tipPaths.keys()],reverse=True))
       # this makes certain that labels are in in the order ape phy$labels presents them (bottom up)
       self.labels = np.array([self.tipPaths[str(li)][1] for li in self.labelIds])
-      
-      return tipPaths, lengths, subTrees
+      self._subTrees = subTrees
+      #return tipPaths, lengths, subTrees
    
    def dropTips(self, tips ):
       """
@@ -116,113 +117,103 @@ class LMtree():
       @param tips: list or array of tip (label) names to be removed
       """
       
-      edge = self._getEdges()
-      
-      nTips = len(self.labels) #Ntip
-      nEdge = edge.shape[0]
-      edge_1 = edge[:,0] 
-      edge_2 = edge[:,1]
-      
-      #keep[match(tip, edge2)] <- FALSE
-      labelmask = np.in1d(self.labels,tips)
-      tips = self.labelIds[labelmask]
-      tips = np.where(np.in1d(edge_2,tips))
-      #print tips
-      keep =  np.ones(nEdge,dtype=bool)
-      keep[tips] = False 
-      #print keep
-      
-      int_edge2 = [x for x in edge_2 if str(x) in self.internalPaths]
-      ints = np.in1d(edge_2,int_edge2)
-      #print ints
-      
-      e1Keep = edge_1[keep]
-      e2WithE1Keep_not =  np.logical_not(np.in1d(edge_2,e1Keep))
-      
-      while True:
-         sel = reduce(np.logical_and,(e2WithE1Keep_not,ints,keep))
-         if not(sum(sel)):
-            break
-         keep[sel] = False
-      newEdges = edge[keep]
-     
-      print 
-      print newEdges
-      
-      if self.branchLengths == self.HAS_BRANCH_LEN:
-         len_copy = self.lengths.copy()
+      if len(tips) < len(self.labelIds) - 1:
+         edge = self._getEdges()
+         nTips = len(self.labels) #Ntip
+         nEdge = edge.shape[0]
+         edge_1 = edge[:,0] 
+         edge_2 = edge[:,1]
+         
+         #keep[match(tip, edge2)] <- FALSE
+         labelmask = np.in1d(self.labels,tips)
+         tips = self.labelIds[labelmask]
+         tips = np.where(np.in1d(edge_2,tips))
+         #print tips
+         keep =  np.ones(nEdge,dtype=bool)
+         keep[tips] = False 
+         #print keep
+         
+         int_edge2 = [x for x in edge_2 if str(x) in self.internalPaths]
+         ints = np.in1d(edge_2,int_edge2)
+         #print ints
+         
+         e1Keep = edge_1[keep]
+         e2WithE1Keep_not =  np.logical_not(np.in1d(edge_2,e1Keep))
+         
+         while True:
+            sel = reduce(np.logical_and,(e2WithE1Keep_not,ints,keep))
+            if not(sum(sel)):
+               break
+            keep[sel] = False
+         newEdges = edge[keep]
+        
+         if self.branchLengths == self.HAS_BRANCH_LEN:
+            len_copy = self.lengths.copy()
+         else:
+            len_copy = False
+         
+         #######
+         
+         rowsToDelete = []
+         for i,r in enumerate(newEdges):
+            iN = r[0]  # internal node
+            count = len(np.where(newEdges[:,0] == iN)[0])
+            if count == 1:
+               # then find if iN or r[1]? is in newEdges[:,1]
+               if len(np.where(newEdges[:,1] == iN)[0]) == 0:
+                  # then iN has no parent and can be deleted
+                  rowsToDelete.append(i) 
+               else:
+                  tN = r[1]
+                  if len_copy:
+                     newLen = self.lengths[iN] + self.lengths[tN]
+                     len_copy[tN] = newLen
+                  parentI = np.where(newEdges[:,1] == iN)[0][0]
+                  parent = newEdges[parentI][0]
+                  find = np.array([parent,iN])
+                  parentRow = np.where(np.all(newEdges==find,axis=1))[0][0]
+                  newEdges[parentRow][1] = tN
+                  rowsToDelete.append(i)
+                  
+         newEdges =  np.delete(newEdges,np.array(rowsToDelete),axis=0)
+         ###############
+         
+         eI = newEdges[:,0]
+         eT = newEdges[:,1]
+         tipPos = np.where(np.logical_not(np.in1d(eT,eI)))[0]
+         newtips = eT[tipPos]
+         
+         #######
+         tree = self._makeCladeFromEdges(newEdges, lengths=len_copy,tips=newtips)  # this relies on old data structures
+         self.makePaths(tree)
+         
+         return LMtree(tree)
       else:
-         len_copy = False
-      
-      #######
-      ne_copy = np.copy(newEdges)
-      rowsToDelete = []
-      for i,r in enumerate(newEdges):
-         iN = r[0]  # internal node
-         count = len(np.where(newEdges[:,0] == iN)[0])
-         if count == 1:
-            # then find if iN or r[1]? is in newEdges[:,1]
-            if len(np.where(newEdges[:,1] == iN)[0]) == 0:
-               # then iN has no parent and can be deleted
-               rowsToDelete.append(i) 
-            else:
-               tN = r[1]
-               if len_copy:
-                  newLen = self.lengths[iN] + self.lengths[tN]
-                  len_copy[tN] = newLen
-               parentI = np.where(newEdges[:,1] == iN)[0][0]
-               parent = newEdges[parentI][0]
-               find = np.array([parent,iN])
-               parentRow = np.where(np.all(newEdges==find,axis=1))[0][0]
-               ne_copy[parentRow][1] = tN
-               rowsToDelete.append(i)
-               
-      newEdges =  np.delete(ne_copy,np.array(rowsToDelete),axis=0)
-      ###############
-      print
-      print newEdges
-      
-      eI = newEdges[:,0]
-      eT = newEdges[:,1]
-      tipPos = np.where(np.logical_not(np.in1d(eT,eI)))[0]
-      newtips = eT[tipPos]
-      
-      #######
-      tree = self._makeCladeFromEdges(newEdges, lengths=len_copy,tips=newtips)  # this relies on old data structures
-      self.makePaths(tree)
-      #treeDir = "/home/jcavner/PhyloXM_Examples/"
-      #with open(os.path.join(treeDir,'test_dropTips_R.json'),'w') as f:
-      #   f.write(json.dumps(tree,sort_keys=True, indent=4))
-      
-      # this needs to return LmTree object, same with with resolve poly
-      return LMtree(tree)
+         raise ValueError('Cannot remove all tips from a tree, or leave single tip')
       
          
    def _getEdges(self):
       """
       @summary: makes a (2 * No. internal Nodes) x 2 matrix representation of the tree 
       """
-      st = self.subTrees
-      if self.tipPaths:
-         
-         edgeDict = {}
-
-         def recurseEdge(clade):
-            if "children" in clade:
-               childIds = [int(c['pathId']) for c in clade['children']]
-               if int(clade['pathId']) not in edgeDict:
-                  edgeDict[int(clade['pathId'])] = childIds
-               for child in clade["children"]:
-                  recurseEdge(child)        
-         recurseEdge(self.tree)
-         
-         edge_ll = []
-         for e in edgeDict.items():
-            for t in e[1]:
-               edge_ll.append([e[0],t])
-         edge = np.array(edge_ll)
-         print edge
-         return edge
+      
+      edgeDict = {}
+      def recurseEdge(clade):
+         if "children" in clade:
+            childIds = [int(c['pathId']) for c in clade['children']]
+            if int(clade['pathId']) not in edgeDict:
+               edgeDict[int(clade['pathId'])] = childIds
+            for child in clade["children"]:
+               recurseEdge(child)        
+      recurseEdge(self.tree)
+      
+      edge_ll = []
+      for e in edgeDict.items():
+         for t in e[1]:
+            edge_ll.append([e[0],t])
+      edge = np.array(edge_ll)
+      
+      return edge
    
    def _truncate(self,f, n):
       """
@@ -240,17 +231,18 @@ class LMtree():
       """
       @summary: check to see if tree is ultrametric, all the way to the root
       """
-      tipPaths,treeLengths,subTrees = self.getTipPaths(self.tree)
-      self._subTrees = subTrees
+      #tipPaths,treeLengths,subTrees = self.getTreeInfo(self.tree)
+      #self._subTrees = subTrees
       
       if self.branchLengths == self.HAS_BRANCH_LEN:
          toSet = []
-         for tip in tipPaths:
-            copytipPath = list(tipPaths[tip][0])
+         for tip in self.tipPaths:
+            #copytipPath = list(tipPaths[tip][0])
+            copytipPath = list(self.tipPaths[tip][0])
             copytipPath.pop()  # removes internal pathId from path list for root of tree
             toSum = []
             for pathId in copytipPath:
-               toSum.append(treeLengths[pathId])
+               toSum.append(self.lengths[pathId])
             urs = sum(toSum)
             s = self._truncate(urs, 3)
             toSet.append(s)
@@ -261,38 +253,38 @@ class LMtree():
    
    @property
    def polytomies(self):
-      if not self.subTrees:
-         self.subTrees = self.getTipPaths(self.tree)[2]
+      #if not self.subTrees:
+      #   self.subTrees = self.getTreeInfo(self.tree)[2]
       return self._polytomy
    
    @property
    def internalCount(self):
-      if not self.subTrees:
-         self.subTrees = self.getTipPaths(self.tree)[2]
+      #if not self.subTrees:
+      #   self.subTrees = self.getTreeInfo(self.tree)[2]
       return len(self.subTrees)   
    
    @property
    def subTrees(self):
-      if not self._subTrees:
-         self.checkUltraMetric()
+      #if not self._subTrees:
+      #   self.checkUltraMetric()
       return self._subTrees
          
-   @subTrees.setter  
-   def subTrees(self, subTrees):
+   #@subTrees.setter  
+   #def subTrees(self, subTrees):
       
-      self._subTrees = subTrees   
+   #   self._subTrees = subTrees   
          
    
    @property
    def lengths(self):
-      if not self._lengths:
-         self.subTrees = self.getTipPaths(self.tree)[2]
+      #if not self._lengths:
+      #  self.subTrees = self.getTreeInfo(self.tree)[2]
       return self._lengths
      
    @property
    def tipCount(self):
-      if not self.tipPaths:
-         self.subTrees = self.getTipPaths(self.tree)[2]  
+      #if not self.tipPaths:
+      #   self.subTrees = self.getTreeInfo(self.tree)[2]  
       return len(self.tipPaths)
       
    @property
@@ -301,8 +293,8 @@ class LMtree():
       
    @property
    def branchLengths(self):
-      if not self.tipPaths:
-         self.subTrees = self.getTipPaths(self.tree)[2] 
+      #if not self.tipPaths:
+      #   self.subTrees = self.getTreeInfo(self.tree)[2] 
       if self._numberMissingLengths == 0:
          return self.HAS_BRANCH_LEN
       else:    
@@ -615,6 +607,11 @@ class LMtree():
          
       rt = self._makeCladeFromRandomEdges(edge, n)
       return rt
+   
+   def writeTree(self, path):
+      #if os.path.exists(path):
+      with open(path,'w') as f:
+         f.write(json.dumps(self.tree,sort_keys=True, indent=4))
       
       
 if __name__ == "__main__":
@@ -648,7 +645,8 @@ if __name__ == "__main__":
    #edges = to._getEdges()
    #tree = to._makeCladeFromEdges(edges,lengths=True)
    
-   to.dropTips(['B','D','H','I','J','K']) # 'A','C','D' # 'B','D'
+   p_t = to.dropTips(['B','D','H','I','J','K']) # 'A','C','D' # 'B','D'
+   p_t.writeTree("/home/jcavner/PhyloXM_Examples/test_drop.json")
    
    #treeDir = "/home/jcavner/PhyloXM_Examples/"
    #with open(os.path.join(treeDir,'tree_fromEdges.json'),'w') as f:
@@ -658,6 +656,9 @@ if __name__ == "__main__":
    
    #print "after tips ", to.tipCount
    #print "after internal ",to.internalCount
+   
+         
+   
    
          
    
