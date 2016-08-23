@@ -74,7 +74,59 @@ class ConstructGrid(object):
       
       return bboxWidget
    
+   def resolutionGroup(self):
+      
+      ShapeOrBBOX = QWidget()
+      RadioVBox = QVBoxLayout(ShapeOrBBOX)
+      self.useSelectedFeature = QRadioButton('Use selected feature')
+      self.useSelectedFeature.setChecked(False)
+      self.useSelectedFeature.setAutoExclusive(False)
+      self.useSelectedFeature.clicked.connect(self.checkUseSelected)
+      
+      self.enterCoords = QRadioButton('Enter Coords')
+      self.enterCoords.setChecked(True)
+      self.enterCoords.setAutoExclusive(False)   
+      self.enterCoords.clicked.connect(self.checkEnterCoords)
+      
+   
 class GridController(ConstructGrid):  #  will be able to inherit from multiple Ui classes
+   
+   def checkUseSelected(self):
+      
+      if self.useSelectedFeature.isChecked():         
+         self.northEdit.clear()
+         self.southEdit.clear()
+         self.eastEdit.clear()
+         self.westEdit.clear()
+         self.northEdit.setEnabled(False)
+         self.southEdit.setEnabled(False)
+         self.eastEdit.setEnabled(False)
+         self.westEdit.setEnabled(False)         
+         self.enterCoords.setChecked(False)
+         self.getFeatureWKT()         
+      elif not self.useSelectedFeature.isChecked():
+         self.useSelectedFeature.setChecked(True)
+   
+   def checkEnterCoords(self):
+      if self.enterCoords.isChecked():
+         self.northEdit.clear()
+         self.southEdit.clear()
+         self.eastEdit.clear()
+         self.westEdit.clear()
+         
+         self.northEdit.setEnabled(True)
+         self.southEdit.setEnabled(True)
+         self.eastEdit.setEnabled(True)
+         self.westEdit.setEnabled(True)
+         
+         self.northEdit.setFocus(Qt.OtherFocusReason)
+         
+         self.useSelectedFeature.setChecked(False)
+         
+         self.selectedFeatureWKT = None
+      elif not self.enterCoords.isChecked():
+         self.northEdit.setFocus(Qt.OtherFocusReason)
+         self.enterCoords.setChecked(True)
    
    def _checkBoundingBox(self): 
       """ this was using a test float"""
