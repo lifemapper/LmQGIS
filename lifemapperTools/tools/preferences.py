@@ -28,13 +28,17 @@ import ConfigParser
 from PyQt4 import QtCore, QtGui
 #from qgis.utils import reloadPlugin, unloadPlugin
 import lifemapperTools as LM
-from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
+#from lifemapperTools.common.pluginconstants import  self.CURRENT_WEBSERVICES_ROOT
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
+from lifemapperTools.common.pluginconstants import getCurrentValue
+from LmCommon.common.config import Config as LmConfig
+
+
 
 ICON_VALUES = {'server':'SERVER'}
 CONFIG = os.environ.get("LIFEMAPPER_CONFIG_FILE")
-#CONFIG = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when in qgis
+CONFIG = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when rolling up a plugin
 SECTION = 'LmCommon - common'
 ITEM = 'CURRENT_WEBSERVICES_ROOT'
 
@@ -117,7 +121,7 @@ class Ui_Dialog(object):
       self.changeServerLab = QtGui.QLabel("Services URL")
       
       #self.websiteRoot = QtGui.QLineEdit()
-      #self.websiteRoot.setText(CURRENT_WEBSERVICES_ROOT)
+      #self.websiteRoot.setText(self.CURRENT_WEBSERVICES_ROOT)
       
       self.gridLayout_input.addWidget(self.serverTitle,0,0,1,1,QtCore.Qt.AlignTop)
       self.gridLayout_input.addWidget(self.serverLabel,1,0,1,1)
@@ -314,9 +318,10 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       QtGui.QDialog.__init__(self)
       self.client = None
       self.newUrl = None
+      self.CURRENT_WEBSERVICES_ROOT = getCurrentValue()
       #self.bannerPath = None
       self.setupUi()
-      #self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)  # might want to put this in changeSettings
+      #self.setCurrentUrlTxt(self.CURRENT_WEBSERVICES_ROOT)  # might want to put this in changeSettings
       self.setWindowTitle("Settings")
    
    def openAddNewUrl(self):
@@ -381,7 +386,6 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       @summary: called on selection in server list
       """
       newUrl = self.serverListModel.listData[index.row()][1]
-      print "n url ",newUrl," ",getURLFromConfig()
       serverName = self.serverListModel.listData[index.row()][0]
       self.setCurrentUrlTxt(newUrl)
       if newUrl != getURLFromConfig():
@@ -439,7 +443,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          
          for server in instanceObjs:
             items.append(server)
-            if server[1] == CURRENT_WEBSERVICES_ROOT:
+            if server[1] == self.CURRENT_WEBSERVICES_ROOT:
                currentInInstances = True 
          #items.extend([(x,str(x)+"_server") for x in range(0,4)])
          #items.extend([('idigbio', 'http://lifemapper.org')])     
@@ -461,11 +465,11 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       self.serverList.setEnabled(False)
       self.addNewBut.setEnabled(False)  
       self.acceptBut.setEnabled(False) 
-      self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)
+      self.setCurrentUrlTxt(self.CURRENT_WEBSERVICES_ROOT)
       
-      # sets list to CURRENT_WEBSERVICES_ROOT
+      # sets list to self.CURRENT_WEBSERVICES_ROOT
       currentUrlIdxList = self.serverListModel.match(self.serverListModel.index(0),
-                                                     QtCore.Qt.DisplayRole ,CURRENT_WEBSERVICES_ROOT)
+                                                     QtCore.Qt.DisplayRole ,self.CURRENT_WEBSERVICES_ROOT)
       if len(currentUrlIdxList) > 0:
          currentUrlIdx = currentUrlIdxList[0]
          self.serverList.setCurrentIndex(currentUrlIdx)
@@ -475,7 +479,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
       """
       @summary: called from main settings group, sets up Web Services URL change group
       """
-      self.setCurrentUrlTxt(CURRENT_WEBSERVICES_ROOT)
+      self.setCurrentUrlTxt(self.CURRENT_WEBSERVICES_ROOT)
       if self.client == None:
             self.buildClient()
       if self.client is not None:
@@ -497,7 +501,7 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
          
    def writeInit(self):   
       """
-      @summary: make changes to CURRENT_WEBSERVICES_ROOT in ini file
+      @summary: make changes to self.CURRENT_WEBSERVICES_ROOT in ini file
       """
       if self.newUrl is not None and CONFIG is not None:
          try:
@@ -510,7 +514,6 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
             cfg = ConfigParser.SafeConfigParser()
             cfg.read(cfgPath)
             cfg.set(sec,k,url) 
-            print "w url"
             cfg.set(sec,"OGC_SERVICE_URL",os.path.join(url,"ogc"))  
             #if self.bannerPath is not None:
             #   print "w banner"
@@ -524,12 +527,14 @@ class PreferencesDialog(QtGui.QDialog,Ui_Dialog):
                                                 message,
                                                 QtGui.QMessageBox.Ok)
          else:
+            LmConfig(fns=[cfgPath]).reload()
+            #config.read(cfgPath)
             self.acceptBut.setEnabled(False)
-            message = "You will need to restart QGIS for the changes to take effect."
-            QtGui.QMessageBox.information(self,
-                                          "Changed services URL",
-                                          message,
-                                          QtGui.QMessageBox.Ok)
+            #message = "You will need to restart QGIS for the changes to take effect."
+            #QtGui.QMessageBox.information(self,
+            #                              "Changed services URL",
+            #                              message,
+            #                              QtGui.QMessageBox.Ok)
          
          
 class ServerModel(LmListModel):
