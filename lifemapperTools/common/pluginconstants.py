@@ -26,14 +26,18 @@
           02110-1301, USA.
 """
 import os
-from LmCommon.common.config import Config
+from LmCommon.common.config import Config as LmConfig
+
 _CONFIG_HEADING = "LmCommon - common"
-
 CONFIG_FILENAME = os.getenv('LIFEMAPPER_CONFIG_FILE') 
-CURRENT_WEBSERVICES_ROOT = Config(fns=[CONFIG_FILENAME]).get(_CONFIG_HEADING, 'CURRENT_WEBSERVICES_ROOT')
-#BROWSER_BANNER = Config(fns=[CONFIG_FILENAME]).get(_CONFIG_HEADING, 'BROWSER_BANNER')
+CONFIG_FILENAME = "/home/jcavner/ghWorkspace/LmQGIS.git/lifemapperTools/config/site.ini" # comment out when rolling up a plugin
 
-
+def getCurrentValue():
+   """
+   @summary: This function returns a config value when it is requested, rather than on import
+   """
+   #CURRENT_WEBSERVICES_ROOT = LmConfig(fns=[CONFIG_FILENAME]).get(_CONFIG_HEADING, 'CURRENT_WEBSERVICES_ROOT')  # used to do this as a constant
+   return LmConfig(fns=[CONFIG_FILENAME]).get(_CONFIG_HEADING, 'CURRENT_WEBSERVICES_ROOT')
 
 class ARCHIVE_DWL_TYPE:
    
