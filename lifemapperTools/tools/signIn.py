@@ -50,10 +50,9 @@ from lifemapperTools.tools.newExperiment import NewExperimentDialog
 from lifemapperTools.common.workspace import Workspace
 from lifemapperTools.common.pluginconstants import PER_PAGE, QGISProject
 from LmClient.lmClientLib import LMClient, OutOfDateException
-from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
+#from lifemapperTools.common.pluginconstants import  self.CURRENT_WEBSERVICES_ROOT
+from lifemapperTools.common.pluginconstants import getCurrentValue
 
-
-SIGNUPURL = urlparse.urljoin(CURRENT_WEBSERVICES_ROOT,'signup')
 
 
 class Ui_SubDialog(object):
@@ -122,6 +121,9 @@ class SignInDialog(QDialog, Ui_Dialog):
                 uploadEnvLayerItem=None,saveSlot=None,openSlot=None,changeWSItem=None,preferencesAction=None):
       QDialog.__init__(self)
       #self.setWindowFlags(self.windowFlags() & Qt.WindowMinimizeButtonHint)
+      self.CURRENT_WEBSERVICES_ROOT = getCurrentValue()
+      self.SIGNUPURL = urlparse.urljoin(self.CURRENT_WEBSERVICES_ROOT,'signup')
+      
       self.setupUi()
       self.interface = iface
       self.client = None
@@ -142,11 +144,12 @@ class SignInDialog(QDialog, Ui_Dialog):
    def accept(self):
       # somewhere in sigin it needs to check for an existing workspace for that user
       # and then if that path/directory exists
+      
       settings = QSettings()
       valid = self.validate()
       if valid:
          try:
-            cl = LMClient(server=CURRENT_WEBSERVICES_ROOT)
+            cl = LMClient(server=self.CURRENT_WEBSERVICES_ROOT)
             cl.login(userId=self.keyvalues["usernameEdit"], 
                      pwd=self.keyvalues["passEdit"])
          except OutOfDateException, e:
@@ -338,7 +341,7 @@ class SignInDialog(QDialog, Ui_Dialog):
    
    def signup(self, value):
        
-      QDesktopServices().openUrl(QUrl(SIGNUPURL))
+      QDesktopServices().openUrl(QUrl(self.SIGNUPURL))
 # ..............................................................................         
    def help(self):
       self.help = QWidget()
