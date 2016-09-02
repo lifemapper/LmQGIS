@@ -2,6 +2,7 @@ import sys, os
 import logging
 import cPickle
 import csv
+import numpy as np
 try: import simplejson as json 
 except: import json
 from collections import Counter
@@ -12,6 +13,8 @@ from lifemapperTools.tools.radTable import *
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.tools.MultiSps.Grids import grid
+from lifemapperTools.tools.MultiSps.User_BOOM import archive
+from lifemapperTools.tools.MultiSps.common.plots import PlotWindow
 
 
 
@@ -40,8 +43,36 @@ class Ui_Dialog(object):
          self.gridLayout.addWidget(self.bbox)
          ##########
          
+         self.searchPage = QWidget()
+         self.HorizSearch = QHBoxLayout(self.searchPage)
          
+         self.searchLayout = QVBoxLayout()
+         self.searchCombo,list = self.searchController.hintBox()
+         self.searchLayout.addWidget(self.searchCombo.combo)
+         self.searchLayout.addWidget(list)
+         
+         self.projectCanvas = QListView()
+         self.HorizSearch.addLayout(self.searchLayout)
+         self.HorizSearch.addWidget(self.projectCanvas)
+         ##############
+         
+         self.plots = QWidget()
+         self.plotLayout = QHBoxLayout(self.plots)
+         
+         
+         X = np.random.rand(700, 1000)
+         xs = np.mean(X, axis=1)
+         ys = np.std(X, axis=1)
+         aw = PlotWindow(xs,ys,'dfas','hh','etertera','/home/jcavner')
+         
+         self.plotLayout.addWidget(aw)
+         
+         ##############
+                  
+         self.tabWidget.addTab(self.searchPage, 'Search')
          self.tabWidget.addTab(self.gridPage, 'Grids')
+         self.tabWidget.addTab(self.plots,"plots")
+         
 
          self.mainLayout.addWidget(self.tabWidget)
 
@@ -71,6 +102,9 @@ class MultiSpsDialog(QDialog, Ui_Dialog):
       self.setWindowTitle("Multi-Species")
       self.gridController = grid.GridController()  # get controller before setting up UI
       # or get it in setupUI() before setting up tabs
+      
+      self.searchController = archive.Search()
+      
       
       self.setupUi()
       
