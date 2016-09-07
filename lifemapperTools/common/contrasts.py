@@ -210,15 +210,22 @@ class BioGeo():
 class PhyloEncoding():
    
    ##############  tree  ###################
+   
+   def __init__(self, treeDict, PAM):
+      
+      self.treeDict = treeDict
+      self.PAM = PAM
+   
+   
    # ........................................
-   def makeP(self,treeDict,I,branchLengths=False):
+   def makeP(self,branchLengths):
       """
       @summary: encodes phylogeny into matrix P and checks
       for sps in tree but not in PAM (I), if not in PAM, returns
       new PAM (I) in addition to P
       """
       ######### make P ###########
-      tips, internal, tipsNotInMtx, lengths,tipPaths = self.buildTips(treeDict,I.shape[1])
+      tips, internal, tipsNotInMtx, lengths,tipPaths = self.buildTips()
       negsDict = self.processInternalNodes(internal)
       tipIds,internalIds = self.getIds(tips,internalDict=internal)
       #matrix = initMatrix(len(tipIds),len(internalIds))
@@ -231,20 +238,21 @@ class PhyloEncoding():
          P = self.buildPMatrix(matrix,internalIds,tips, negsDict)
       
       if len(tipsNotInMtx) > 0:
-         I = self.processTipNotInMatrix(tipsNotInMtx, internal, I)
-         
+         I = self.processTipNotInMatrix(tipsNotInMtx, internal, self.PAM)
+      else:
+         I = self.PAM  
       return P, I, internal
    # ........................................
       
-   def buildTips(self, clade, noColPam): 
+   def buildTips(self): 
       """
       @summary: flattens to tips and return list of tip clades(dicts)
       unsure how calculations would reflect/change if more tips in tree
       than in PAM.  If it does it needs to check for matrix key
       @param noColPam: at what point does this arg get set/sent
       """ 
-      
-         
+      clade = self.treeDict
+      noColPam = self.PAM.shape[1]   
       noMx = {'c':noColPam}  # needs to start with last sps in pam
       tips = []
       tipsNotInMatrix = []
@@ -297,11 +305,7 @@ class PhyloEncoding():
                getMtxIds(child)
          else:
             if "mx" in clade:
-               #if layersPresent is None:
                mx.append(int(clade["mx"]))
-               #else:
-               #   compressedMx = sum([x[1] for x in lPItems[:int(clade["mx"])] if x[1]])
-               #   mx.append(compressedMx)
       getMtxIds(clade)
       return mx
    # ..........................
@@ -324,10 +328,7 @@ class PhyloEncoding():
                   mxMapping[int(tip['mx'])] = mxs
                else:
                   if "mx" in sibling:
-                     #if layersPresent is None:
                      mxMapping[int(tip['mx'])] = [int(sibling['mx'])]
-                     #else:
-                     #   mxMapping[int(tip['mx'])] = sum([x[1] for x in lPItems[:int(sibling["mx"])] if x[1]])
                   else:
                      mxMapping[int(tip['mx'])] = 0
       la = [] # list of arrays              
@@ -545,32 +546,75 @@ class PhyloEncoding():
 if __name__ == "__main__":
    
    
-   ### Test BioGeo ####
-   # Contrasts shape and info
-   base = "/home/jcavner/TASHI_PAM/GoodContrasts"
-   shpName = "MergedContrasts_Florida.shp"
+   #### Test BioGeo ####
+   ## Contrasts shape and info
+   #base = "/home/jcavner/TASHI_PAM/GoodContrasts"
+   #shpName = "MergedContrasts_Florida.shp"
+   #
+   #Mergeddloc = os.path.join(base,shpName)
+   #EventField = "Event"
+   #
+   #########################
+   ## Grid shape
+   #
+   #GridDloc = "/home/jcavner/BiogeographyMtx_Inputs/Florida/TenthDegree_Grid_FL-2462.shp"
+   #
+   #myObj = BioGeo(Mergeddloc,GridDloc,EventField)
+   #mtx = myObj.buildFromMergedShp()  
+   #
+   #refD = myObj.positions
+   #
+   ##cPickle.dump(refD, open("/home/jcavner/BiogeographyMtx_Inputs/Florida/pos.pkl",'w'))
+   ##cPickle.dump(refD, open("/home/jcavner/pos.pkl",'w'))
+   #
+   #sP = "/home/jcavner/BiogeographyMtx_Inputs/Florida/output.npy"
+   #sP = "/home/jcavner/output.npy"
+   #
+   #if myObj.writeBioGeoMtx(mtx, sP ):
+   #   print "saved mtx"
+   #else:
+   #   print "did not write"
+   ################  end BioGeo  ######################## 
    
-   Mergeddloc = os.path.join(base,shpName)
-   EventField = "Event"
    
-   ########################
-   # Grid shape
+   tree = {"name": "0",
+        "path": "0",
+        "pathId": "0",
+        "children":[
+                    {"pathId":"1","length":".4","path":"1,0",
+                    "children":[
+                                {"pathId":"2","length":".15","path":"9,5,0",
+                                 "children":[
+                                             {"pathId":"3","length":".65","path":"3,2,1,0",
+                                              
+                                              "children":[
+                                                          {"pathId":"4","length":".2","path":"4,3,2,1,0","mx":"0"},
+                                                          {"pathId":"5","length":".2","path":"5,3,2,1,0","mx":"1"}
+                                                          ]
+                                              
+                                              },
+                                             
+                                             {"pathId":"6","length":".85","path":"6,2,1,0","mx":"2"}
+                                             
+                                             ]
+                                 
+                                 },
+                                 {"pathId":"7","length":"1.0","path":"7,1,0","mx":"3"}
+                                
+                                ] },
+                    
+
+                    {"pathId":"8","length":".9","path":"8,0",
+                     "children":[{"pathId":"9","length":".5","path":"9,8,0","mx":"4"},{"pathId":"10","length":".5","path":"10,8,0","mx":"5"}] } 
+                    ]
+        
+        }
    
-   GridDloc = "/home/jcavner/BiogeographyMtx_Inputs/Florida/TenthDegree_Grid_FL-2462.shp"
+   I = np.random.choice(2,24).reshape(4,6)
    
-   myObj = BioGeo(Mergeddloc,GridDloc,EventField)
-   mtx = myObj.buildFromMergedShp()  
+   treeEncodeObj = PhyloEncoding(tree,I)
    
-   refD = myObj.positions
+   P, I, internal = treeEncodeObj.makeP(True)
+   print P
    
-   #cPickle.dump(refD, open("/home/jcavner/BiogeographyMtx_Inputs/Florida/pos.pkl",'w'))
-   #cPickle.dump(refD, open("/home/jcavner/pos.pkl",'w'))
    
-   sP = "/home/jcavner/BiogeographyMtx_Inputs/Florida/output.npy"
-   sP = "/home/jcavner/output.npy"
-   
-   if myObj.writeBioGeoMtx(mtx, sP ):
-      print "saved mtx"
-   else:
-      print "did not write"
-   ###############  end BioGeo  ######################## 
