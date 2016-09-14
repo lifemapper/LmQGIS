@@ -15,24 +15,85 @@ ogr.UseExceptions()
 class BioGeo():
    
    def __init__(self, contrastsdLoc, intersectionLyrDLoc, EventField):
-      # what about stacked lyrs? contrastsdLoc is then a list of dLocs
-      if os.path.exists(contrastsdLoc) and os.path.exists(intersectionLyrDLoc):
-         self.intersectionDs = self.openShapefile(intersectionLyrDLoc)
-         self.contrastsDs = self.openShapefile(contrastsdLoc)  
-         self.sortedSites = self.sortShpGridFeaturesBySiteID(self.intersectionDs.GetLayer(0)) 
-         self.eventField = EventField
-         self.contrastShpName = ntpath.basename(contrastsdLoc)
-         if '.shp' in self.contrastShpName:
-            self.contrastShpName = self.contrastShpName.replace('.shp','')  
-         self.distinctEvents = self.getDistinctEvents(self.contrastsDs, EventField, self.contrastShpName) 
-         self._positions = self.buildContrastPostions(self.distinctEvents)
+      self.contrastColl = False  # list of ogr data sources
+      self.eventField = EventField
+      try: 
+         if os.path.exists(contrastsdLoc) and os.path.exists(intersectionLyrDLoc):
+            self.contrastsDs = self.openShapefile(contrastsdLoc)  
+            self._setSinglePathValues(EventField, contrastsdLoc)
+         else:
+            raise ValueError('shapefile missing')
+      except:
+         try:
+            if len(contrastsdLoc) == 1 and os.path.exists(contrastsdLoc[0]):
+               raise Exception, "list"
+            self.contrastColl = []
+            for fn in contrastsdLoc:
+               if os.path.exists(fn):
+                  ds = self.openShapefile(fn)
+                  self.contrastColl.append(ds)
+            if not self._checkEventFieldName():
+               raise Exception, "event field not found in one or more shapefiles"
+         except Exception, e: 
+            try:
+               if str(e) == 'list':
+                  self._setSinglePathValues(EventField, contrastsdLoc)
+               else:
+                  raise ValueError('unable to build collection')
+            except Exception, e:
+               print str(e)
       else:
-         raise ValueError('shapefiles missing')
+         self.intersectionDs = self.openShapefile(intersectionLyrDLoc)
+         self.sortedSites = self.sortShpGridFeaturesBySiteID(self.intersectionDs.GetLayer(0))
 
+# ........................................................................
+   def _setSinglePathValues(self,EventField, contrastsdLoc):
+      
+      self.contrastsDs = self.openShapefile(contrastsdLoc)
+      self.contrastShpName = ntpath.basename(contrastsdLoc)
+      if '.shp' in self.contrastShpName:
+         self.contrastShpName = self.contrastShpName.replace('.shp','')
+      
+      self.distinctEvents = self.getDistinctEvents(self.contrastsDs, EventField, self.contrastShpName) 
+      self._positions = self.buildContrastPostions(self.distinctEvents)
+# ........................................................................
+
+   def _checkEventFieldName(self):
+      """
+      @summary: check that in self.eventField exists in contrast shapes
+      """
+      if not self.contrastColl:
+         dataSrcs = [self.contrastsDs]
+      else:
+         dataSrcs = self.contrastColl
+      fieldExists = True
+      for cShpDs in dataSrcs:
+         lyr = cShpDs.GetLayer(0)
+         lyrDef = lyr.GetLayerDefn()
+         if lyrDef.GetFieldIndex(self.eventField) == -1:
+            fieldExists = False
+            break
+      return fieldExists   
+# ........................................................................
+   
+   def eachTwo(self):
+      """
+      @summary: check to see if each shp file in contrast collection only has two features
+      """
+      try:
+         for cShpDs in self.contrastColl:
+            lyr = cShpDs.GetLayer(0)
+            fc = lyr.GetFeatureCount()
+            if fc != 2:
+               fn = cShpDs.name
+               name = ntpath.basename(fn)
+               raise Exception, "More than 2 features in lyr %s" % (name)
+      except Exception,e:
+         print str(e)
 # ........................................................................
    @property
    def positions(self):
-      return self.positions
+      return self._positions
       
 # ........................................................................       
    def openShapefile(self,dlocation):
@@ -59,7 +120,9 @@ class BioGeo():
       return sortedSites
 # ........................................................................    
    def getDistinctEvents(self,contrastLyrDS,eventFieldName,constrastShpName):
-      
+      """
+      @summary: returns list of distinct event string values
+      """
       distinctEvents = []
       sql = 'SELECT DISTINCT %s FROM %s' % (eventFieldName,constrastShpName)
       layer = contrastLyrDS.ExecuteSQL(sql)
@@ -70,17 +133,11 @@ class BioGeo():
 # ........................................................................    
    def getContrastsData(self):
       """
-      @param contrastLyrDs: data source for contrast lyr
+      @summary: collects the (two) features for each distinct event in a merged shp 
       """
       
-      #distinctEvents = self.getDistinctEvents(contrastLyrDS,eventFieldName,constrastShpName)
       distinctEvents = self.distinctEvents   
       contrastLyr = self.contrastsDs.GetLayer(0)
-      
-      # build event idx dict
-      #refD = {k:v for v,k in enumerate(distinctEvents) }
-      #refD = self.positions
-      
       contrasts = []
       for event in distinctEvents:
          filter = "%s = '%s'" % (self.eventField,event)
@@ -147,10 +204,6 @@ class BioGeo():
          # but then wouldn't work with centroids
       # TEST THIS WITH /home/jcavner/TASHI_PAM/Test!!
            
-      #if expId is not None and expDir is not None:      
-      #   dLoc = os.path.join(expDir,"biogeog_%s.npy" % (str(expId)))   
-      #   wrote = self.writeBioGeoMtx(contrasts, dLoc)   
-         #np.save(os.path.join(base,'test.npy'),contrasts) 
 # ........................................................................         
    def buildFromMergedShp(self):
       """
@@ -548,73 +601,88 @@ if __name__ == "__main__":
    
    #### Test BioGeo ####
    ## Contrasts shape and info
-   #base = "/home/jcavner/TASHI_PAM/GoodContrasts"
-   #shpName = "MergedContrasts_Florida.shp"
+   base = "/home/jcavner/TASHI_PAM/GoodContrasts"
+   shpName = "MergedContrasts_Florida.shp"
    #
-   #Mergeddloc = os.path.join(base,shpName)
-   #EventField = "Event"
+   Mergeddloc = os.path.join(base,shpName)
+   EventField = "Event"
    #
    #########################
    ## Grid shape
    #
-   #GridDloc = "/home/jcavner/BiogeographyMtx_Inputs/Florida/TenthDegree_Grid_FL-2462.shp"
+   GridDloc = "/home/jcavner/BiogeographyMtx_Inputs/Florida/TenthDegree_Grid_FL-2462.shp"
    #
-   #myObj = BioGeo(Mergeddloc,GridDloc,EventField)
-   #mtx = myObj.buildFromMergedShp()  
-   #
-   #refD = myObj.positions
-   #
-   ##cPickle.dump(refD, open("/home/jcavner/BiogeographyMtx_Inputs/Florida/pos.pkl",'w'))
-   ##cPickle.dump(refD, open("/home/jcavner/pos.pkl",'w'))
-   #
-   #sP = "/home/jcavner/BiogeographyMtx_Inputs/Florida/output.npy"
-   #sP = "/home/jcavner/output.npy"
-   #
-   #if myObj.writeBioGeoMtx(mtx, sP ):
-   #   print "saved mtx"
-   #else:
-   #   print "did not write"
-   ################  end BioGeo  ######################## 
+   myObj = BioGeo(Mergeddloc,GridDloc,EventField)
+   mtx = myObj.buildFromMergedShp()  
+   
+   refD = myObj.positions
+   
+   #cPickle.dump(refD, open("/home/jcavner/BiogeographyMtx_Inputs/Florida/pos.pkl",'w'))
+   #cPickle.dump(refD, open("/home/jcavner/pos.pkl",'w'))
+   
+   sP = "/home/jcavner/BiogeographyMtx_Inputs/Florida/output.npy"
+   sP = "/home/jcavner/output.npy"
+   
+   if myObj.writeBioGeoMtx(mtx, sP ):
+      print "saved mtx"
+   else:
+      print "did not write"
+   
+   #   Test Multiple Shp Files
+   
+   #base = "/home/jcavner/BiogeographyMtx_Inputs/Florida/GoodContrasts"
+   #shpList = ["GulfAtlantic.shp","MergedContrasts_Florida.shp","Pliocene.shp","ApalachicolaRiver.shp"]
+   #shpList = ["/"]
+   #pathList = []
+   #for shp in shpList:
+   #   fn = os.path.join(base,shp)
+   #   pathList.append(fn)
+   #   
+   #testInst = BioGeo(pathList,GridDloc,"Event")
+   #testInst.eachTwo()
    
    
-   tree = {"name": "0",
-        "path": "0",
-        "pathId": "0",
-        "children":[
-                    {"pathId":"1","length":".4","path":"1,0",
-                    "children":[
-                                {"pathId":"2","length":".15","path":"9,5,0",
-                                 "children":[
-                                             {"pathId":"3","length":".65","path":"3,2,1,0",
-                                              
-                                              "children":[
-                                                          {"pathId":"4","length":".2","path":"4,3,2,1,0","mx":"0"},
-                                                          {"pathId":"5","length":".2","path":"5,3,2,1,0","mx":"1"}
-                                                          ]
-                                              
-                                              },
-                                             
-                                             {"pathId":"6","length":".85","path":"6,2,1,0","mx":"2"}
-                                             
-                                             ]
-                                 
-                                 },
-                                 {"pathId":"7","length":"1.0","path":"7,1,0","mx":"3"}
-                                
-                                ] },
-                    
-
-                    {"pathId":"8","length":".9","path":"8,0",
-                     "children":[{"pathId":"9","length":".5","path":"9,8,0","mx":"4"},{"pathId":"10","length":".5","path":"10,8,0","mx":"5"}] } 
-                    ]
-        
-        }
-   
-   I = np.random.choice(2,24).reshape(4,6)
-   
-   treeEncodeObj = PhyloEncoding(tree,I)
-   
-   P, I, internal = treeEncodeObj.makeP(True)
-   print P
+   #################  end BioGeo  ######################## 
+   #
+   #
+   #tree = {"name": "0",
+   #     "path": "0",
+   #     "pathId": "0",
+   #     "children":[
+   #                 {"pathId":"1","length":".4","path":"1,0",
+   #                 "children":[
+   #                             {"pathId":"2","length":".15","path":"9,5,0",
+   #                              "children":[
+   #                                          {"pathId":"3","length":".65","path":"3,2,1,0",
+   #                                           
+   #                                           "children":[
+   #                                                       {"pathId":"4","length":".2","path":"4,3,2,1,0","mx":"0"},
+   #                                                       {"pathId":"5","length":".2","path":"5,3,2,1,0","mx":"1"}
+   #                                                       ]
+   #                                           
+   #                                           },
+   #                                          
+   #                                          {"pathId":"6","length":".85","path":"6,2,1,0","mx":"2"}
+   #                                          
+   #                                          ]
+   #                              
+   #                              },
+   #                              {"pathId":"7","length":"1.0","path":"7,1,0","mx":"3"}
+   #                             
+   #                             ] },
+   #                 
+   #
+   #                 {"pathId":"8","length":".9","path":"8,0",
+   #                  "children":[{"pathId":"9","length":".5","path":"9,8,0","mx":"4"},{"pathId":"10","length":".5","path":"10,8,0","mx":"5"}] } 
+   #                 ]
+   #     
+   #     }
+   #
+   #I = np.random.choice(2,24).reshape(4,6)
+   #
+   #treeEncodeObj = PhyloEncoding(tree,I)
+   #
+   #P, I, internal = treeEncodeObj.makeP(True)
+   #print P
    
    
