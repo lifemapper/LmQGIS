@@ -6,6 +6,7 @@ import os,sys
 import ntpath
 import operator
 from osgeo import ogr,gdal
+from __builtin__ import False
 
 
 ogr.UseExceptions()
@@ -17,45 +18,76 @@ class BioGeo():
    def __init__(self, contrastsdLoc, intersectionLyrDLoc, EventField):
       self.contrastColl = False  # list of ogr data sources
       self.eventField = EventField
+      fieldName = sPSet = commonSet = True 
       try: 
-         if os.path.exists(contrastsdLoc) and os.path.exists(intersectionLyrDLoc):
-            self.contrastsDs = self.openShapefile(contrastsdLoc)  
-            self._setSinglePathValues(EventField, contrastsdLoc)
+         if os.path.exists(contrastsdLoc) and os.path.exists(intersectionLyrDLoc):  # intersectionLyr check here?
+            self.contrastsDs = self.openShapefile(contrastsdLoc) 
+            print "never hrer"
+            fieldName = self._checkEventFieldName()
+            if not fieldName:
+               "is it in here"
+               raise Exception, "incorrect event field"
+            print "does it ever get here"
+            sPSet = self._setSinglePathValues(EventField, contrastsdLoc)
+            commonSet = self._setCommon(intersectionLyrDLoc)
          else:
             raise ValueError('shapefile missing')
-      except:
-         try:
-            if len(contrastsdLoc) == 1 and os.path.exists(contrastsdLoc[0]):
-               raise Exception, "list"
-            self.contrastColl = []
-            for fn in contrastsdLoc:
-               if os.path.exists(fn):
-                  ds = self.openShapefile(fn)
-                  self.contrastColl.append(ds)
-            if not self._checkEventFieldName():
-               raise Exception, "event field not found in one or more shapefiles"
-         except Exception, e: 
+      except Exception, e:
+         print "first except ",str(e)
+         if fieldName and sPSet and commonSet:
             try:
-               if str(e) == 'list':
-                  self._setSinglePathValues(EventField, contrastsdLoc)
-               else:
-                  raise ValueError('unable to build collection')
-            except Exception, e:
-               print str(e)
-      else:
+               # this branch for multiples, doesn't have a check for intersectionLyr exists
+               if len(contrastsdLoc) == 1 and os.path.exists(contrastsdLoc[0]):
+                  raise Exception, "list"
+               self.contrastColl = []
+               for fn in contrastsdLoc:
+                  if os.path.exists(fn):
+                     ds = self.openShapefile(fn)
+                     self.contrastColl.append(ds)
+               if not self._checkEventFieldName():
+                  raise Exception, "incorrect event field"
+               self._setCommon(intersectionLyrDLoc)
+            except Exception, e: 
+               try:
+                  if str(e) == 'list':
+                     if os.path.exists(intersectionLyrDLoc):  
+                        self.contrastsDs = self.openShapefile(contrastsdLoc[0])
+                        if not self._checkEventFieldName():
+                           raise Exception, "incorrect event field"
+                        self._setSinglePathValues(EventField, contrastsdLoc[0])
+                        self._setCommon(intersectionLyrDLoc)
+                     else:
+                        raise ValueError('shapefile missing')
+                  else:
+                     raise ValueError('unable to build collection')
+               except Exception, e:
+                  print "2nd exception ",str(e)
+         else:
+            print str(e)
+
+# ........................................................................      
+   def _setCommon(self, intersectionLyrDLoc):
+      set = True
+      try:
          self.intersectionDs = self.openShapefile(intersectionLyrDLoc)
          self.sortedSites = self.sortShpGridFeaturesBySiteID(self.intersectionDs.GetLayer(0))
-
+      except:
+         set = False
+      return set      
 # ........................................................................
-   def _setSinglePathValues(self,EventField, contrastsdLoc):
-      
-      self.contrastsDs = self.openShapefile(contrastsdLoc)
-      self.contrastShpName = ntpath.basename(contrastsdLoc)
-      if '.shp' in self.contrastShpName:
-         self.contrastShpName = self.contrastShpName.replace('.shp','')
-      
-      self.distinctEvents = self.getDistinctEvents(self.contrastsDs, EventField, self.contrastShpName) 
-      self._positions = self.buildContrastPostions(self.distinctEvents)
+   def _setSinglePathValues(self, EventField, contrastsdLoc):
+      set = True
+      try:
+         self.contrastShpName = ntpath.basename(contrastsdLoc)
+         if '.shp' in self.contrastShpName:
+            self.contrastShpName = self.contrastShpName.replace('.shp','')
+         
+         self.distinctEvents = self.getDistinctEvents(self.contrastsDs, EventField, self.contrastShpName) 
+         self._positions = self.buildContrastPostions(self.distinctEvents)
+      except Exception, e:
+         print "error in setSinglePath ",str(e)
+         set = False
+      return set
 # ........................................................................
 
    def _checkEventFieldName(self):
@@ -171,7 +203,6 @@ class BioGeo():
       siteCount = gLyr.GetFeatureCount()
       sortedSites = self.sortedSites
       
-      #positions = self.buildContrastPostions(mds,EventField,GridDloc)
       positions = self.positions
       contrastMtx = np.zeros((siteCount,len(positions)), dtype=np.int)
       
@@ -203,6 +234,7 @@ class BioGeo():
          # What if site intersects all events!! might neeed area
          # but then wouldn't work with centroids
       # TEST THIS WITH /home/jcavner/TASHI_PAM/Test!!
+      return contrastMtx
            
 # ........................................................................         
    def buildFromMergedShp(self):
@@ -211,7 +243,6 @@ class BioGeo():
       This uses area so will only work with a shapegrid (cells)
       @todo: make so it can also centroid (X,Y)
       """
-      mds = self.contrastsDs
       
       contrastData = self.getContrastsData()
       eventPos =  self.positions
@@ -605,23 +636,29 @@ if __name__ == "__main__":
    shpName = "MergedContrasts_Florida.shp"
    #
    Mergeddloc = os.path.join(base,shpName)
-   EventField = "Event"
+   
+   Mergeddloc = '/home/jcavner/TASHI_PAM/Test/PAIC.shp'
+   
+   EventField = "PAIC"
    #
    #########################
    ## Grid shape
    #
    GridDloc = "/home/jcavner/BiogeographyMtx_Inputs/Florida/TenthDegree_Grid_FL-2462.shp"
    #
-   myObj = BioGeo(Mergeddloc,GridDloc,EventField)
-   mtx = myObj.buildFromMergedShp()  
    
+   GridDloc = '/home/jcavner/TASHI_PAM/Test/Grid_5km.shp'
+   
+   myObj = BioGeo(Mergeddloc,GridDloc,EventField)
+   #mtx = myObj.buildFromMergedShp()  
+   mtx = myObj.buildFromExclusive()
    refD = myObj.positions
    
    #cPickle.dump(refD, open("/home/jcavner/BiogeographyMtx_Inputs/Florida/pos.pkl",'w'))
    #cPickle.dump(refD, open("/home/jcavner/pos.pkl",'w'))
    
    sP = "/home/jcavner/BiogeographyMtx_Inputs/Florida/output.npy"
-   sP = "/home/jcavner/output.npy"
+   sP = "/home/jcavner/testy.npy"
    
    if myObj.writeBioGeoMtx(mtx, sP ):
       print "saved mtx"
