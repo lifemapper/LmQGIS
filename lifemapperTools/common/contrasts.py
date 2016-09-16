@@ -11,45 +11,54 @@ from __builtin__ import False
 
 ogr.UseExceptions()
 
-### this came from sandbox/dev/dev/trees/buildEventContrasts, another method exists
-### in sandbox/dev/dev/trees/buildBioGeographyMtx for mutually exclusive events (inlcuded)
 class BioGeo():
    
-   def __init__(self, contrastsdLoc, intersectionLyrDLoc, EventField):
+   def __init__(self, contrastsdLoc, intersectionLyrDLoc, EventField=False):
+      """
+      @summary: contructor for all biogeo encoding
+      @note: EventField only for non-collections
+      """
       self.contrastColl = False  # list of ogr data sources
       self.eventField = EventField
       fieldName = sPSet = commonSet = True 
       try: 
-         if os.path.exists(contrastsdLoc) and os.path.exists(intersectionLyrDLoc):  # intersectionLyr check here?
+         if os.path.exists(contrastsdLoc) and os.path.exists(intersectionLyrDLoc) and EventField:
             self.contrastsDs = self.openShapefile(contrastsdLoc) 
-            print "never hrer"
             fieldName = self._checkEventFieldName()
             if not fieldName:
-               "is it in here"
                raise Exception, "incorrect event field"
-            print "does it ever get here"
             sPSet = self._setSinglePathValues(EventField, contrastsdLoc)
             commonSet = self._setCommon(intersectionLyrDLoc)
          else:
-            raise ValueError('shapefile missing')
+            raise ValueError('shapefile or EventField missing')
       except Exception, e:
-         print "first except ",str(e)
          if fieldName and sPSet and commonSet:
             try:
-               # this branch for multiples, doesn't have a check for intersectionLyr exists
+               # this branch for multiples (collection)
                if len(contrastsdLoc) == 1 and os.path.exists(contrastsdLoc[0]):
-                  raise Exception, "list"
+                  raise Exception, "list_one"
+               ####
                self.contrastColl = []
                for fn in contrastsdLoc:
                   if os.path.exists(fn):
                      ds = self.openShapefile(fn)
                      self.contrastColl.append(ds)
-               if not self._checkEventFieldName():
+               ###      
+               if not self._eachTwo():
+                  self.contrastColl = False
+                  raise Exception, "more then two features in .."
+               if not self._checkEventFieldName():  # does a contrast collection need an EventField?
+                  self.contrastColl = False
                   raise Exception, "incorrect event field"
-               self._setCommon(intersectionLyrDLoc)
+               if os.path.exists(intersectionLyrDLoc):
+                  self._setCommon(intersectionLyrDLoc)
+               else:
+                  self.contrastColl = False
+                  raise ValueError('shapefile missing')
+               
             except Exception, e: 
                try:
-                  if str(e) == 'list':
+                  if str(e) == 'list_one':
                      if os.path.exists(intersectionLyrDLoc):  
                         self.contrastsDs = self.openShapefile(contrastsdLoc[0])
                         if not self._checkEventFieldName():
@@ -59,12 +68,22 @@ class BioGeo():
                      else:
                         raise ValueError('shapefile missing')
                   else:
-                     raise ValueError('unable to build collection')
+                     raise Exception, str(e)  # was ValueError('unable to build collection')
                except Exception, e:
-                  print "2nd exception ",str(e)
+                  print str(e)
          else:
             print str(e)
 
+# ........................................................................
+   def _setMutuallyExclusive(self,ds):
+      """
+      @summary: determine if mutually exclusive
+      @note: this might not work under certain circumstances
+      """
+      lyr = ds.GetLayer(0)
+      fc = lyr.GetFeatureCount()
+      # now call get distinct
+           
 # ........................................................................      
    def _setCommon(self, intersectionLyrDLoc):
       set = True
@@ -108,10 +127,11 @@ class BioGeo():
       return fieldExists   
 # ........................................................................
    
-   def eachTwo(self):
+   def _eachTwo(self):
       """
       @summary: check to see if each shp file in contrast collection only has two features
       """
+      eachTwo = True
       try:
          for cShpDs in self.contrastColl:
             lyr = cShpDs.GetLayer(0)
@@ -121,7 +141,9 @@ class BioGeo():
                name = ntpath.basename(fn)
                raise Exception, "More than 2 features in lyr %s" % (name)
       except Exception,e:
+         eachTwo = False
          print str(e)
+      return eachTwo
 # ........................................................................
    @property
    def positions(self):
@@ -176,15 +198,21 @@ class BioGeo():
          contrastLyr.SetAttributeFilter(filter)
          innerList = [event]
          fc = contrastLyr.GetFeatureCount()  # if this is more than 2 throw exception and bail
+         if fc != 2:
+            contrasts = False
+            break
          for feature in contrastLyr:
             innerList.append(feature) #.GetGeometryRef())   
          contrasts.append(innerList)
       
       return contrasts
 # ........................................................................      
-   def buildContrastPostions(self,distinctEvents):
-      # was sending contrastLyrDS,eventFieldName,constrastShpName
-      #distinctEvents = self.getDistinctEvents(contrastLyrDS,eventFieldName,constrastShpName)
+   def buildContrastPostions(self, distinctEvents, fromCollection=False):
+      """
+      @summary: build look up for contrast methods and visualization of outputs
+      @todo: needs to get build for contrast collection too, which means not using distinct
+      events, which makes sense since shouldn't need EventField in collection.
+      """
       refD = {k:v for v,k in enumerate(distinctEvents)}
       return refD
 # ........................................................................   
@@ -193,6 +221,7 @@ class BioGeo():
       @summary: builds from one shapefile where feature is exclusive (no overlap)
       this doesn't use area, could be a problem if site intersects more then one event
       @note: TEST THIS WITH /home/jcavner/TASHI_PAM/Test!!
+      @note: have to disallow this method for merged data.
       """
       
       mds = self.contrastsDs
@@ -245,40 +274,43 @@ class BioGeo():
       """
       
       contrastData = self.getContrastsData()
-      eventPos =  self.positions
-      
-      gds = self.intersectionDs
-      gLyr = gds.GetLayer(0)
-      #
-      numRow = gLyr.GetFeatureCount()
-      numCol = len(contrastData)
-      # init Contrasts mtx
-      contrastsMtx = np.zeros((numRow,numCol),dtype=np.int)
-      sortedSites = self.sortedSites
-      #
-      for contrast in contrastData:  
-         event = contrast[0]
-         if event in eventPos:
-            colPos = eventPos[event]
-            for i, site in enumerate(sortedSites):   
-               siteGeom = site[1].GetGeometryRef()
-               A1 = 0.0
-               A2 = 0.0
-               if siteGeom.Intersect(contrast[1].GetGeometryRef()):
-                  intersection = siteGeom.Intersection(contrast[1].GetGeometryRef())
-                  A1 = intersection.GetArea()
-                  contrastsMtx[i][colPos] = -1
-               if siteGeom.Intersect(contrast[2].GetGeometryRef()):
-                  if A1 > 0.0:
-                     intersection = siteGeom.Intersection(contrast[2].GetGeometryRef())
-                     A2 = intersection.GetArea()
-                     if A2 > A1:
-                        contrastsMtx[i][colPos] = 1     
-                  else:
-                     contrastsMtx[i][colPos] = 1
-         else:
-            break
-      
+      if contrastData:
+         eventPos =  self.positions
+         
+         gds = self.intersectionDs
+         gLyr = gds.GetLayer(0)
+         #
+         numRow = gLyr.GetFeatureCount()
+         numCol = len(contrastData)
+         # init Contrasts mtx
+         contrastsMtx = np.zeros((numRow,numCol),dtype=np.int)
+         sortedSites = self.sortedSites
+         #
+         for contrast in contrastData:  
+            event = contrast[0]
+            if event in eventPos:
+               colPos = eventPos[event]
+               for i, site in enumerate(sortedSites):   
+                  siteGeom = site[1].GetGeometryRef()
+                  A1 = 0.0
+                  A2 = 0.0
+                  if siteGeom.Intersect(contrast[1].GetGeometryRef()):
+                     intersection = siteGeom.Intersection(contrast[1].GetGeometryRef())
+                     A1 = intersection.GetArea()
+                     contrastsMtx[i][colPos] = -1
+                  if siteGeom.Intersect(contrast[2].GetGeometryRef()):
+                     if A1 > 0.0:
+                        intersection = siteGeom.Intersection(contrast[2].GetGeometryRef())
+                        A2 = intersection.GetArea()
+                        if A2 > A1:
+                           contrastsMtx[i][colPos] = 1     
+                     else:
+                        contrastsMtx[i][colPos] = 1
+            else:
+               break
+      else:
+         #raise Exception, "method not available for this data type"
+         contrastsMtx = False
       return contrastsMtx
 # ........................................................................   
    def writeBioGeoMtx(self,mtx,dLoc):
@@ -651,8 +683,9 @@ if __name__ == "__main__":
    
    myObj = BioGeo(Mergeddloc,GridDloc,EventField)
    #mtx = myObj.buildFromMergedShp()  
+   #print "MTX ",mtx
    mtx = myObj.buildFromExclusive()
-   refD = myObj.positions
+   print myObj.positions  # does exist for mutually exclusive
    
    #cPickle.dump(refD, open("/home/jcavner/BiogeographyMtx_Inputs/Florida/pos.pkl",'w'))
    #cPickle.dump(refD, open("/home/jcavner/pos.pkl",'w'))
@@ -660,10 +693,10 @@ if __name__ == "__main__":
    sP = "/home/jcavner/BiogeographyMtx_Inputs/Florida/output.npy"
    sP = "/home/jcavner/testy.npy"
    
-   if myObj.writeBioGeoMtx(mtx, sP ):
-      print "saved mtx"
-   else:
-      print "did not write"
+   #if myObj.writeBioGeoMtx(mtx, sP ):
+   #   print "saved mtx"
+   #else:
+   #   print "did not write"
    
    #   Test Multiple Shp Files
    
