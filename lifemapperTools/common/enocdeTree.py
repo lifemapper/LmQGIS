@@ -29,6 +29,9 @@ def makeP(treeDict,I,branchLengths=False):
       sides = getSides(internal,lengths)
       matrix = np.zeros((len(tipIds),len(internalIds)),dtype=np.float)  # consider it's own init func
       P = buildP_WithBranch(matrix,sides,tips,internalIds,lengths,tipPaths)
+      Newmatrix = np.zeros((len(tipIds),len(internalIds)),dtype=np.float)
+      NewP = buildP_BrLen(Newmatrix, internal, sides, lengths, tips, tipPaths)
+      
    else:
       matrix = initMatrix(len(tipIds),len(internalIds))
       P = buildPMatrix(matrix,internalIds,tips, negsDict)
@@ -36,7 +39,7 @@ def makeP(treeDict,I,branchLengths=False):
    if len(tipsNotInMtx) > 0:
       I = processTipNotInMatrix(tipsNotInMtx, internal, I)
       
-   return P, I, internal
+   return P, I, internal, NewP
 # ........................................
    
 def buildTips(clade, noColPam): 
@@ -247,6 +250,7 @@ def getSides_0(internal,lengths):
 
 def getSides(internal,lengths):
    """
+   @summary: returns lenghts for all nodes on each side of a node for all nodes
    has to have complete lengths
    """
    def goToTip(clade):
@@ -278,9 +282,61 @@ def getSides(internal,lengths):
       else:
          sides[pi].append({pi:lengths[pi]})
    print sides
-   print
    return sides
 
+
+def buildP_BrLen(emptyMtx,internal,sides,lengths,tipsDictList,tipPaths):
+   """
+   @summary: new, more effecient method for br len enc.
+   @param lengths: lengths keys are ints
+   @param sides: sides keys are ints
+   """
+   
+   tipIds = [int(tp["pathId"]) for tp in tipsDictList] # maybe also flatten this to get mx by tip pathId
+   NotipsDescFromInternal = {}
+   for internalKey in sides:
+      if internalKey not in tipIds:
+         NotipsDescFromInternal[internalKey] = []
+         No = len([x for x in sides[internalKey][0].keys() if x in tipIds])
+         NotipsDescFromInternal[internalKey].append(No)
+         No = len([x for x in sides[internalKey][1].keys() if x in tipIds])
+         NotipsDescFromInternal[internalKey].append(No)
+   print "BBB"
+   print NotipsDescFromInternal
+   print "CCC"
+   mxByTip = {int(tipClade['pathId']):int(tipClade['mx']) for tipClade in tipsDictList}
+   sortedInternalKeys = sorted([int(k) for k in internal.keys()])
+   #print sortedInternalKeys
+   for col,k in enumerate(sortedInternalKeys):
+      # this loop should build mtx
+      #posSideClade = internal[k][0]  # clade dict
+      posDen = sum(sides[k][0].values()) * -1
+      print
+      print "posDen ",posDen
+      TipsPerSide = [x for x in sides[k][0].keys() if x in tipIds]
+      InternalPerSide = [x for x in sides[k][0].keys() if x not in tipIds]
+      for tip in TipsPerSide:
+         mx = mxByTip[tip]
+         tipLength = lengths[tip]
+         tipPath = [int(x) for x in tipPaths[str(tip)].split(",")]
+         print InternalPerSide
+         print [str(i)+" :  "+str(lengths[i])+"/"+str(sum(NotipsDescFromInternal[i])) for i in InternalPerSide if i in tipPath]
+         num = tipLength + sum([lengths[i]/sum(NotipsDescFromInternal[i]) for i in InternalPerSide if i in tipPath])
+         result = num/posDen
+         emptyMtx[mx][col] = result
+      #negSideClade = internal[k][1]  # clade dict
+      negDen = sum(sides[k][1].values()) 
+      TipsPerSide = [x for x in sides[k][1].keys() if x in tipIds]
+      InternalPerSide = [x for x in sides[k][1].keys() if x not in tipIds]
+      for tip in TipsPerSide:
+         mx = mxByTip[tip]
+         tipLength = lengths[tip]
+         tipPath = [int(x) for x in tipPaths[str(tip)].split(",")]
+         num = tipLength + sum([lengths[i]/sum(NotipsDescFromInternal[i]) for i in InternalPerSide if i in tipPath] )
+         result = num/negDen
+         emptyMtx[mx][col] = result
+         
+   return emptyMtx
 
 def buildP_WithBranch(emptyMtx, sides, tipsDictList, internalIds, lengths, tipPaths):
    """
@@ -383,6 +439,9 @@ if __name__ == "__main__":
    
    I = np.random.choice(2,24).reshape(4,6)
    
-   P, I, internal = makeP(tree,I,branchLengths=True)
+   P, I, internal,NewP = makeP(tree,I,branchLengths=True)
+   print
    print P
+   print
+   print NewP
 
