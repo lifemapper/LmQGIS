@@ -35,6 +35,7 @@ class Ui_Dialog(object):
 
       def setUpTabs(self):
          self.tabWidget = QTabWidget()
+         self.tabWidget.currentChanged.connect(self.tabChanged)
          
          ### Grid ###
          self.gridPage = QWidget()
@@ -51,10 +52,27 @@ class Ui_Dialog(object):
          self.searchLayout.addWidget(self.searchCombo.combo)
          self.searchLayout.addWidget(list)
          
-         self.projectCanvas = QListView()
+         ### PAM listing 
+         self.listLayout = QVBoxLayout()
+         self.listButLayout = QHBoxLayout()
+         #self.listButLayout.setMargin(0)
+         self.listButLayout.addWidget(self.searchController.newButton(newButController=self.searchController.createNewPAM))
+         two = QPushButton()
+         two.setAutoDefault(False)
+         three = QPushButton()
+         three.setAutoDefault(False)
+         self.listButLayout.addWidget(two)
+         self.listButLayout.addWidget(three)
+         
+         self.listLayout.addLayout(self.listButLayout)
+         self.listLayout.addWidget(self.searchController.projectCanvas)
+         
+         #self.projectCanvas = QListView()
          self.HorizSearch.addLayout(self.searchLayout)
-         self.HorizSearch.addWidget(self.projectCanvas)
+         #self.HorizSearch.addWidget(self.searchController.projectCanvas)
+         self.HorizSearch.addLayout(self.listLayout)
          ##############
+         ### plot ##
          
          self.plots = QWidget()
          self.plotLayout = QHBoxLayout(self.plots)
@@ -66,6 +84,12 @@ class Ui_Dialog(object):
          aw = PlotWindow(xs,ys,'dfas','hh','etertera','/home/jcavner')
          
          self.plotLayout.addWidget(aw)
+         ##############
+         
+         self.stats = QWidget()
+         self.statsLaYOUT = QHBoxLayout(self.stats)
+         
+         
          
          ##############
                   
@@ -78,7 +102,11 @@ class Ui_Dialog(object):
 
 
 
-
+      def tabChanged(self,pageIdx):
+      
+         print pageIdx
+         
+         
 
 
         
@@ -103,7 +131,7 @@ class MultiSpsDialog(QDialog, Ui_Dialog):
       self.gridController = grid.GridController()  # get controller before setting up UI
       # or get it in setupUI() before setting up tabs
       
-      self.searchController = archive.Search()
+      self.searchController = archive.UserArchiveController()
       
       
       self.setupUi()
