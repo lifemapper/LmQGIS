@@ -68,8 +68,8 @@ class PAMIconListModel(LmListModel):
       return None #QVariant()
    
    def flags(self, index):   
-      if True: #index.column() in self.editIndexes and index.column() not in self.controlIndexes:     
-         return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable  
+      if  index.isValid(): #index.column() in self.editIndexes and index.column() not in self.controlIndexes:     
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsDropEnabled
       #elif index.column() in self.controlIndexes:
       #   return Qt.ItemIsEnabled | Qt.ItemIsSelectable   
         
@@ -80,6 +80,7 @@ class PAMIconListModel(LmListModel):
       @summary: sets an individual item (cell) in the table data
       """
       try:
+         print "getting in here on drop, check to see if from drag"
          self.listData[index.row()][1] = value.toString()
       except Exception, e:
          self.listData[index.row()][1] = str(value)
@@ -177,13 +178,14 @@ class Search(object):
       
    #   self.PAMProjectView()
       
-   def hintBox(self, data=[]):
+   def hintBox(self, data=[], parent=None):
       
       """
       @summary: sets up the hint service and sets hint attribute
       combo can be added as a widget using self.hint.combo, callback
       adds extra functionality in addition to combo model
       """
+      self.parent = parent
       self.folderHint = ArchiveHint(None, callBack=self.callBack, setModel=False,data=data) #, serviceRoot=CURRENT_WEBSERVICES_ROOT
       archiveComboModel = ArchiveComboModel([],None)
       self.folderHint.model = archiveComboModel
@@ -208,9 +210,10 @@ class Search(object):
       
    def archiveListView(self):
       
-      self.listView = QListWidget()
+      self.listView = LmListWidget(self.parent)
       self.listView.setSelectionMode(QAbstractItemView.ExtendedSelection)
       self.listView.setDragEnabled(True)
+      self.listView.setDragDropMode(QAbstractItemView.DragOnly)
    
    def getTaxa(self):
       
@@ -219,19 +222,72 @@ class Search(object):
       spsByTaxa = [SpsSearchResult(k,taxa[k]) for k in taxa.keys()]
       return spsByTaxa
 
+class LmListWidget(QListWidget):
+   
+   def __init__(self,parent):
+      QListWidget.__init__(self, parent)
+   
+   def mimeTypes_bad(self, *args, **kwargs):
+      #return QListWidget.mimeTypes(self, *args, **kwargs)
+      print "mime types"
+      nl = QStringList()
+      nl.append("text/uri-list")
+      return nl
+   
+   def mimeData_bad(self, *args, **kwargs):
+      
+      print "mime"
+      mimeData = QMimeData()
+      mimeData.setData("text/uri-list","/home/jcavner/pamsum832.prj")
+      return mimeData
+      
+   def startDrag(self, *args, **kwargs):
+      print "start drag"
+      
+      drag = QDrag(self)  
+      mimeData = QMimeData()
+      mimeData.setData("text/uri-list","/home/jcavner/pamsum832.prj")
+      ##mimeData.setData("text/uri-list",fullPath)
+      #
+      drag.setMimeData(mimeData)   
+      ##pixmap = QPixmap()
+      ##pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
+      ##drag.setPixmap(pixmap)
+      #result = drag.start(Qt.MoveAction)
+      drag.start(Qt.MoveAction)
+      #return QListWidget.startDrag(self, *args, **kwargs)
+
+class PAMListView(QListView):
+   
+   def __init__(self,parent=None):
+      QListView.__init__(self, parent)
+   
+   def dragMoveEvent(self, *args, **kwargs):
+      
+      print "over view"
+      
+      return QListView.dragMoveEvent(self, *args, **kwargs)
+
+
 class PAMList():
    
-   def PAMProjectView(self):
+   def PAMProjectView(self,parent=None):
       
-      self.projectCanvas = QListView()
+      #self.projectCanvas = QListView()
+      self.projectCanvas = PAMListView(parent=parent)
       self.projectCanvas.setViewMode(QListView.IconMode)
-      self.projectCanvas.setMovement(QListView.Static)
+      self.projectCanvas.setMovement(QListView.Snap)  # QListView.Static doesn't allow drop?
       self.projectCanvas.setGridSize(QSize(100,100))
       self.projectCanvas.setIconSize(QSize(80,80))
       self.projectCanvas.setWrapping(True)
       
       self.projectCanvas.setContextMenuPolicy(Qt.CustomContextMenu)
       self.projectCanvas.customContextMenuRequested.connect(self.setAllPopUp)
+      
+      #self.projectCanvas.setDragEnabled(True)
+      #self.projectCanvas.setDragDropMode(QAbstractItemView.DropOnly)
+      self.projectCanvas.setAcceptDrops(True)
+      #self.projectCanvas.setDragDropOverwriteMode(True) # replaces text, without Static?
       
    def setAllPopUp(self,pos):
       try:
@@ -262,10 +318,11 @@ class PAMList():
    
 class UserArchiveController(Search,PAMList):
    
-   def __init__(self):
+   def __init__(self, parent=None):
       
-      self.PAMProjectView()
+      self.PAMProjectView(parent)
       self.getData()
+      self.parent = parent
       
    def getData(self):
       self.data = []

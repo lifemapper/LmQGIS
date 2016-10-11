@@ -48,7 +48,7 @@ class Ui_Dialog(object):
          self.HorizSearch = QHBoxLayout(self.searchPage)
          
          self.searchLayout = QVBoxLayout()
-         self.searchCombo,list = self.searchController.hintBox()
+         self.searchCombo,list = self.searchController.hintBox(parent = self.searchController.parent)
          self.searchLayout.addWidget(self.searchCombo.combo)
          self.searchLayout.addWidget(list)
          
@@ -131,7 +131,7 @@ class MultiSpsDialog(QDialog, Ui_Dialog):
       self.gridController = grid.GridController()  # get controller before setting up UI
       # or get it in setupUI() before setting up tabs
       
-      self.searchController = archive.UserArchiveController()
+      self.searchController = archive.UserArchiveController(parent=self)
       
       
       self.setupUi()
