@@ -74,7 +74,7 @@ class ConstructGrid(object):
       
       return bboxWidget
    
-   def resolutionGroup(self):
+   def BBOX_Aux_Group(self):
       
       ShapeOrBBOX = QWidget()
       RadioVBox = QVBoxLayout(ShapeOrBBOX)
@@ -87,6 +87,73 @@ class ConstructGrid(object):
       self.enterCoords.setChecked(True)
       self.enterCoords.setAutoExclusive(False)   
       self.enterCoords.clicked.connect(self.checkEnterCoords)
+      
+   def resolutionVBox(self):
+      
+      resWidget = QWidget()
+      resWidget.setMaximumSize(250, 260)
+      vBox = QVBoxLayout(resWidget)
+      
+      resolutionGroup = QGroupBox("Resolution")
+      resolutionGroup.setMaximumSize(260, 310)
+      resolutionGroup.setLayout(vBox)
+      style = QStyleFactory.create("motif") # try plastique too!
+      resolutionGroup.setStyle(style)
+            
+      self.shapelabel = QLabel("Cell Shape")
+      self.shapeHorizBox = QHBoxLayout()
+      self.hexCheck = QRadioButton('hexagonal')
+      self.hexCheck.setChecked(True)
+      self.shapeHorizBox.addWidget(self.hexCheck)
+      self.squareCheck = QRadioButton('square')
+      self.squareCheck.setChecked(False)
+      self.shapeHorizBox.addWidget(self.squareCheck)
+      #self.shapeHorizBox.addSpacing(189)   
+      
+      self.epsglabel = QLabel("EPSG Code")    # get auto filled
+      self.epsgEdit = QLineEdit()
+      self.epsgEdit.setMaximumWidth(238)  
+      
+      self.mapunitslabel = QLabel("Map Units")  # get auto filled
+      self.selectUnits = QComboBox()
+      self.selectUnits.setMaximumWidth(238)
+      self.selectUnits.addItem("feet",
+           '1')
+      self.selectUnits.addItem("inches",
+          'inches')
+      self.selectUnits.addItem("kilometers",
+           'kilometers')
+      self.selectUnits.addItem("meters",
+           '0')
+      self.selectUnits.addItem("miles",
+           'miles')
+      self.selectUnits.addItem("nauticalmiles",
+           'nauticalmiles')
+      self.selectUnits.addItem("dd",
+           '2')
+      
+      self.reslabel = QLabel("Cell Size in map units")
+      self.resEdit = QLineEdit()
+      self.resEdit.setMaximumWidth(238)
+      
+      self.namelabel = QLabel("Grid Name")
+      self.nameEdit = QLineEdit()
+      self.nameEdit.setMaximumWidth(238)
+      
+      vBox.addWidget(self.shapelabel)
+      vBox.addLayout(self.shapeHorizBox)
+      vBox.addWidget(self.epsglabel)
+      vBox.addWidget(self.epsgEdit)
+      vBox.addWidget(self.mapunitslabel)
+      vBox.addWidget(self.selectUnits)
+      vBox.addWidget(self.reslabel)
+      vBox.addWidget(self.resEdit)
+      vBox.addWidget(self.namelabel)
+      vBox.addWidget(self.nameEdit)
+      
+      #return resWidget
+      return resolutionGroup
+      
       
    
 class GridController(ConstructGrid):  #  will be able to inherit from multiple Ui classes
@@ -144,7 +211,58 @@ class GridController(ConstructGrid):  #  will be able to inherit from multiple U
    
    def validate(self):
       
-      pass
+      """
+      @summary: Validates the inputs for the dialog
+      """
+      valid = True
+      message = ""
+      self.keyvalues = {}
+      if self.hexCheck.isChecked():
+         self.keyvalues['cellShape'] = 'hexagon'
+      elif self.squareCheck.isChecked():
+         self.keyvalues['cellShape'] = 'square'          
+      self.keyvalues['mapUnits'] = str(self.selectUnits.currentText())
+      self.keyvalues['bbox'] = str(self.westEdit.text())+","+ \
+                                str(self.southEdit.text())+","+\
+                                str(self.eastEdit.text())+","+ \
+                                str(self.northEdit.text())
+      self.keyvalues['cellSize'] = str(self.resEdit.text())
+      self.keyvalues['epsgCode'] = str(self.epsgEdit.text())
+      self.keyvalues['shpName'] = str(self.nameEdit.text())      
+        
+      if self.selectedFeatureWKT is not None:
+         self.keyvalues['cutout'] = self.selectedFeatureWKT         
+      if len(self.northEdit.text()) <= 0 or not self._testFloat(self.northEdit.text()):
+         message = "Please supply a max y"
+         valid = False
+      elif len(self.southEdit.text()) <= 0 or not self._testFloat(self.southEdit.text()):
+         message = "Please supply a min y"
+         valid = False 
+      elif len(self.eastEdit.text()) <= 0 or not self._testFloat(self.eastEdit.text()):
+         message = "Please supply a max x"
+         valid = False
+      elif len(self.westEdit.text()) <= 0 or not self._testFloat(self.westEdit.text()):
+         message = "Please supply a min x"
+         valid = False
+      elif not self._checkBoundingBox():
+         message = "bounding box is incorrect"
+         valid = False
+      elif len(self.resEdit.text()) <= 0:
+         message = "Please supply a cell size"
+         valid = False 
+      elif len(self.epsgEdit.text()) <= 0:
+         message = "Please supply an epsg code"
+         valid = False
+      elif len(self.nameEdit.text()) <= 0:
+         message = "Please supply grid name"
+         valid = False         
+      
+      if not valid:
+         msgBox = QMessageBox.information(self,
+                                                "Problem...",
+                                                message,
+                                                QMessageBox.Ok)
+      return valid 
    
    def getFeatureWKT(self):
       layer = self.iface.activeLayer()

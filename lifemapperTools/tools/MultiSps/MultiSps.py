@@ -41,7 +41,9 @@ class Ui_Dialog(object):
          self.gridPage = QWidget()
          self.gridLayout = QHBoxLayout(self.gridPage)
          self.bbox = self.gridController.bboxEdit()  # can get Ui components from controller
+         self.resolutionControls = self.gridController.resolutionVBox()
          self.gridLayout.addWidget(self.bbox)
+         self.gridLayout.addWidget(self.resolutionControls)
          ##########
          
          self.searchPage = QWidget()
@@ -72,7 +74,11 @@ class Ui_Dialog(object):
          #self.HorizSearch.addWidget(self.searchController.projectCanvas)
          self.HorizSearch.addLayout(self.listLayout)
          ##############
-         ### plot ##
+         
+         
+         
+         
+         ### plots ##
          
          self.plots = QWidget()
          self.plotLayout = QHBoxLayout(self.plots)

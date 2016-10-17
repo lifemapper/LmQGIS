@@ -81,6 +81,7 @@ class PAMIconListModel(LmListModel):
       """
       try:
          print "getting in here on drop, check to see if from drag"
+         print type(value)
          self.listData[index.row()][1] = value.toString()
       except Exception, e:
          self.listData[index.row()][1] = str(value)
@@ -233,6 +234,11 @@ class LmListWidget(QListWidget):
       nl = QStringList()
       nl.append("text/uri-list")
       return nl
+   def mimeData(self, *args, **kwargs):
+      
+      print "args ",type(args[0][0]) # wow
+      print "kargs ",kwargs
+      return QListWidget.mimeData(self, *args, **kwargs)
    
    def mimeData_bad(self, *args, **kwargs):
       
@@ -243,19 +249,20 @@ class LmListWidget(QListWidget):
       
    def startDrag(self, *args, **kwargs):
       print "start drag"
-      
-      drag = QDrag(self)  
-      mimeData = QMimeData()
-      mimeData.setData("text/uri-list","/home/jcavner/pamsum832.prj")
-      ##mimeData.setData("text/uri-list",fullPath)
-      #
-      drag.setMimeData(mimeData)   
-      ##pixmap = QPixmap()
-      ##pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
-      ##drag.setPixmap(pixmap)
-      #result = drag.start(Qt.MoveAction)
-      drag.start(Qt.MoveAction)
-      #return QListWidget.startDrag(self, *args, **kwargs)
+      #print "args ",dir(args[0])
+      #print "kargs ",kwargs
+      #drag = QDrag(self)  
+      #mimeData = QMimeData()
+      #mimeData.setData("text/uri-list","/home/jcavner/pamsum832.prj")
+      ###mimeData.setData("text/uri-list",fullPath)
+      ##
+      #drag.setMimeData(mimeData)   
+      ###pixmap = QPixmap()
+      ###pixmap = pixmap.grabWidget(self, self.visualRect(itemIdx))
+      ###drag.setPixmap(pixmap)
+      ##result = drag.start(Qt.MoveAction)
+      #drag.start(Qt.MoveAction)
+      return QListWidget.startDrag(self, *args, **kwargs)
 
 class PAMListView(QListView):
    
@@ -264,7 +271,8 @@ class PAMListView(QListView):
    
    def dragMoveEvent(self, *args, **kwargs):
       
-      print "over view"
+      #print "over view"
+      #
       
       return QListView.dragMoveEvent(self, *args, **kwargs)
 
