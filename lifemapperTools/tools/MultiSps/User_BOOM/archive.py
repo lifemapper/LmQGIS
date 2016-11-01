@@ -302,18 +302,18 @@ class PAMList():
          index = self.projectCanvas.indexAt(pos)
          value = index.model().listData[index.row()][index.column()]
          menu = QMenu()
-         setAllAction = menu.addAction('Set All in this column to "'+str(value)+'"')
+         setAllAction = menu.addAction('MCPA "'+str(value)+'"')
          setSelected = menu.addAction('Set Selected in this column to "'+str(value)+'"')
          setEmpty = menu.addAction('Set empty cells in this column to "'+str(value)+'"')
          action = menu.exec_(QCursor.pos())
          if action == setAllAction:
-            self.setAllInColumn(index)
+            self.flipToMCPA(index)
          elif action == setSelected:
             self.setColumnsInSelectedRows(index)
          elif action == setEmpty:
             self.setEmptyInColumn(index)
       except Exception, e:
-         print str(e)  
+         print str(e) 
       
    def newButton(self,newButController=None):
       
@@ -331,6 +331,14 @@ class UserArchiveController(Search,PAMList):
       self.PAMProjectView(parent)
       self.getData()
       self.parent = parent
+      
+      
+   def flipToMCPA(self,index):
+      print index.row()
+      tabs = self.parent.tabWidget
+      mcpaWidget = self.parent.mcpaPage
+      tabs.setCurrentWidget(mcpaWidget)
+      
       
    def getData(self):
       self.data = []
