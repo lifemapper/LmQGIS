@@ -3,6 +3,7 @@ import logging
 import cPickle
 import csv
 import numpy as np
+from PyQt4.Qt import QVBoxLayout
 try: import simplejson as json 
 except: import json
 from collections import Counter
@@ -14,6 +15,8 @@ from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.tools.MultiSps.Grids import grid
 from lifemapperTools.tools.MultiSps.User_BOOM import archive
+from lifemapperTools.tools.MultiSps.MCPA import mcpa
+from lifemapperTools.tools.MultiSps.layers import layers
 from lifemapperTools.tools.MultiSps.common.plots import PlotWindow
 
 
@@ -45,7 +48,7 @@ class Ui_Dialog(object):
          self.gridLayout.addWidget(self.bbox)
          self.gridLayout.addWidget(self.resolutionControls)
          ##########
-         
+         ##########
          self.searchPage = QWidget()
          self.HorizSearch = QHBoxLayout(self.searchPage)
          
@@ -57,7 +60,6 @@ class Ui_Dialog(object):
          ### PAM listing 
          self.listLayout = QVBoxLayout()
          self.listButLayout = QHBoxLayout()
-         #self.listButLayout.setMargin(0)
          self.listButLayout.addWidget(self.searchController.newButton(newButController=self.searchController.createNewPAM))
          two = QPushButton()
          two.setAutoDefault(False)
@@ -69,15 +71,30 @@ class Ui_Dialog(object):
          self.listLayout.addLayout(self.listButLayout)
          self.listLayout.addWidget(self.searchController.projectCanvas)
          
-         #self.projectCanvas = QListView()
+         
          self.HorizSearch.addLayout(self.searchLayout)
-         #self.HorizSearch.addWidget(self.searchController.projectCanvas)
          self.HorizSearch.addLayout(self.listLayout)
          ##############
+         ##############
+         
+         # MCPA Page
+         
+         self.mcpaPage = QWidget()
+         self.horizMCPALyOut = QHBoxLayout(self.mcpaPage)
+         self.horizMCPALyOut.addWidget(self.mcpaController.inputEdits(parent=self))
+         self.horizMCPALyOut.addLayout(QVBoxLayout())
+         
+         ############
+         # PA Layers Trees?
+         self.layersPage = QWidget()
+         self.layersVLayout = QVBoxLayout(self.layersPage)
+         addLayerControls, outPutGroup,treeGroup = self.layersController.setupUi()
+         self.layersVLayout.addLayout(self.layersController.localTreeRadio())
+         self.layersVLayout.addWidget(treeGroup)
+         self.layersVLayout.addWidget(addLayerControls)
          
          
-         
-         
+         ##############
          ### plots ##
          
          self.plots = QWidget()
@@ -102,6 +119,8 @@ class Ui_Dialog(object):
          self.tabWidget.addTab(self.searchPage, 'Search')
          self.tabWidget.addTab(self.gridPage, 'Grids')
          self.tabWidget.addTab(self.plots,"plots")
+         self.tabWidget.addTab(self.mcpaPage,"mcpa")
+         self.tabWidget.addTab(self.layersPage,"layers")
          
 
          self.mainLayout.addWidget(self.tabWidget)
@@ -139,6 +158,9 @@ class MultiSpsDialog(QDialog, Ui_Dialog):
       
       self.searchController = archive.UserArchiveController(parent=self)
       
+      self.mcpaController = mcpa.MCPA_Controller()
+      
+      self.layersController = layers.LayerController(None)
       
       self.setupUi()
       
