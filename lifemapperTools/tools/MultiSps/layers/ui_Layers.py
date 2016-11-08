@@ -23,19 +23,68 @@
           02110-1301, USA.
 """
 from PyQt4 import QtCore, QtGui
+from qgis.core import *
+from qgis.gui import *
 from lifemapperTools.tools.radTable import *
+from lifemapperTools.common.lmListModel import LmListModel, EnterTextEventHandler
 from LmCommon.common.lmconstants import OutputFormat # OutputFormat.GTIFF, OutputFormat.SHAPE 
 import os
+import random
 
+class TreeSearchResult(object):
+   """
+   @summary: Data structure for species search results in the tree json
+   """
+   # .........................................
+   def __init__(self, name, mtrxId, treeId, path):
+      """
+      @summary: Constructor for SpeciesSearchResult object
+      
+      """
+      self.name = name
+      self.mtrxId = mtrxId
+      self.treeId = treeId
+      self.path = path  
+      
+      # .........................................
+   def customData(self):
+      """
+      @summary: Creates a string representation of the TreeSearchResult 
+                   object
+      """
+      return "%s" % (self.name)
+   
+class TreeSearchListModel(LmListModel):
+   """
+   @summary: subclass of LmListModel that overrides data
+   """
+   def data(self, index, role):
+      """
+      @summary: Gets data at the selected index
+      @param index: The index to return
+      @param role: The role of the item
+      @return: The requested item
+      @rtype: QtCore.QVariant
+      """
+      if index.isValid() and (role == Qt.DisplayRole or role == Qt.EditRole):
+         if index.row() == 1 and self.model:
+            return "build new model"
+         else:
+            return self.listData[index.row()].customData()
+      if index.isValid() and role == Qt.UserRole:
+         return self.listData[index.row()].id 
+      else:
+         return
 
 class Ui_Dialog(object):
    
-   def localTreeRadio(self):
+   def getTreeRadio(self):
       
       
       self.loadTreebuttonGrp = QButtonGroup()
       loadTreeHorizLyOut = QHBoxLayout()
       self.localRadio = QRadioButton("From File")
+      self.localRadio.setChecked(True)
       #self.localRadio.setId(1)
       self.openTreeRadio = QRadioButton("OpenTree")
       #self.openTreeRadio.setId(2)
@@ -55,38 +104,20 @@ class Ui_Dialog(object):
       
       return loadTreeHorizLyOut
       
-   def getTreeControls(self):
       
-      self.searchTreeCombo = QComboBox()
-      self.searchTreeCombo.setMaximumHeight(32)
-      self.searchTreeCombo.setMaximumWidth(210)
-      self.searchTreeCombo.hide()
-      self.searchTreeCombo.setEditable(True)
-      self.searchTreeCombo.setAutoCompletion(True)
-      self.searchTreeCombo.textChanged.connect(self.onTextChange)
+   def getLocalBrowse(self):
       
-      treeButton = QPushButton("Browse")
-      treeButton.setFocusPolicy(Qt.NoFocus)
-      treeButton.setMaximumSize(69, 28)
-      treeButton.setMinimumSize(69, 28)
-      self.treeLine = QLineEdit()
-      self.treeLine.setMaximumHeight(28)
-      self.treeLine.setMaximumWidth(164)
-      treeButton.clicked.connect(lambda: self.openFileDialog({'newick':['nhx','tre']},self.treeLine))
-      #######################################
-      self.treeLayout = QtGui.QHBoxLayout()
-      #self.treeLayout.setRowMinimumHeight(0,10)
-      #self.treeLayout.setRowMinimumHeight(1,40)
-      #self.treeLayout.setRowMinimumHeight(0,5)
-      #self.treeLayout.setColumnMinimumWidth(0,50)
-      #self.treeLayout.setColumnMinimumWidth(1,160)
-      #self.treeLayout.setColumnMinimumWidth(2,50)
+      self.LocalWidget = QWidget()
+      self.treeLayout = QtGui.QHBoxLayout(self.LocalWidget)
       
       self.treeButton = QtGui.QPushButton("Browse")
       self.treeButton.setFocusPolicy(QtCore.Qt.NoFocus)
       self.treeButton.setMaximumSize(69, 32)
       self.treeButton.setMinimumSize(69, 32)
-      self.treeButton.clicked.connect(self.showTreeFileDialog)
+      
+      ### ?
+      #self.treeButton.clicked.connect(self.showTreeFileDialog)
+      self.treeButton.clicked.connect(lambda: self.openFileDialog({'newick':['nhx','tre']},self.treeLine))
       
       self.convertButton = QtGui.QPushButton("Convert")
       self.convertButton.setMaximumSize(129, 32)
@@ -99,20 +130,160 @@ class Ui_Dialog(object):
       self.treeLayout.addWidget(self.treeButton)
       self.treeLayout.addWidget(self.treeLine)
       self.treeLayout.addWidget(self.convertButton)
-      #######################################
+      #return self.treeLayout
+      return self.LocalWidget
+   
+   def getOTLSearch(self):
       
-      self.getOTLTreeBut = QtGui.QPushButton("Get Tree")
+      self.OTLWidget = QWidget()
+      self.OTLWidget.hide()
+      self.getOTLTreeBut = QPushButton("Get Tree2")
       self.getOTLTreeBut.clicked.connect(self.getOTLTree)
       
-      self.convertOTLTreeBut = QtGui.QPushButton("Convert")
-      self.convertOTLTreeBut.clicked.connect(self.convertOTLNewick)
-      self.convertOTLTreeBut.setEnabled(False)
+      self.convertOTLTreeBut2 = QPushButton("Convert")
+      self.convertOTLTreeBut2.clicked.connect(self.convertOTLNewick)
+      self.convertOTLTreeBut2.setEnabled(False)
       
-      self.searchAuto = QtGui.QComboBox()
-      self.searchAuto.setEditable(True)
-      self.searchAuto.setAutoCompletion(True)
-      self.searchAuto.textChanged.connect(self.onTextChange)
+      self.searchAuto2 = QtGui.QComboBox()
+      self.searchAuto2.setMaximumHeight(32)
+      self.searchAuto2.setMaximumWidth(210)
+      self.searchAuto2.setEditable(True)
+      self.searchAuto2.setAutoCompletion(True)
+      self.searchAuto2.textChanged.connect(self.onTextChange)
+      
+      horizLayout = QHBoxLayout(self.OTLWidget)
+      horizLayout.addWidget(self.searchAuto2)
+      horizLayout.addWidget(self.getOTLTreeBut)
+      horizLayout.addWidget(self.convertOTLTreeBut2)
+      #return horizLayout
+      return self.OTLWidget
    
+   def getUserSpsSearch(self):
+      
+      self.UserWidget = QWidget()
+      self.UserWidget.hide()
+      self.searchTreeCombo = QComboBox()
+      self.searchTreeCombo.setMaximumHeight(32)
+      self.searchTreeCombo.setMaximumWidth(210)
+      self.searchTreeCombo.setEditable(True)
+      self.searchTreeCombo.setAutoCompletion(True)
+      self.searchTreeCombo.textChanged.connect(self.onUserTextChange)
+      
+      self.getUserTreeBut = QtGui.QPushButton("Get User Tree")
+      #?
+      self.getUserTreeBut.clicked.connect(self.getOTLTree)
+      
+      self.convertUserTreeBut = QtGui.QPushButton("Convert")
+      #?
+      self.convertUserTreeBut.clicked.connect(self.convertOTLNewick)
+      self.convertUserTreeBut.setEnabled(False)
+      
+      horizLayout = QHBoxLayout(self.UserWidget)
+      horizLayout.addWidget(self.searchTreeCombo)
+      horizLayout.addWidget(self.getUserTreeBut)
+      horizLayout.addWidget(self.convertUserTreeBut)
+      #return horizLayout
+      return self.UserWidget
+      
+      
+   def getTreeControls(self):
+      
+      verticalControlBox = QVBoxLayout()
+      verticalControlBox.addLayout(self.getTreeRadio())
+      verticalControlBox.addWidget(self.getLocalBrowse())
+      verticalControlBox.addWidget(self.getUserSpsSearch())
+      verticalControlBox.addWidget(self.getOTLSearch())
+      return verticalControlBox
+      
+   
+   def openFileDialog(self,fileExtensions,setWidget,oneFile=True):
+      """
+      @summary: Shows a file selection dialog
+      @param fileExtensions: dictionary, english name,list of extenstions
+      """
+      settings = QSettings()
+      dirName = settings.value( "/UI/lastShapefileDir" )  ### have to take this out when in QGIS
+      #filetypestr = "%s files (*.%s)" % ("newick", "nhx")
+      extensions = ['*.%s' % (x) for x in fileExtensions[fileExtensions.keys()[0]]]
+      filetypestr = "%s files (%s)" % (fileExtensions.keys()[0],' '.join(extensions)) 
+      print filetypestr
+      try:
+         fileDialog = QgsEncodingFileDialog( self.parent, "Open File", dirName, filetypestr)
+      except:
+         fileDialog = QgsEncodingFileDialog( self.parent, "Open File", QString(), QString())
+      #fileDialog.setDefaultSuffix(  "nhx"  )
+      if oneFile:
+         fileDialog.setFileMode( QFileDialog.AnyFile )
+      else:
+         fileDialog.setFileMode(QFileDialog.ExistingFiles) 
+      fileDialog.setAcceptMode( QFileDialog.AcceptOpen )
+      #fileDialog.setConfirmOverwrite( True )
+      if not fileDialog.exec_() == QFileDialog.Accepted:
+         return
+      filename = fileDialog.selectedFiles()
+      setWidget.setText(str(filename[0]))
+   
+      # .......................................................................  
+   ###################################    
+   def setModels(self):
+      
+      # for uer trees
+      self.pilotList = []
+      for x in range(0,33):
+         self.pilotList.append({'name':'ace'+''.join(random.choice('0123456789ABCDEF') for i in range(4)),'path':''})
+         self.pilotList.append({'name':'ara'+''.join(random.choice('0123456789ABCDEF') for i in range(4)),'path':''})
+         self.pilotList.append({'name':'arab'+''.join(random.choice('0123456789ABCDEF') for i in range(4)),'path':''})
+      print self.pilotList
+      
+      self.treeHintModel = TreeSearchListModel([])
+      self.searchTreeCombo.setModel(self.treeHintModel)
+      
+   def searchJSON(self,text):
+      # for uer trees
+      matchingDicts =  [v for i,v in enumerate(self.pilotList) if v['name'].startswith(text)]
+      if len(matchingDicts) > 0:
+         self.searchItems = [TreeSearchResult(d['name'],'','',d["path"]) for d in matchingDicts]
+      else:
+         self.searchItems = [TreeSearchResult('','','','')]
+      self.treeHintModel.updateList(self.searchItems)
+
+
+   def getIdxFromSearchItems(self,currentText):
+      # for uer trees
+      idx = 0
+      # sO search result Object
+      for sH in self.searchItems:
+         if sH.name == currentText:
+            break
+         idx += 1
+      return idx 
+   
+   def onUserTextChange(self, text):
+      """
+      @summary: connected to combobox, for user trees
+      @param text: str from combobox
+      """
+      noChars = len(text)
+      if text == '':
+         self.searchTreeCombo.clear()
+      if noChars >= 3:
+         #if "_" in text or " " in text:
+         currText = self.searchTreeCombo.currentText() # new on June 17 2015
+         #currentIdx = self.searchTreeCombo.currentIndex()
+         #if currentIdx == -1:
+         idx = self.getIdxFromSearchItems(currText)
+         self.searchTreeCombo.setCurrentIndex(idx)
+         currentIdx = self.searchTreeCombo.currentIndex()
+         try:
+            self.path = self.treeHintModel.listData[currentIdx].path # might want the path here, instead
+         except:
+            pass
+         else:
+            return
+      else:
+         self.searchJSON(text)
+   
+   ###################################
    def setupUi(self, experimentname=''):
       
       self.hasOGR = True
@@ -240,16 +411,16 @@ class Ui_Dialog(object):
       self.getOTLTreeBut = QtGui.QPushButton("Get Tree")
       self.getOTLTreeBut.clicked.connect(self.getOTLTree)
       
-      #self.convertOTLTreeBut = QtGui.QPushButton("Convert")
-      #self.convertOTLTreeBut.clicked.connect(self.convertOTLNewick)
-      #self.convertOTLTreeBut.setEnabled(False)
+      self.convertOTLTreeBut = QtGui.QPushButton("Convert")
+      self.convertOTLTreeBut.clicked.connect(self.convertOTLNewick)
+      self.convertOTLTreeBut.setEnabled(False)
       
       #### need some connects ########
       
-      #self.searchAuto = QtGui.QComboBox()
-      #self.searchAuto.setEditable(True)
-      #self.searchAuto.setAutoCompletion(True)
-      #self.searchAuto.textChanged.connect(self.onTextChange)
+      self.searchAuto = QtGui.QComboBox()
+      self.searchAuto.setEditable(True)
+      self.searchAuto.setAutoCompletion(True)
+      self.searchAuto.textChanged.connect(self.onTextChange)
       
       self.OTLLayout.addWidget(QWidget(),0,0,1,1)
       self.OTLLayout.addWidget(self.searchAuto,1,0,1,1)

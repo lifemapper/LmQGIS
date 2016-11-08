@@ -128,7 +128,9 @@ class LayerController(Ui_Dialog):
       """
       
       
-      self.makeAuto()
+      #self.makeAuto()
+      self.treeControls = self.getTreeControls()
+      self.LocalWidget.isVisible()
       #self.setupUi(experimentname=experimentname)
       if resume:
          iface.addProject(resume)
@@ -155,11 +157,20 @@ class LayerController(Ui_Dialog):
       
       radioId = self.loadTreebuttonGrp.checkedId()
       if radioId == 1:
-         print "from file"
+         self.LocalWidget.show()
+         self.OTLWidget.hide()
+         self.UserWidget.hide()
+         
       if radioId == 2:
-         print "open tree"
+         self.LocalWidget.hide()
+         self.OTLWidget.hide()
+         self.UserWidget.show()
+         
       if radioId == 3:
-         print "user trees"
+         
+         self.LocalWidget.hide()
+         self.OTLWidget.show()
+         self.UserWidget.hide()
       
    def onTextChange(self, text):
       
@@ -168,11 +179,11 @@ class LayerController(Ui_Dialog):
       noChars = len(displayName)
       
       if text == '':
-         self.searchAuto.clear()
+         self.searchAuto2.clear()
       if noChars >= 3:
-         currentIdx = self.searchAuto.currentIndex()
+         currentIdx = self.searchAuto2.currentIndex()
          if currentIdx == -1:
-            #self.searchAuto.setCurrentIndex(0)
+            #self.searchAuto2.setCurrentIndex(0)
             pass
       
       if ("(" not in text and ")" not in text):
@@ -209,19 +220,22 @@ class LayerController(Ui_Dialog):
    # ................................................      
    def setModels(self):
       self.ottListModel = OTTSearchModel([OTTSearchResult({"ot:ottId":'-999',"unique_name":""})],None)
-      self.searchAuto.setModel(self.ottListModel)
+      self.searchAuto2.setModel(self.ottListModel)
    # ................................................   
    def setEventHandlers(self):
       
       # uninstalled backspace event handler Sept. 3, 2015      
-      self.userEnters = EnterTextEventHandler(self.searchAuto,self.ottListModel,
-                                              extraControl=self.convertOTLTreeBut)         
+      #self.userEnters = EnterTextEventHandler(self.searchAuto2,self.ottListModel,
+      #                                        extraControl=self.convertOTLTreeBut) 
+      
+      self.userEnters = EnterTextEventHandler(self.searchAuto2,self.ottListModel,
+                                              extraControl=self.convertOTLTreeBut2)        
       
    # ................................................
    def getOTLTree(self):
       # get the ott id from current idx
-      self.searchAuto.clearFocus()
-      currentIdx = self.searchAuto.currentIndex()
+      self.searchAuto2.clearFocus()
+      currentIdx = self.searchAuto2.currentIndex()
       ottId = str(self.ottListModel.listData[currentIdx].ottId)
       #print "OTTID ",ottId
       #ottId = 864593
