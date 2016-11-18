@@ -14,11 +14,27 @@ from lifemapperTools.tools.radTable import *
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.tools.MultiSps.Grids import grid
+from lifemapperTools.tools.MultiSps.layers.navigation import NavTreeView,NavTreeModel
 from lifemapperTools.tools.MultiSps.User_BOOM import archive
 from lifemapperTools.tools.MultiSps.MCPA import mcpa
 from lifemapperTools.tools.MultiSps.layers import layers
 from lifemapperTools.tools.MultiSps.common.plots import PlotWindow
+from lifemapperTools.common.LmQTree import TreeItem
 
+
+
+class NavigationItem(QListWidgetItem):
+   
+   def __init__(self,result,parent,reds=[],blues=[],rowIdx=0,page=None):
+      QListWidgetItem.__init__(self,result[0],parent,QListWidgetItem.UserType)
+      
+      
+      self.page = result[1]
+      #if self.pathId in reds:
+      #   self.setBackground(Qt.red) # sets red backdround
+      #   #parent.setItemDelegateForRow(rowIdx,SelectedDelegate(Qt.red))  # doesn't work right now
+      #if self.pathId in blues:
+      #   self.setBackground(Qt.cyan)
 
 
 
@@ -30,15 +46,61 @@ class Ui_Dialog(object):
          self.setMaximumSize(998, 770)
          self.setSizeGripEnabled(True)
          
-         self.mainLayout = QGridLayout(self)
+         self.mainLayout = QHBoxLayout(self)
          #self.gridController = grid.GridController()
-         self.setUpTabs()
+         self.setUpTabs(stackedWidget=True)
          
+      def handle(self,index):
          
-
-      def setUpTabs(self):
-         self.tabWidget = QTabWidget()
-         self.tabWidget.currentChanged.connect(self.tabChanged)
+         #print "double index ",index
+         pass
+      
+      def setUpStackedFolderView(self):
+         
+         self.folderTreeView = NavTreeView(None,dialog=self)#, parent = self.folderPage)
+         self.folderTreeView.setMinimumWidth(198)
+         self.folderTreeView.doubleClicked.connect(self.handle)
+         #self.folderTreeView = QTreeView()
+         self.folderModel = NavTreeModel(top='Multi Species Analysis') # 'Africa Mammals PAM'
+         self.folderTreeView.setModel(self.folderModel)
+         self.folderTreeView.setObjectName("folderTreeView")
+         
+         MCPAFolder = TreeItem("MCPA","MCPA",self.folderModel.provider)
+         RawMCPA = TreeItem("prepared inputs","prepared inputs",MCPAFolder)
+         
+         RADFolder = TreeItem("RAD","RAD",self.folderModel.provider)
+         RawRAD = TreeItem("prepared inputs","prepared inputs",RADFolder)
+         
+      
+      def setUpStackedWidgets(self): 
+         pass 
+      
+      def navigateToPanel(self, item):
+         
+         self.stackedWidget.setCurrentWidget(item.page)
+      
+      
+      def setUpNavigation(self,folder=True):
+         if not folder:
+            self.navList = QListWidget()
+            self.navList.setMinimumWidth(188)
+            self.navList.itemClicked.connect(self.navigateToPanel)
+            #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
+            for res in zip(["Range Diveristy Plots","Search for Trees","Build MCPA","Search Archive","Build Grid"],self.allPages):
+               NavigationItem(res, self.navList, QListWidgetItem.UserType)
+         else:
+            self.setUpStackedFolderView()
+            self.navList = self.folderTreeView
+         return self.navList
+         
+      def setUpTabs(self, stackedWidget=False):
+         
+         if not stackedWidget:
+            self.tabWidget = QTabWidget()
+            self.tabWidget.currentChanged.connect(self.tabChanged)
+            
+         else:
+            self.stackedWidget = QStackedWidget()
          
          ### Grid ###
          self.gridPage = QWidget()
@@ -89,7 +151,7 @@ class Ui_Dialog(object):
          self.layersPage = QWidget()
          self.layersVLayout = QVBoxLayout(self.layersPage)
          addLayerControls, outPutGroup,treeGroup = self.layersController.setupUi()
-         self.layersVLayout.addLayout(self.layersController.localTreeRadio())
+         self.layersVLayout.addLayout(self.layersController.treeControls) #(self.layersController.localTreeRadio())
          self.layersVLayout.addWidget(treeGroup)
          self.layersVLayout.addWidget(addLayerControls)
          
@@ -113,17 +175,25 @@ class Ui_Dialog(object):
          self.statsLaYOUT = QHBoxLayout(self.stats)
          
          
-         
+         self.allPages = [self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
          ##############
-                  
-         self.tabWidget.addTab(self.searchPage, 'Search')
-         self.tabWidget.addTab(self.gridPage, 'Grids')
-         self.tabWidget.addTab(self.plots,"plots")
-         self.tabWidget.addTab(self.mcpaPage,"mcpa")
-         self.tabWidget.addTab(self.layersPage,"layers")
+         if not stackedWidget:         
+            self.tabWidget.addTab(self.searchPage, 'Search')
+            self.tabWidget.addTab(self.gridPage, 'Grids')
+            self.tabWidget.addTab(self.plots,"plots")
+            self.tabWidget.addTab(self.mcpaPage,"mcpa")
+            self.tabWidget.addTab(self.layersPage,"layers")
+            
+            self.mainLayout.addWidget(self.tabWidget)
+         else:
+            self.stackedWidget.addWidget(self.searchPage)
+            self.stackedWidget.addWidget(self.gridPage)
+            self.stackedWidget.addWidget(self.plots,)
+            self.stackedWidget.addWidget(self.mcpaPage)
+            self.stackedWidget.addWidget(self.layersPage)
+            self.mainLayout.addWidget(self.setUpNavigation())
+            self.mainLayout.addWidget(self.stackedWidget)
          
-
-         self.mainLayout.addWidget(self.tabWidget)
 
 
 
