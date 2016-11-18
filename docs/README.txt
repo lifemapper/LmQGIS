@@ -15,7 +15,7 @@ LmShared -- LmClient and LmCommon
 Tools -- all dialog code. dialog code is all MVC,  View modules (ui visual components only)  all begin with ui_*.  With a few exceptions where
 ui components were small and could be easily exist in a separate class in the controller module. All ui code uses PyQT for Qt4.x. The controller code itself are non ui_* prefixed.
 Every controller module inherits from its appropriate ui. This follows normal QGIS plugin protocols and conventions. The controller code works with the data
-model to inform the view in the ui view modules.  Communication between dialogs is achieved through signals and the communication module which also ties
+model to inform the view in the ui view modules.  Communication between dialogs is achieved through signals for 
 the menu system in common/metools.  treeWeb.html is d3 javascript for achieiving fluid tree visualization communication between it
 and python in the MVC is achieved with a built in bridge kit in Qt.
 
