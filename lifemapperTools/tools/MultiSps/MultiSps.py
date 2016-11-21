@@ -70,7 +70,11 @@ class Ui_Dialog(object):
          RawMCPA = NavTreeItem("prepared inputs","prepared inputs",MCPAFolder,page=self.mcpaPage)
          
          RADFolder = NavTreeItem("RAD","RAD",self.folderModel.provider)
-         RawRAD = NavTreeItem("prepared inputs","prepared inputs",RADFolder)
+         RawRAD  = NavTreeItem("Enter All Inputs","Need All Inputs",RADFolder)
+         TreeLyrsRAD = NavTreeItem("Tree/Layers","Tree/Layers",RawRAD,page=self.layersPage)
+         GridRAD = NavTreeItem("Grid","Grid",RawRAD,page=self.gridPage)
+         
+         PreparedRAD  = NavTreeItem("Enter Prepared Inputs","Have Prepared Inputs",RADFolder)
          
       
       def setUpStackedWidgets(self): 
