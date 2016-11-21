@@ -14,7 +14,7 @@ from lifemapperTools.tools.radTable import *
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.tools.MultiSps.Grids import grid
-from lifemapperTools.tools.MultiSps.layers.navigation import NavTreeView,NavTreeModel
+from lifemapperTools.tools.MultiSps.common.navigation import NavTreeView,NavTreeModel,NavTreeItem
 from lifemapperTools.tools.MultiSps.User_BOOM import archive
 from lifemapperTools.tools.MultiSps.MCPA import mcpa
 from lifemapperTools.tools.MultiSps.layers import layers
@@ -57,7 +57,7 @@ class Ui_Dialog(object):
       
       def setUpStackedFolderView(self):
          
-         self.folderTreeView = NavTreeView(None,dialog=self)#, parent = self.folderPage)
+         self.folderTreeView = NavTreeView(None,dialog=self, stackedWidget= self.stackedWidget)#, parent = self.folderPage)
          self.folderTreeView.setMinimumWidth(198)
          self.folderTreeView.doubleClicked.connect(self.handle)
          #self.folderTreeView = QTreeView()
@@ -65,11 +65,12 @@ class Ui_Dialog(object):
          self.folderTreeView.setModel(self.folderModel)
          self.folderTreeView.setObjectName("folderTreeView")
          
-         MCPAFolder = TreeItem("MCPA","MCPA",self.folderModel.provider)
-         RawMCPA = TreeItem("prepared inputs","prepared inputs",MCPAFolder)
+         #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
+         MCPAFolder = NavTreeItem("MCPA","MCPA",self.folderModel.provider)
+         RawMCPA = NavTreeItem("prepared inputs","prepared inputs",MCPAFolder,page=self.mcpaPage)
          
-         RADFolder = TreeItem("RAD","RAD",self.folderModel.provider)
-         RawRAD = TreeItem("prepared inputs","prepared inputs",RADFolder)
+         RADFolder = NavTreeItem("RAD","RAD",self.folderModel.provider)
+         RawRAD = NavTreeItem("prepared inputs","prepared inputs",RADFolder)
          
       
       def setUpStackedWidgets(self): 
@@ -86,8 +87,10 @@ class Ui_Dialog(object):
             self.navList.setMinimumWidth(188)
             self.navList.itemClicked.connect(self.navigateToPanel)
             #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
-            for res in zip(["Range Diveristy Plots","Search for Trees","Build MCPA","Search Archive","Build Grid"],self.allPages):
-               NavigationItem(res, self.navList, QListWidgetItem.UserType)
+            TTips = ["Range Diveristy Plots","Search/Attach Trees to Layers","Build MCPA","Search Archive","Build Grid"]
+            for res in zip(["Range Diveristy Plots","Search/Attach Trees to Layers","Build MCPA","Search Archive","Build Grid"],self.allPages,TTips):
+               navItem = NavigationItem(res, self.navList, QListWidgetItem.UserType)
+               navItem.setToolTip(res[2])
          else:
             self.setUpStackedFolderView()
             self.navList = self.folderTreeView
