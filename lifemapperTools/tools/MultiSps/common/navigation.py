@@ -2,13 +2,21 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from lifemapperTools.common.LmQTree import BrowserTreeModel, TreeItem
 
+
+class NavTreeItem(TreeItem):
+   
+   def __init__(self, data, name, parent=None,page=None,stackedWidget=None):
+      TreeItem.__init__(self, data,name,parent=parent)
+      self.page = page
+      
+
 class NavTreeView(QTreeView):   
    
-   def __init__(self, client ,tmpDir = None, parent=None, dialog=None, workspace=None):
+   def __init__(self, client ,tmpDir = None, parent=None, dialog=None, workspace=None,stackedWidget=None):
          
       QTreeView.__init__(self,parent)
       
-      
+      self.stackedWidget = stackedWidget
       self.setRootIsDecorated(True)
       
       self.header().hide()
@@ -21,6 +29,7 @@ class NavTreeView(QTreeView):
       
       print "in folder event"
       # will need to get type
+      self.stackedWidget.setCurrentWidget(self.model().nodeFromIndex(index).page)
       #try:
       childRowIdx = index.row()
       itemData = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData
