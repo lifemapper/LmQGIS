@@ -51,6 +51,12 @@ class ArchiveComboModel(LmListModel):
 
 class PAMIconListModel(LmListModel):
    
+   def __init__(self,data,startBut):
+      
+      LmListModel.__init__(self, data)
+      self.startBut = startBut
+      
+   
    def data(self, index, role):
       """
       @summary: Gets data at the selected index
@@ -80,10 +86,13 @@ class PAMIconListModel(LmListModel):
       @summary: sets an individual item (cell) in the table data
       """
       try:
+         # can send to server, or store name, andor enable start
          print "getting in here on drop, check to see if from drag"
+         self.startBut.setEnabled(True)  # put this in function will need to do several things
          print type(value)
          self.listData[index.row()][1] = value.toString()
       except Exception, e:
+         print "FAIL ",str(e)
          self.listData[index.row()][1] = str(value)
       self.dataChanged.emit(index,index)
       return True
@@ -279,6 +288,10 @@ class PAMListView(QListView):
 
 class PAMList():
    
+   def __init__(self):
+      
+      self.ExpButtons()
+   
    def PAMProjectView(self,parent=None):
       
       #self.projectCanvas = QListView()
@@ -323,20 +336,21 @@ class PAMList():
       newPAMButton.setAutoDefault(False)
       newPAMButton.setMinimumWidth(158)   # MIGHT WANT TO RETURN HORIZ LAYOUT
       
-      startBut = QPushButton("Start")
-      startBut.setEnabled(False)
-      startBut.setAutoDefault(False)
-      AddButton = QPushButton("Add To")
-      AddButton.setEnabled(False)
-      AddButton.setAutoDefault(False)
+      self.startBut = QPushButton("Start")
+      self.startBut.setEnabled(False)
+      self.startBut.setAutoDefault(False)
+      self.AddButton = QPushButton("Add To")
+      self.AddButton.setEnabled(False)
+      self.AddButton.setAutoDefault(False)
       
       
-      return newPAMButton,startBut,AddButton
+      return newPAMButton,self.startBut,self.AddButton
    
 class UserArchiveController(Search,PAMList):
    
    def __init__(self, parent=None):
       
+      PAMList.__init__(self)
       self.PAMProjectView(parent)
       self.getData()
       self.parent = parent
@@ -358,8 +372,12 @@ class UserArchiveController(Search,PAMList):
       except:
          pass
       else:
-         self.archiveModel = PAMIconListModel(self.data)
+         self.archiveModel = PAMIconListModel(self.data,self.startBut)
          self.projectCanvas.setModel(self.archiveModel)
+         
+   def enteredName(self,something):
+      
+      print something
          
    def createNewPAM(self):
       
@@ -374,6 +392,8 @@ class UserArchiveController(Search,PAMList):
       #selModel.select(newIdx,QItemSelectionModel.Select)
       self.projectCanvas.setCurrentIndex(newIdx)
       self.projectCanvas.setEditTriggers(QAbstractItemView.DoubleClicked)
+      #QAbstractItemView.currentIndex().connect.entered(self.enteredName)  #???? should be a way here 
+      # even with a list model
       
       
       
