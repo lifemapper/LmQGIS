@@ -19,9 +19,12 @@ class NavigationListItem(QListWidgetItem):
 
 class NavTreeItem(TreeItem):
    
-   def __init__(self, data, name, type = None, parent=None,page=None,stackedWidget=None):
+   def __init__(self, data, name, parent=None, type = None,page=None,stackedWidget=None,hide=None,open=None):
       TreeItem.__init__(self, data,name,parent=parent)
       self.page = page
+      self.type = type
+      self.hide = hide
+      self.open = open
       
 
 class NavTreeView(QTreeView):   
@@ -41,9 +44,16 @@ class NavTreeView(QTreeView):
          
    def handleEvent(self, index):
       
+      
       print "in folder event"
       # will need to get type
       self.stackedWidget.setCurrentWidget(self.model().nodeFromIndex(index).page)
+      hide = self.model().nodeFromIndex(index).hide
+      print "hide ",hide
+      if hide is not None:
+         for h in hide:
+            print h
+            h.setEnabled(False)
       #try:
       childRowIdx = index.row()
       itemData = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData

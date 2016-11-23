@@ -19,6 +19,7 @@ from lifemapperTools.tools.MultiSps.User_BOOM import archive
 from lifemapperTools.tools.MultiSps.MCPA import mcpa
 from lifemapperTools.tools.MultiSps.layers import layers
 from lifemapperTools.tools.MultiSps.common.plots import PlotWindow
+from lifemapperTools.tools.MultiSps.common.localConstants import ListNav,FloderNav
 
 
 
@@ -34,10 +35,6 @@ class Ui_Dialog(object):
          #self.gridController = grid.GridController()
          self.setUpTabs(stackedWidget=True)
          
-      def handle(self,index):
-         
-         #print "double index ",index
-         pass
       
       def setUpStackedFolderView(self):
          
@@ -51,8 +48,9 @@ class Ui_Dialog(object):
          
          #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
          MCPAFolder = NavTreeItem("MCPA","MCPA",self.folderModel.provider)
-         NewMCPA = NavTreeItem("New MCP Exp","New MCP Exp",MCPAFolder,page=self.mcpaPage)
+         NewMCPA = NavTreeItem("New MCP Exp","New MCP Exp",MCPAFolder)
          RawMCPA = NavTreeItem("prepared inputs","prepared inputs",NewMCPA,page=self.mcpaPage)
+         ListStartMewMCPA = NavTreeItem("List/StartNew","List/StartNew",NewMCPA, page=self.searchPage,type=FloderNav.PARTIALPAGE,hide=[self.searchCombo.combo,self.spslistView])
          
          RADFolder = NavTreeItem("RAD","RAD",self.folderModel.provider)
          RawRAD  = NavTreeItem("Enter All Inputs","Need All Inputs",RADFolder)
@@ -107,27 +105,32 @@ class Ui_Dialog(object):
          self.searchPage = QWidget()
          self.HorizSearch = QHBoxLayout(self.searchPage)
          
+         self.hideshowSearch = QWidget()  # doesn't work as parent to searchLayout
          self.searchLayout = QVBoxLayout()
-         self.searchCombo,list = self.searchController.hintBox(parent = self.searchController.parent)
+         self.searchCombo,self.spslistView = self.searchController.hintBox(parent = self.searchController.parent)
          self.searchLayout.addWidget(self.searchCombo.combo)
-         self.searchLayout.addWidget(list)
+         self.searchLayout.addWidget(self.spslistView)
          
          ### PAM listing 
          self.listLayout = QVBoxLayout()
          self.listButLayout = QHBoxLayout()
-         self.listButLayout.addWidget(self.searchController.newButton(newButController=self.searchController.createNewPAM))
-         two = QPushButton()
-         two.setAutoDefault(False)
-         three = QPushButton()
-         three.setAutoDefault(False)
-         self.listButLayout.addWidget(two)
-         self.listButLayout.addWidget(three)
+         self.NewPAMButton, self.StartPAMButton, self.AddToPAMButton = self.searchController.ExpButtons(newButController=self.searchController.createNewPAM)
+         self.listButLayout.addWidget(self.NewPAMButton)
+         #two = QPushButton("Start")
+         #two.setEnabled(False)
+         #two.setAutoDefault(False)
+         #three = QPushButton("Add To")
+         #three.setEnabled(False)
+         #three.setAutoDefault(False)
+         self.listButLayout.addWidget(self.StartPAMButton)
+         self.listButLayout.addWidget(self.AddToPAMButton)
          
          self.listLayout.addLayout(self.listButLayout)
          self.listLayout.addWidget(self.searchController.projectCanvas)
          
          
          self.HorizSearch.addLayout(self.searchLayout)
+         #self.HorizSearch.addWidget(self.hideshowSearch)
          self.HorizSearch.addLayout(self.listLayout)
          ##############
          ##############

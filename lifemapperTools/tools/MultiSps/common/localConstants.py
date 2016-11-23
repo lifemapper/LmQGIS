@@ -1,4 +1,12 @@
-class TreeNav():
+class FloderNav:
    
-   TIP = 0
-   PARTIALPAGE = 1
+   
+   FOlDER = 0
+   TIP = 1
+   PAGE = 2
+   PARTIALPAGE = 3
+   
+   
+class ListNav:
+   
+   pass

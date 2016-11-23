@@ -315,14 +315,23 @@ class PAMList():
       except Exception, e:
          print str(e) 
       
-   def newButton(self,newButController=None):
+   def ExpButtons(self,newButController=None):
       
       newPAMButton = QPushButton("New PAM")
       if newButController is not None:
          newPAMButton.clicked.connect(newButController)
       newPAMButton.setAutoDefault(False)
       newPAMButton.setMinimumWidth(158)   # MIGHT WANT TO RETURN HORIZ LAYOUT
-      return newPAMButton
+      
+      startBut = QPushButton("Start")
+      startBut.setEnabled(False)
+      startBut.setAutoDefault(False)
+      AddButton = QPushButton("Add To")
+      AddButton.setEnabled(False)
+      AddButton.setAutoDefault(False)
+      
+      
+      return newPAMButton,startBut,AddButton
    
 class UserArchiveController(Search,PAMList):
    
