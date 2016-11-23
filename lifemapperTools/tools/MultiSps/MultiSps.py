@@ -14,34 +14,18 @@ from lifemapperTools.tools.radTable import *
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.tools.MultiSps.Grids import grid
-from lifemapperTools.tools.MultiSps.common.navigation import NavTreeView,NavTreeModel,NavTreeItem
+from lifemapperTools.tools.MultiSps.common.navigation import NavTreeView,NavTreeModel,NavTreeItem, NavigationListItem
 from lifemapperTools.tools.MultiSps.User_BOOM import archive
 from lifemapperTools.tools.MultiSps.MCPA import mcpa
 from lifemapperTools.tools.MultiSps.layers import layers
 from lifemapperTools.tools.MultiSps.common.plots import PlotWindow
-from lifemapperTools.common.LmQTree import TreeItem
-
-
-
-class NavigationItem(QListWidgetItem):
-   
-   def __init__(self,result,parent,reds=[],blues=[],rowIdx=0,page=None):
-      QListWidgetItem.__init__(self,result[0],parent,QListWidgetItem.UserType)
-      
-      
-      self.page = result[1]
-      #if self.pathId in reds:
-      #   self.setBackground(Qt.red) # sets red backdround
-      #   #parent.setItemDelegateForRow(rowIdx,SelectedDelegate(Qt.red))  # doesn't work right now
-      #if self.pathId in blues:
-      #   self.setBackground(Qt.cyan)
 
 
 
 class Ui_Dialog(object):
    
       def setupUi(self):
-         self.resize(698, 410)   # orgin 648, 410
+         self.resize(748, 410)   # orgin 648, 410
          self.setMinimumSize(698, 470)
          self.setMaximumSize(998, 770)
          self.setSizeGripEnabled(True)
@@ -58,7 +42,7 @@ class Ui_Dialog(object):
       def setUpStackedFolderView(self):
          
          self.folderTreeView = NavTreeView(None,dialog=self, stackedWidget= self.stackedWidget)#, parent = self.folderPage)
-         self.folderTreeView.setMinimumWidth(198)
+         self.folderTreeView.setMinimumWidth(232)
          self.folderTreeView.doubleClicked.connect(self.handle)
          #self.folderTreeView = QTreeView()
          self.folderModel = NavTreeModel(top='Multi Species Analysis') # 'Africa Mammals PAM'
@@ -67,11 +51,13 @@ class Ui_Dialog(object):
          
          #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
          MCPAFolder = NavTreeItem("MCPA","MCPA",self.folderModel.provider)
-         RawMCPA = NavTreeItem("prepared inputs","prepared inputs",MCPAFolder,page=self.mcpaPage)
+         NewMCPA = NavTreeItem("New MCP Exp","New MCP Exp",MCPAFolder,page=self.mcpaPage)
+         RawMCPA = NavTreeItem("prepared inputs","prepared inputs",NewMCPA,page=self.mcpaPage)
          
          RADFolder = NavTreeItem("RAD","RAD",self.folderModel.provider)
          RawRAD  = NavTreeItem("Enter All Inputs","Need All Inputs",RADFolder)
          TreeLyrsRAD = NavTreeItem("Tree/Layers","Tree/Layers",RawRAD,page=self.layersPage)
+         FindLyrsRAD_NewExp = NavTreeItem("Create Exp by Searching Archive","Create Exp by Searching Archive",RawRAD,page=self.searchPage)
          GridRAD = NavTreeItem("Grid","Grid",RawRAD,page=self.gridPage)
          
          PreparedRAD  = NavTreeItem("Enter Prepared Inputs","Have Prepared Inputs",RADFolder)
@@ -93,7 +79,7 @@ class Ui_Dialog(object):
             #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
             TTips = ["Range Diveristy Plots","Search/Attach Trees to Layers","Build MCPA","Search Archive","Build Grid"]
             for res in zip(["Range Diveristy Plots","Search/Attach Trees to Layers","Build MCPA","Search Archive","Build Grid"],self.allPages,TTips):
-               navItem = NavigationItem(res, self.navList, QListWidgetItem.UserType)
+               navItem = NavigationListItem(res, self.navList, QListWidgetItem.UserType)
                navItem.setToolTip(res[2])
          else:
             self.setUpStackedFolderView()

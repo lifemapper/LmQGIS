@@ -3,9 +3,23 @@ from PyQt4.QtCore import *
 from lifemapperTools.common.LmQTree import BrowserTreeModel, TreeItem
 
 
+
+class NavigationListItem(QListWidgetItem):
+   
+   def __init__(self,result,parent,reds=[],blues=[],rowIdx=0,page=None):
+      QListWidgetItem.__init__(self,result[0],parent,QListWidgetItem.UserType)
+      
+      
+      self.page = result[1]
+      #if self.pathId in reds:
+      #   self.setBackground(Qt.red) # sets red backdround
+      #   #parent.setItemDelegateForRow(rowIdx,SelectedDelegate(Qt.red))  # doesn't work right now
+      #if self.pathId in blues:
+      #   self.setBackground(Qt.cyan)
+
 class NavTreeItem(TreeItem):
    
-   def __init__(self, data, name, parent=None,page=None,stackedWidget=None):
+   def __init__(self, data, name, type = None, parent=None,page=None,stackedWidget=None):
       TreeItem.__init__(self, data,name,parent=parent)
       self.page = page
       
