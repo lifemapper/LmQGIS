@@ -51,6 +51,31 @@ class ArchiveComboModel(LmListModel):
       self.listData = newList
       self.endInsertRows()
 
+class PAMListingItem(object):
+   """
+   @note: rough class for PAM (Exp) items for listing, will need to change
+   data method in PAMIconListModel and setData in same
+   """
+   def __init__(self, name, typeExps, treeId, icon):
+      """
+      @summary: Constructor for SpeciesSearchResult object
+      
+      """
+      self.name = name
+      self.typeExps = typeExps
+      self.treeId = treeId
+      self.icon = icon
+      
+      
+      # .........................................
+   def customData(self):
+      """
+      @summary: Creates a string representation of the TreeSearchResult 
+                   object
+      """
+      return "%s" % (self.name)
+
+
 class PAMIconListModel(LmListModel):
    
    def __init__(self,data,startBut):
@@ -73,6 +98,8 @@ class PAMIconListModel(LmListModel):
          return self.listData[index.row()][1]
       if role == Qt.DecorationRole:
          return self.listData[index.row()][0]
+      else:
+         return self.listData[index.row()].customData()
       return None #QVariant()
    
    def flags(self, index):   
@@ -91,6 +118,7 @@ class PAMIconListModel(LmListModel):
          # can send to server, or store name, andor enable start
          print "getting in here on drop, check to see if from drag"
          self.startBut.setEnabled(True)  # put this in function will need to do several things
+         self.startBut.setAutoDefault(True)
          print type(value)
          self.listData[index.row()][1] = value.toString()
       except Exception, e:
@@ -339,21 +367,22 @@ class PAMList():
       
    def ExpButtons(self,newButController=None):
       
-      newPAMButton = QPushButton("New PAM")
+      self.newPAMButton = QPushButton("New PAM")
       if newButController is not None:
-         newPAMButton.clicked.connect(newButController)
-      newPAMButton.setAutoDefault(False)
-      newPAMButton.setMinimumWidth(158)   # MIGHT WANT TO RETURN HORIZ LAYOUT
+         self.newPAMButton.clicked.connect(newButController)
+      self.newPAMButton.setAutoDefault(False)
+      self.newPAMButton.setMinimumWidth(158)   # MIGHT WANT TO RETURN HORIZ LAYOUT
       
       self.startBut = QPushButton("Start")
       self.startBut.setEnabled(False)
-      self.startBut.setAutoDefault(False)
+      self.startBut.clicked.connect(self.startNewExp)
+      #self.startBut.setAutoDefault(False)
       self.AddButton = QPushButton("Add To")
       self.AddButton.setEnabled(False)
       self.AddButton.setAutoDefault(False)
       
       
-      return newPAMButton,self.startBut,self.AddButton
+      return self.newPAMButton,self.startBut,self.AddButton
    
 class UserArchiveController(Search,PAMList):
    
@@ -365,18 +394,32 @@ class UserArchiveController(Search,PAMList):
       
       PAMList.__init__(self)
       self.PAMProjectView(parent)
-      self.getData()
+      self.getExpList()
       self.parent = parent
       print "in initial UserArchiveController ",self.startBut
       
    def flipToMCPA(self,index):
+      """
+      @note: if from folder stacked Widget will have to account for no tabs, will 
+      need to send new exp Id to inputs panel
+      """
       print index.row()
-      tabs = self.parent.tabWidget
-      mcpaWidget = self.parent.mcpaPage
-      tabs.setCurrentWidget(mcpaWidget)
+      try:  # tabs
+         tabs = self.parent.tabWidget
+         mcpaWidget = self.parent.mcpaPage
+         tabs.setCurrentWidget(mcpaWidget)
+      except: #stackedWidgets
+         try: # folder stacked Widgets
+            pass
+         except: #vanilla stacked Widgets
+            pass
       
       
    def _checkQgisProjForKey(self):
+      """
+      @ gets the project file name for the current QGIS project
+      and if found in QSettings sets currentExpId to exp Id
+      """
       project = QgsProject.instance()
       filename = str(project.fileName())  
       found = False
@@ -428,12 +471,14 @@ class UserArchiveController(Search,PAMList):
       @summary: called on click of start button,
       @note: need to (maybe) incoroporate QSettings routing similar to new exp in old RAD 
       """
+      print "at new experiment"
+      self.checkExperiments()  # this will have to be checked in QGIS
       try:
          pass
       except:
          pass
       
-   def getData(self):
+   def getExpList(self):
       """
       @summary: gets listing of user experiments,  will need to use 
       client library, for now just mockup
@@ -442,6 +487,7 @@ class UserArchiveController(Search,PAMList):
       try:
          for i,x in enumerate(range(0,25)):
             icon = QIcon(":/plugins/lifemapperTools/icons/Grid_Owl.png")
+            # append PAMListingItem instead
             self.data.append([icon,"PAM %s" % (int(i))])
       except:
          pass
@@ -453,7 +499,11 @@ class UserArchiveController(Search,PAMList):
       
       print something
          
-   def createNewPAM(self):
+   def createNewPAM_ICON(self):
+      """
+      @summary: just creates a PAM Icon, will need add metadata to 
+      the data model behind the icon when this happens
+      """
       
       self.projectCanvas.setEditTriggers(QAbstractItemView.CurrentChanged)
       icon = QIcon(":/plugins/lifemapperTools/icons/Grid_Owl.png")
