@@ -46,11 +46,13 @@ class Ui_Dialog(object):
          self.folderTreeView.setModel(self.folderModel)
          self.folderTreeView.setObjectName("folderTreeView")
          
+         ListAll = NavTreeItem("All PAMs","List All PAMs",self.folderModel.provider)
          #[self.plots,self.layersPage,self.mcpaPage,self.searchPage,self.gridPage]
          MCPAFolder = NavTreeItem("MCPA","MCPA",self.folderModel.provider)
          NewMCPA = NavTreeItem("New MCP Exp","New MCP Exp",MCPAFolder)
          RawMCPA = NavTreeItem("prepared inputs","prepared inputs",NewMCPA,page=self.mcpaPage)
          ListStartMewMCPA = NavTreeItem("List/StartNew","List/StartNew",NewMCPA, page=self.searchPage,type=FloderNav.PARTIALPAGE,hide=[self.searchCombo.combo,self.spslistView])
+         
          
          RADFolder = NavTreeItem("RAD","RAD",self.folderModel.provider)
          NewRAD  = NavTreeItem("New RAD","New RAD",RADFolder)
