@@ -53,12 +53,13 @@ class Ui_Dialog(object):
          ListStartMewMCPA = NavTreeItem("List/StartNew","List/StartNew",NewMCPA, page=self.searchPage,type=FloderNav.PARTIALPAGE,hide=[self.searchCombo.combo,self.spslistView])
          
          RADFolder = NavTreeItem("RAD","RAD",self.folderModel.provider)
-         RawRAD  = NavTreeItem("Enter All Inputs","Need All Inputs",RADFolder)
+         NewRAD  = NavTreeItem("New RAD","New RAD",RADFolder)
+         RawRAD  = NavTreeItem("Enter All Inputs","Need All Inputs",NewRAD)
          TreeLyrsRAD = NavTreeItem("Tree/Layers","Tree/Layers",RawRAD,page=self.layersPage)
          FindLyrsRAD_NewExp = NavTreeItem("Create Exp by Searching Archive","Create Exp by Searching Archive",RawRAD,page=self.searchPage)
          GridRAD = NavTreeItem("Grid","Grid",RawRAD,page=self.gridPage)
          
-         PreparedRAD  = NavTreeItem("Enter Prepared Inputs","Have Prepared Inputs",RADFolder)
+         PreparedRAD  = NavTreeItem("Enter Prepared Inputs","Have Prepared Inputs",NewRAD)
          
       
       def setUpStackedWidgets(self): 
@@ -114,7 +115,11 @@ class Ui_Dialog(object):
          ### PAM listing 
          self.listLayout = QVBoxLayout()
          self.listButLayout = QHBoxLayout()
-         self.NewPAMButton, self.StartPAMButton, self.AddToPAMButton = self.searchController.ExpButtons(newButController=self.searchController.createNewPAM)
+         self.StartPAMButton =  self.searchController.startBut
+         PAMbuttons = self.searchController.ExpButtons(newButController=self.searchController.createNewPAM_ICON) #self.NewPAMButton, self.StartPAMButton, self.AddToPAMButton
+         self.NewPAMButton =  PAMbuttons[0]
+         self.AddToPAMButton = PAMbuttons[2]
+         
          self.listButLayout.addWidget(self.NewPAMButton)
          #two = QPushButton("Start")
          #two.setEnabled(False)
