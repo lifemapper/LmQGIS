@@ -6,12 +6,14 @@ from PyQt4.Qt import *
 from lifemapperTools.common.lmHint import Hint, SpeciesSearchResult
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.icons import icons
+from lifemapperTools.common.pluginconstants import QGISProject
 from __builtin__ import True
 
 
 class ArchiveComboModel(LmListModel):
-   
-   
+   """
+   @summary: data model for (sps,...) user entry search combo
+   """
    def data(self, index, role):
       """
       @summary: Gets data at the selected index
@@ -235,6 +237,9 @@ class Search(object):
 class LmListWidget(QListWidget):
    
    def __init__(self,parent):
+      """
+      @summary: subclass for list widget for species search results
+      """
       QListWidget.__init__(self, parent)
    
    def mimeTypes_bad(self, *args, **kwargs):
@@ -311,6 +316,10 @@ class PAMList():
       #self.projectCanvas.setDragDropOverwriteMode(True) # replaces text, without Static?
       
    def setAllPopUp(self,pos):
+      """
+      @note: considering doing things like setting EPSG code for an experiment with these 
+      controls, another idea would be on click of "Start" have modeal subpanel
+      """
       try:
          index = self.projectCanvas.indexAt(pos)
          value = index.model().listData[index.row()][index.column()]
@@ -349,12 +358,16 @@ class PAMList():
 class UserArchiveController(Search,PAMList):
    
    def __init__(self, parent=None):
+      """
+      @note: question as to when self.checkExperiments() gets called, old method use to call
+      on instantiation of new Exp dialog
+      """
       
       PAMList.__init__(self)
       self.PAMProjectView(parent)
       self.getData()
       self.parent = parent
-      
+      print "in initial UserArchiveController ",self.startBut
       
    def flipToMCPA(self,index):
       print index.row()
@@ -363,7 +376,68 @@ class UserArchiveController(Search,PAMList):
       tabs.setCurrentWidget(mcpaWidget)
       
       
+   def _checkQgisProjForKey(self):
+      project = QgsProject.instance()
+      filename = str(project.fileName())  
+      found = False
+      s = QSettings()
+      for key in s.allKeys():
+         if 'RADExpProj' in key:
+            value = str(s.value(key))
+            if value == filename:
+               found = True
+               expId = key.split('_')[1]
+               s.setValue("currentExpID", int(expId))  
+      return found   
+
+        
+# ..............................................................................
+      
+   def checkExperiments(self):
+      """
+      @summary: gets the current expId, if there is one it gets the current
+      project path associated with that id.  If there is a project path, it 
+      triggers a save project.  If there is no path, it asks a save as, and sets 
+      the project path for the id. The last thing it does is to open a new 
+      qgis project
+      """   
+      s = QSettings()
+      currentExpId  = s.value("currentExpID",QGISProject.NOEXPID,type=int)
+      if currentExpId != QGISProject.NOEXPID:
+         currentpath = str(s.value("RADExpProj_"+str(currentExpId),
+                                   QGISProject.NOPROJECT))
+         if currentpath != QGISProject.NOPROJECT and currentpath != '':
+            self.interface.actionSaveProject().trigger()
+         else:
+            if len(QgsMapLayerRegistry.instance().mapLayers().items()) > 0:
+               #self.interface.actionSaveProjectAs().trigger()
+               self.workspace.saveQgsProjectAs(currentExpId)
+               
+         # now  actionNewProject
+         self.interface.actionNewProject().trigger()
+         s.setValue("currentExpID",QGISProject.NOEXPID)
+      else: # no experiment Id
+         # there is a case where a Qgis project can be opened but there is no
+         # current id, like after a sign out but that Qgis project belongs to an id, in that case it needs
+         # to start a new project
+         if len(QgsMapLayerRegistry.instance().mapLayers().items()) == 0 or self._checkQgisProjForKey():      
+            self.interface.actionNewProject().trigger()
+   
+   def startNewExp(self):
+      """
+      @summary: called on click of start button,
+      @note: need to (maybe) incoroporate QSettings routing similar to new exp in old RAD 
+      """
+      try:
+         pass
+      except:
+         pass
+      
    def getData(self):
+      """
+      @summary: gets listing of user experiments,  will need to use 
+      client library, for now just mockup
+      """
       self.data = []
       try:
          for i,x in enumerate(range(0,25)):
