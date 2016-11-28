@@ -56,7 +56,7 @@ class PAMListingItem(object):
    @note: rough class for PAM (Exp) items for listing, will need to change
    data method in PAMIconListModel and setData in same
    """
-   def __init__(self, name, typeExps, treeId, icon):
+   def __init__(self,  icon, name, typeExps=None, treeId=None):
       """
       @summary: Constructor for SpeciesSearchResult object
       
@@ -78,11 +78,11 @@ class PAMListingItem(object):
 
 class PAMIconListModel(LmListModel):
    
-   def __init__(self,data,startBut):
+   def __init__(self,data,startBut,customIdx=[]):
       
       LmListModel.__init__(self, data)
       self.startBut = startBut
-      
+      self.customData = customIdx
    
    def data(self, index, role):
       """
@@ -94,11 +94,11 @@ class PAMIconListModel(LmListModel):
       """
       if not index.isValid() or not (0 <= index.row() < len(self.listData)):
          return None #QVariant()
-      if role == Qt.DisplayRole:
-         return self.listData[index.row()][1]
-      if role == Qt.DecorationRole:
-         return self.listData[index.row()][0]
-      else:
+      elif role == Qt.DisplayRole:
+         return self.listData[index.row()].name
+      elif role == Qt.DecorationRole:
+         return self.listData[index.row()].icon
+      elif index.row() in self.customData:
          return self.listData[index.row()].customData()
       return None #QVariant()
    
@@ -120,10 +120,10 @@ class PAMIconListModel(LmListModel):
          self.startBut.setEnabled(True)  # put this in function will need to do several things
          self.startBut.setAutoDefault(True)
          print type(value)
-         self.listData[index.row()][1] = value.toString()
+         self.listData[index.row()].name = value.toString()
       except Exception, e:
          print "FAIL ",str(e)
-         self.listData[index.row()][1] = str(value)
+         self.listData[index.row()].name = str(value)
       self.dataChanged.emit(index,index)
       return True
    
@@ -350,7 +350,7 @@ class PAMList():
       """
       try:
          index = self.projectCanvas.indexAt(pos)
-         value = index.model().listData[index.row()][index.column()]
+         value = 666# index.model().listData[index.row()][index.column()]
          menu = QMenu()
          setAllAction = menu.addAction('MCPA "'+str(value)+'"')
          setSelected = menu.addAction('Set Selected in this column to "'+str(value)+'"')
@@ -487,8 +487,9 @@ class UserArchiveController(Search,PAMList):
       try:
          for i,x in enumerate(range(0,25)):
             icon = QIcon(":/plugins/lifemapperTools/icons/Grid_Owl.png")
-            # append PAMListingItem instead
-            self.data.append([icon,"PAM %s" % (int(i))])
+            # append PAMListingItem instead, (icon, name, typeExps=None, treeId=None)
+            #self.data.append([icon,"PAM %s" % (int(i))])
+            self.data.append(PAMListingItem(icon,"PAM %s" % (int(i))))
       except:
          pass
       else:
@@ -507,7 +508,9 @@ class UserArchiveController(Search,PAMList):
       
       self.projectCanvas.setEditTriggers(QAbstractItemView.CurrentChanged)
       icon = QIcon(":/plugins/lifemapperTools/icons/Grid_Owl.png")
-      self.data.insert(0, [icon,"New PAM"])
+      # insert PAMListingItem instead, (icon, name, typeExps=None, treeId=None)
+      #self.data.insert(0, [icon,"New PAM"])
+      self.data.insert(0,PAMListingItem(icon,"New PAM"))
       self.archiveModel.updateList(self.data)
       
       self.projectCanvas.setEditTriggers(QAbstractItemView.CurrentChanged)
