@@ -40,7 +40,7 @@ class Ui_Dialog(object):
          
          self.folderTreeView = NavTreeView(None,dialog=self, stackedWidget= self.stackedWidget)#, parent = self.folderPage)
          self.folderTreeView.setMinimumWidth(232)
-         self.folderTreeView.doubleClicked.connect(self.handle)
+         #self.folderTreeView.doubleClicked.connect(self.folderTreeView.handleEvent)
          #self.folderTreeView = QTreeView()
          self.folderModel = NavTreeModel(top='Multi Species Analysis') # 'Africa Mammals PAM'
          self.folderTreeView.setModel(self.folderModel)
