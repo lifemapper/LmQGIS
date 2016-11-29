@@ -352,7 +352,7 @@ class PAMList():
          index = self.projectCanvas.indexAt(pos)
          value = 666# index.model().listData[index.row()][index.column()]
          menu = QMenu()
-         setAllAction = menu.addAction('MCPA "'+str(value)+'"')
+         setAllAction = menu.addAction('MCPA_maybe "'+str(value)+'"')
          setSelected = menu.addAction('Set Selected in this column to "'+str(value)+'"')
          setEmpty = menu.addAction('Set empty cells in this column to "'+str(value)+'"')
          action = menu.exec_(QCursor.pos())
