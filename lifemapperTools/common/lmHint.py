@@ -92,7 +92,9 @@ class Hint:
       #self.combo.setCompleter(self.completer)
       self.callback = callBack
       
-      self.combo.textChanged.connect(self.onTextChange)
+      #self.combo.textChanged.connect(self.onTextChange) # linux, mac
+      self.combo.editTextChanged.connect(self.onTextChange)  # windows
+   
       
    
    def searchOccSets(self,searchText=''):
@@ -130,7 +132,9 @@ class Hint:
          
          
    def getIdxFromTuples(self,currentText):
-      
+      """
+      @summary: gets index of chosen item from combo box after results returned from callback
+      """
       idx = 0
       if self.namedTuples is not None:
          for sH in self.namedTuples: 
@@ -155,7 +159,10 @@ class Hint:
    
 
    def onTextChange(self, text):
-      
+      """
+      @summary: stock handler for text change
+      @param text: string from search box, usually a modified combo box
+      """
       noChars = len(text)
       if text == '':
          self.combo.clear()
