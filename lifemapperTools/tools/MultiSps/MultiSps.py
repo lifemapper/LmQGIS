@@ -3,7 +3,6 @@ import logging
 import cPickle
 import csv
 import numpy as np
-from PyQt4.Qt import QVBoxLayout
 try: import simplejson as json 
 except: import json
 from collections import Counter
@@ -40,7 +39,7 @@ class Ui_Dialog(object):
          
          self.folderTreeView = NavTreeView(None,dialog=self, stackedWidget= self.stackedWidget)#, parent = self.folderPage)
          self.folderTreeView.setMinimumWidth(232)
-         #self.folderTreeView.doubleClicked.connect(self.folderTreeView.handleEvent)
+         #self.folderTreeView.doubleClicked.connect(self.handle)
          #self.folderTreeView = QTreeView()
          self.folderModel = NavTreeModel(top='Multi Species Analysis') # 'Africa Mammals PAM'
          self.folderTreeView.setModel(self.folderModel)
