@@ -44,19 +44,19 @@ class NavTreeView(QTreeView):
          
    def handleEvent(self, index):
       
-      
-      print "in folder event"
-      # will need to get type
+      #pass
+      #print "in folder event"
+      ## will need to get type
       self.stackedWidget.setCurrentWidget(self.model().nodeFromIndex(index).page)
-      hide = self.model().nodeFromIndex(index).hide
-      print "hide ",hide
-      if hide is not None:
-         for h in hide:
-            print h
-            h.setEnabled(False)
-      #try:
-      childRowIdx = index.row()
-      itemData = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData
+      #hide = self.model().nodeFromIndex(index).hide
+      #print "hide ",hide
+      #if hide is not None:
+      #   for h in hide:
+      #      print h
+      #      h.setEnabled(False)
+      ##try:
+      #childRowIdx = index.row()
+      #itemData = self.model().nodeFromIndex(index.parent()).child(childRowIdx).itemData
       
    def getDataFromDoubleClick(self, itemIdx):
       """
