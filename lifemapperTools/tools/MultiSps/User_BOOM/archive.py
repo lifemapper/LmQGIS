@@ -104,7 +104,7 @@ class PAMIconListModel(LmListModel):
    
    def flags(self, index):   
       if  index.isValid(): #index.column() in self.editIndexes and index.column() not in self.controlIndexes:     
-         return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsDropEnabled
+         return Qt.ItemIsEnabled | Qt.ItemIsSelectable# | Qt.ItemIsEditable | Qt.ItemIsDropEnabled
       #elif index.column() in self.controlIndexes:
       #   return Qt.ItemIsEnabled | Qt.ItemIsSelectable   
         
@@ -329,6 +329,8 @@ class PAMList():
       
       #self.projectCanvas = QListView()
       self.projectCanvas = PAMListView(parent=parent)
+      #self.projectCanvas.setMinimumSize(698, 470)
+      self.projectCanvas.doubleClicked.connect(parent.drillDown)
       self.projectCanvas.setViewMode(QListView.IconMode)
       self.projectCanvas.setMovement(QListView.Snap)  # QListView.Static doesn't allow drop?
       self.projectCanvas.setGridSize(QSize(100,100))
@@ -342,6 +344,7 @@ class PAMList():
       #self.projectCanvas.setDragDropMode(QAbstractItemView.DropOnly)
       self.projectCanvas.setAcceptDrops(True)
       #self.projectCanvas.setDragDropOverwriteMode(True) # replaces text, without Static?
+      
       
    def setAllPopUp(self,pos):
       """
@@ -472,7 +475,7 @@ class UserArchiveController(Search,PAMList):
       @note: need to (maybe) incoroporate QSettings routing similar to new exp in old RAD 
       """
       print "at new experiment"
-      self.checkExperiments()  # this will have to be checked in QGIS
+      #self.checkExperiments()  # this will have to be checked in QGIS
       try:
          pass
       except:
@@ -489,7 +492,7 @@ class UserArchiveController(Search,PAMList):
             icon = QIcon(":/plugins/lifemapperTools/icons/Grid_Owl.png")
             # append PAMListingItem instead, (icon, name, typeExps=None, treeId=None)
             #self.data.append([icon,"PAM %s" % (int(i))])
-            self.data.append(PAMListingItem(icon,"PAM %s" % (int(i))))
+            self.data.append(PAMListingItem(icon,"Experiment %s" % (int(i))))
       except:
          pass
       else:
