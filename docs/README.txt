@@ -1,7 +1,7 @@
 Lifemappers tools is the core package when installed in QGIS (prepared for distribution must be the top directory)
 
-OverView
-===============
+OverView of code by folder
+==========================
 
 
 Common Folder
@@ -42,7 +42,7 @@ MultiSps Folder
 ------------------
 New experiment MultiSps folder in tools directory is a new organizational strucure for all MultiSps functionality in one dialog but still 
 follows MVC code pattern.  This will replace close to 1/3 or more of existing code.  It is organized by "page" of 
-functionality, e.g. (Stats subfolder) will contain both controller and ui for access stats. 
+functionality, e.g. (Stats subfolder) will contain both controller and ui for access to stats outputs. 
 
 
 Operational Details
@@ -51,11 +51,32 @@ Operational Details
 Menu System
 ------------------
 
-The module metools.py in common is the core plugin instance, in so far as the main __init__.py at the top level of the plugin has a required classFactory method that takes the QGIS iface object as an arg and returns an instance of MetoolsPlugin from metools. The MetoolsPlugin class inititalizes the Qmenu GUI and assigns Qt actions to items and subitems in submenus.  These actions initialize dialogs and open them either as modal or non-modal depending on whether or not the user needs to complete dialog inputs before moving on or whether they need to be able to interact with QGIS.  Upon initialization of the main menu GUI
+The module metools.py in common is the core plugin instance, in so far as the main __init__.py at the top level of the plugin has a required classFactory method that takes the QGIS iface object as an arg and returns an instance of MetoolsPlugin from metools. The MetoolsPlugin class initializes the Qmenu GUI and assigns Qt actions to items and subitems in submenus.  These actions initialize dialogs and open them either as modal or non-modal depending on whether or not the user needs to complete dialog inputs before moving on or whether they need to be able to interact with QGIS.  Upon initialization of the main menu GUI
 several custom PyQT signals from the Communicate module in common are connected to methods. These signals and their methods send communication from state changes from dialogs, like changes to current experiment information, to the menu system, and as the user opens experiments and their constituent parts the main menuing system evolves (enables different functionality) so that a user can use new menu items to get back to important parts of the current experiment. This helps to control the workflow and gives easy access directly to data once an experiment is opened and it's grids (buckets) are opened, rather than have to go back through the bucket listing tool.  
 
 **iface QGIS object**
 
 The iface QGIS object `https://qgis.org/api/classQgisInterface.html#details <http://>`_
 is the instance of the QgisInterface Class made available to plugins. Only QGIS functionality exposed by QgisInterface can be used in plugins. It is provided automatically to the class factory by the plugin manager, and is passed to the instance of the MetoolsPlugin and from there to the dialogs for interaction with QGIS.
+
+
+Dialogs and their connections
+-----------------------------
+
+**Overview**
+
+Dialogs are initially opened from menu items.  If the workflow requires an additional dialog, 
+the current dialog will spawn the new dialog for those actions.  The naming convention for controllesr vs
+(Views), i.e. ui components is mentioned above.  Other naming conventions for controllers are controllers
+starting with "list" are dialogs that use the listing services. Listing dialogs can have other functions
+then just listing, for example listing RAD experiments is the way that select a Grid (Bucket) and get the
+listing dialog for the buckets in that experiment, and from there by selecting a bucket the buckets listing
+can  get the stats dialog for that bucket.  For RAD most of this is going away and should be duplicated in
+the MultiSps structure mentioned above. All of the functionality for a stock SDM experiment is contained
+in the postSDMExp.py controller and it's ui is called ui_postSDMExp.py.
+
+
+
+
+
 
