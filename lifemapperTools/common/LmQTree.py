@@ -8,7 +8,7 @@ class BrowserTreeModel(QAbstractItemModel):
    def __init__(self,top='Archive'):
       """
       @summary: constructor
-      @param top: top element string
+      @param top: top element string 
       """
       QAbstractItemModel.__init__(self)
       self.headers = ['','','']
