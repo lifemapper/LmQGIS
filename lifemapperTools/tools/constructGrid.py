@@ -118,7 +118,7 @@ class ConstructGridDialog( _Controller, QDialog, Ui_Dialog):
          self.startThread(GENERIC_REQUEST,outputfunc = self.getShapeFile, 
                           requestfunc=self.client.rad.addBucket, client=self.client,
                           inputs=self.keyvalues)
-         
+         #self.client.rad.addBucket(**self.keyvalues)
    def _testFloat(self,coord):
       coordFloat = True
       try:
