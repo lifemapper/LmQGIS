@@ -11,8 +11,7 @@ import lifemapperTools as LM
 from LmClient.lmClientLib import LMClient, OutOfDateException
 from lifemapperTools.common.lmListModel import LmListModel
 from lifemapperTools.common.pluginconstants import ARCHIVE_DWL_TYPE
-#from lifemapperTools.common.pluginconstants import  CURRENT_WEBSERVICES_ROOT
-#from lifemapperTools.common.pluginconstants import BROWSER_BANNER
+
 # ..........................
 
 PROVIDER = "Lifemapper"
@@ -278,7 +277,7 @@ class LMTreeView(QTreeView):
       self.header().setResizeMode(QHeaderView.ResizeToContents)
    # .................................................................      
    def handleEvent(self, index):
-      
+      print "terminal or internal"
       # will need to get type
       childRowIdx = index.row()
       downloadType = self.model().nodeFromIndex(index.parent()).child(childRowIdx).type
@@ -779,8 +778,8 @@ class archiveBrowserDock(QDockWidget, Ui_Dock,):
       except OutOfDateException, e:
          message = "Your plugin version is out of date, please update from the QGIS python plugin repository."
          QMessageBox.warning(self,"Problem...",message,QMessageBox.Ok)
-      except:
-         message = "No Network Connection"
+      except Exception, e:
+         message = "No Network Connection "+str(e)
          QMessageBox.warning(self,"Problem...",message,QMessageBox.Ok)
       else:
          self.client = cl
