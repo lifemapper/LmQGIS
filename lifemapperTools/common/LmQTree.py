@@ -2,8 +2,14 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
 class BrowserTreeModel(QAbstractItemModel):
-
+   """
+   @summary: Folder/Browser model for QT tree data model
+   """
    def __init__(self,top='Archive'):
+      """
+      @summary: constructor
+      @param top: top element string
+      """
       QAbstractItemModel.__init__(self)
       self.headers = ['','','']
       self.columns = 3
