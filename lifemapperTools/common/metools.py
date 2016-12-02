@@ -75,7 +75,7 @@ class MetoolsPlugin:
       self.treeWindow = None
    
    def getInstances(self):
-   
+      newL = []
       try:
          cl = LMClient()
          instanceObjs = cl.getAvailableInstances()
@@ -83,7 +83,7 @@ class MetoolsPlugin:
          instanceObjs = False
       else:    
          newL = list(instanceObjs)       
-         #newL.extend([('iDigBio', 'http://lifemapper.org')])
+         #newL.extend([('iDigBio', 'http://notyeti-195.lifemapper.org')])
          #newL.extend([('BISON', 'http://notyeti-192.lifemapper.org')])  
             
       return newL
